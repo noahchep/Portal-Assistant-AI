@@ -73,7 +73,7 @@
     <div id="top_info">
         <table border="0">
             <tr>
-                <td width="80"><img src="../Images/ogo.jpg" class="logoimg" alt="MKU Logo" /></td>
+                <td width="80"><img src="../Images/logo.jpg" class="logoimg" alt="MKU Logo" /></td>
                 <td>
                     <h1>Student Support Agent</h1>
                     <small>Infinite support for infinite possibilities.</small>
