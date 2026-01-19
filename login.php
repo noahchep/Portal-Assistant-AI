@@ -1,3 +1,57 @@
+<?php
+session_start();
+
+// 1. Database connection
+$host = "localhost";
+$db_user = "root";
+$db_pass = "";
+$db_name = "Portal-Asisstant-AI";
+
+$conn = mysqli_connect($host, $db_user, $db_pass, $db_name);
+
+if (!$conn) {
+    die("Connection failed: " . mysqli_connect_error());
+}
+
+$error = ""; 
+
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['signin'])) {
+    $username = mysqli_real_escape_string($conn, $_POST['username']);
+    $password = $_POST['password']; // keep raw password for verification
+
+    // Fetch user by registration number only
+    $sql = "SELECT * FROM `users` WHERE `reg_number` = ?";
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, "s", $username);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+
+    if ($result && mysqli_num_rows($result) === 1) {
+        $row = mysqli_fetch_assoc($result);
+
+        // Verify password against hashed value in DB
+        if (password_verify($password, $row['password'])) {
+            // Correct password, set session
+            $_SESSION['user_id']   = $row['id'];
+            $_SESSION['user_name'] = $row['full_name'];
+            $_SESSION['role']      = $row['role'];
+
+            // Redirect based on role
+            if ($row['role'] == 'admin') {
+                header("Location: Admin/Admin-index.php");
+            } else {
+                header("Location: Student/home.php");
+            }
+            exit();
+        } else {
+            $error = "Invalid Registration Number or Password!";
+        }
+    } else {
+        $error = "Invalid Registration Number or Password!";
+    }
+}
+
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -11,7 +65,6 @@
             margin: 0;
             padding: 0;
             height: 100vh;
-            /* Using the background logic we discussed */
             background: url("../Images/logback.jpg") no-repeat center center;
             background-size: cover;
             background-attachment: fixed;
@@ -20,7 +73,6 @@
             justify-content: center;
         }
 
-        /* The Main Login Card */
         .login-container {
             width: 900px;
             display: flex;
@@ -31,7 +83,6 @@
             border: 1px solid rgba(255, 255, 255, 0.3);
         }
 
-        /* Left Side: Brand Section */
         .login-left {
             flex: 1;
             background: linear-gradient(135deg, #003366, #0056b3);
@@ -44,12 +95,11 @@
             text-align: center;
         }
 
-        /* White border logo logic */
         .logo-circle {
             width: 120px;
             height: 120px;
             border-radius: 50%;
-            border: 3px solid white; /* White Border you requested */
+            border: 3px solid white;
             margin-bottom: 20px;
             padding: 5px;
             background: white;
@@ -58,7 +108,6 @@
         .login-left h2 { margin: 10px 0; font-size: 24px; }
         .login-left p { font-size: 14px; opacity: 0.9; font-style: italic; }
 
-        /* Right Side: Form Section */
         .login-right {
             flex: 1.2;
             padding: 50px;
@@ -125,7 +174,6 @@
 
         .forgot-link a { color: #dc3545; text-decoration: none; font-weight: bold; }
 
-        /* News Ticker */
         marquee {
             margin-top: 30px;
             background: #f0f4f8;
@@ -134,6 +182,18 @@
             color: #003366;
             font-size: 11px;
             border: 1px solid #d0dae5;
+        }
+
+        .error-msg {
+            color: #dc3545;
+            background: #fdecea;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-weight: bold;
+            border: 1px solid #fabeb6;
         }
     </style>
 </head>
@@ -153,18 +213,20 @@
         <div class="login-title">Portal Assistant AI</div>
         <span class="slogan">Infinite support for infinite possibilities.</span>
 
-        <form action="/Default/LogIn" method="post">
+        <?php if($error != "") { echo '<div class="error-msg">'.$error.'</div>'; } ?>
+
+        <form action="" method="post">
             <div class="form-group">
                 <label class="control-label">User ID / Reg Number</label>
-                <input type="text" class="form-control" placeholder="e.g. BIT/2024/43255" required>
+                <input type="text" name="username" class="form-control" placeholder="e.g. BIT/2024/43255" required>
             </div>
 
             <div class="form-group">
                 <label class="control-label">Password</label>
-                <input type="password" class="form-control" placeholder="••••••••" required>
+                <input type="password" name="password" class="form-control" placeholder="••••••••" required>
             </div>
 
-            <input type="submit" class="btn-login" value="SIGN IN">
+            <input type="submit" name="signin" class="btn-login" value="SIGN IN">
             
             <div class="forgot-link">
                 <a href="#">Forgot Password?</a>

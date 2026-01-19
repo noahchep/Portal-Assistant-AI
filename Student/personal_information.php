@@ -1,3 +1,36 @@
+<?php
+session_start();
+
+/* SECURITY CHECK – student must be logged in */
+if (!isset($_SESSION['user_id'])) {
+    header("Location: ../login.php");
+    exit();
+}
+
+/* DB CONNECTION */
+$conn = mysqli_connect("localhost", "root", "", "Portal-Asisstant-AI");
+if (!$conn) {
+    die("Database connection failed");
+}
+
+/* FETCH STUDENT DATA */
+$user_id = $_SESSION['user_id'];
+
+$sql = "SELECT full_name, reg_number, email FROM users WHERE id = '$user_id' LIMIT 1";
+$result = mysqli_query($conn, $sql);
+
+if (!$result || mysqli_num_rows($result) !== 1) {
+    die("Student record not found");
+}
+
+$student = mysqli_fetch_assoc($result);
+
+/* SPLIT FULL NAME */
+$name_parts = explode(" ", $student['full_name']);
+$fname = $name_parts[0] ?? '';
+$mname = $name_parts[1] ?? '';
+$lname = $name_parts[2] ?? '';
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -93,7 +126,7 @@
 
     <div class="left_articles">
         <div class="student-bar">
-            BIT/2024/43255 | CHEPKONGA CHEPCHIENG NOAH | Thika (Day) , Main Campus (Thika)
+            <?php echo htmlspecialchars($student['reg_number']); ?> | <?php echo htmlspecialchars($student['full_name']); ?> | Thika (Day) , Main Campus (Thika)
         </div>
 
         <fieldset>
@@ -102,11 +135,15 @@
                 <table>
                     <tr>
                         <td class="dentry_label">Current :</td>
-                        <td>CHEPKONGA</td><td>CHEPCHIENG</td><td>NOAH</td>
+                        <td><?php echo htmlspecialchars($fname); ?></td>
+                        <td><?php echo htmlspecialchars($mname); ?></td>
+                        <td><?php echo htmlspecialchars($lname); ?></td>
                     </tr>
                     <tr>
                         <td class="dentry_label">Change : <span class="required">*</span></td>
-                        <td align="center">CHEPKONGA</td><td align="center">CHEPCHIENG</td><td align="center">NOAH</td>
+                        <td align="center"><?php echo htmlspecialchars($fname); ?></td>
+                        <td align="center"><?php echo htmlspecialchars($mname); ?></td>
+                        <td align="center"><?php echo htmlspecialchars($lname); ?></td>
                     </tr>
                     <tr>
                         <td colspan="4" align="center" style="background:#f9f9f9;"><i>Preferred Order of Name as it appears in other Certificates</i></td>
@@ -135,7 +172,7 @@
                     </tr>
                     <tr>
                         <td class="dentry_label">Online Email : <span class="required">*</span></td>
-                        <td colspan="3">noahchepkonga1@gmail.com</td>
+                        <td colspan="3"><?php echo htmlspecialchars($student['email']); ?></td>
                     </tr>
                 </table>
                 <div class="note-box">
@@ -143,111 +180,6 @@
                 </div>
             </form>
         </fieldset>
-
-        <fieldset>
-            <legend>Official Email</legend>
-            <form action="#" method="post">
-                <table border="1">
-                    <tr align="center">
-                        <td colspan="2">
-                            <b>Send Verification Code:</b> 
-                            <input type="radio" name="vMethod" checked> By Email 
-                            <input type="radio" name="vMethod"> By SMS
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="dentry_label">Email:</td>
-                        <td>bit2***.mku.ac.ke</td>
-                    </tr>
-                    <tr align="center">
-                        <td colspan="2"><input type="submit" class="btn-submit" value="Reset Email Password"></td>
-                    </tr>
-                </table>
-            </form>
-        </fieldset>
-
-        <fieldset>
-            <legend>Programme Option Update</legend>
-            <form action="#" method="post">
-                <table>
-                    <tr>
-                        <td class="dentry_label">Student Option : <span class="required">*</span></td>
-                        <td colspan="3">
-                            <select>
-                                <option>BSCIT_2020 (BSCIT 2020)</option>
-                            </select>
-                        </td>
-                    </tr>
-                </table>
-                <table border="1">
-                    <tr class="colhead">
-                        <td>#</td><td>Dept. / Subject</td><td>Specialization Type</td><td>Remarks</td>
-                    </tr>
-                    <tr>
-                        <td align="center">1</td>
-                        <td>Information Technology</td>
-                        <td>Specialization</td>
-                        <td><input type="text" placeholder="Remarks"></td>
-                    </tr>
-                </table>
-                <div align="center">
-                    <input type="submit" class="btn-submit" value="Update Option Details">
-                </div>
-            </form>
-        </fieldset>
-
-        <fieldset>
-            <legend>Graduation Application</legend>
-            <form action="#" method="post">
-                <table>
-                    <tr>
-                        <td class="dentry_label">Graduation : <span class="required">*</span></td>
-                        <td colspan="3">
-                            <select>
-                                <option>Select Graduation Ceremony</option>
-                                <option>29th Graduation 2025 on 05-Jul-2026</option>
-                            </select>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="dentry_label">Gown Collection : <span class="required">*</span></td>
-                        <td colspan="3">
-                            <select>
-                                <option>Main Campus (Thika)</option>
-                                <option>Nairobi Campus</option>
-                                <option>Eldoret Campus</option>
-                            </select>
-                        </td>
-                    </tr>
-                </table>
-                <div align="center">
-                    <input type="submit" class="btn-submit" value="Save Graduation Registration">
-                </div>
-            </form>
-        </fieldset>
-    </div>
-
-    <div id="footer">
-        &copy; 2026 Mount Kenya University. Hosted by Fountain ICT Services.
-    </div>
-</div>
-
-<div id="chat-widget">
-    <button id="chat-button" onclick="toggleChat()">Chat with Assistant</button>
-    <div id="chat-window">
-        <div id="chat-header">
-            Portal Assistant
-            <span style="cursor:pointer" onclick="toggleChat()">×</span>
-        </div>
-        <div id="chat-body">
-            <div class="chat-msg bot">Hi Noah! Need help updating your personal details or applying for graduation? Just ask!</div>
-        </div>
-        <div id="chat-input-area">
-            <input type="text" id="chat-input" placeholder="Ask about profile updates...">
-            <button id="chat-send" onclick="sendMessage()">Send</button>
-        </div>
-    </div>
-</div>
 
 <script>
     function toggleChat() {

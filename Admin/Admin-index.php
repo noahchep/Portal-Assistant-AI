@@ -1,15 +1,39 @@
+<?php
+session_start();
+
+/* ==========================================
+   ACCESS CONTROL: LOGIN + ADMIN ONLY
+========================================== */
+
+// User must be logged in
+if (!isset($_SESSION['user_id'])) {
+    header("Location: ../login.php");
+    exit();
+}
+
+// User must be an admin
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+    header("Location: ../login.php");
+    exit();
+}
+
+// Safe to use admin name
+$admin_name = $_SESSION['user_name'] ?? 'Administrator';
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Mount Kenya University : Admin Portal</title>
     <style>
-        /* --- Base Portal Styles with BACKGROUND IMAGE added --- */
+        /* --- Base Portal Styles --- */
         body { 
             font-family: Verdana, sans-serif; 
             font-size: 12px; 
             margin: 0; 
             background-color: #f2f2f2; 
+            /* Note: Path adjusted to go up one level to reach Images */
             background-image: url('../Images/Alumni-Plaza.png'); 
             background-size: cover; 
             background-position: center center;
@@ -17,21 +41,19 @@
             background-repeat: no-repeat;
         }
 
-        /* The main content container remains centered and white */
         #content {
              width: 1000px; 
              margin: 20px auto; 
              background: #fff;
              border: 1px solid #aaa; 
-            box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+            box-shadow: 0 0 20px rgba(0,0,0,0.5); 
+        }
         
-        /* Header & Logo */
         #top_info { padding: 15px; border-bottom: 3px solid #0056b3; }
         .logoimg { max-height: 70px; }
         h1 { margin: 0; font-size: 22px; }
         h1 a { color: #0056b3; text-decoration: none; }
 
-        /* Navigation */
         #navigation { background: #0056b3; }
         .ult-section { list-style: none; margin: 0; padding: 0; display: flex; }
         .primary { background: #004080; }
@@ -43,27 +65,21 @@
         .active { background: #fff !important; }
         .active a { color: #0056b3 !important; }
 
-        /* Admin Info Bar (Previously Student Bar) */
         .admin-bar { background: #f9f9f9; padding: 10px; border-bottom: 1px solid #ddd; font-weight: bold; color: #444; text-align: center; }
-        .admin-role { color: #0056b3; }
+        .admin-role { color: #0056b3; text-transform: uppercase; }
 
-        /* General Content Styles */
         .left_articles { padding: 20px; }
-        
-        /* Search Box Style */
         .search-box { background: #eee; padding: 10px; border: 1px solid #ccc; margin-bottom: 15px; text-align: center; }
         
-        /* Tables */
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 0px solid #ffffffff; padding: 6px 8px; font-size: 11px; }
+        th, td { border: 1px solid #ddd; padding: 6px 8px; font-size: 11px; }
         .colhead { background: #eeeeee; font-weight: bold; text-align: center; color: #333; }
         .section-title { background: #f2f2f2; font-weight: bold; padding: 10px; text-align: left; color: #0056b3; font-size: 13px; border: 1px solid #ccc; border-bottom: none; display: flex; justify-content: space-between; align-items: center; }
         
-        /* Admin Action Buttons */
-        .inputbutton { background: #0056b3; color: white; border: none; padding: 4px 10px; cursor: pointer; font-size: 11px; font-weight: bold; }
-        .btn-green { background: #28a745; } /* Approve */
-        .btn-red { background: #dc3545; }   /* Delete/Reject */
-        .btn-orange { background: #ffc107; color: black; } /* Edit */
+        .inputbutton { background: #0056b3; color: white; border: none; padding: 4px 10px; cursor: pointer; font-size: 11px; font-weight: bold; border-radius: 2px; }
+        .btn-green { background: #28a745; }
+        .btn-red { background: #dc3545; }
+        .btn-orange { background: #ffc107; color: black; }
 
         input[type="text"] { border: 1px solid #ccc; padding: 3px; width: 200px; }
         a { color: #0056b3; text-decoration: none; }
@@ -89,25 +105,25 @@
 
     <div id="navigation">
         <ul class="ult-section primary">
-            <li class="active"><a href="admin_home.html">Dashboard</a></li>
+            <li class="active"><a href="admin_home.php">Dashboard</a></li>
             <li><a href="#">Manage Students</a></li>
             <li><a href="#">Staff / Lecturers</a></li>
             <li><a href="#">Academic Units</a></li>
             <li><a href="#">Fee Reports</a></li>
             <li><a href="#">System Logs</a></li>
             <li><a href="#">Settings</a></li>
-            <li><a href="#">Sign Out</a></li>
+            <li><a href="../logout.php">Sign Out</a></li>
         </ul>
         <ul class="ult-section secondary">
             <li class="active"><a href="#">Pending Approvals (3)</a></li>
-            <li><a href="#">Add New Student</a></li>
+            <li><a href="add_student.php">Add New Student</a></li>
             <li><a href="#">Upload Results</a></li>
         </ul>
     </div>
 
     <div class="left_articles">
         <div class="admin-bar">
-            Logged in as: <span class="admin-role">SYSTEM ADMINISTRATOR</span> | Department: Registrar (Academic Affairs) | Campus: Main
+            Logged in as: <span class="admin-role"><?php echo htmlspecialchars($admin_name); ?></span> | Department: Registrar (Academic Affairs) | Campus: Main
         </div>
 
         <div class="search-box">
@@ -122,7 +138,7 @@
             <span>Pending Student Registrations</span>
             <input type="button" class="inputbutton btn-green" value="Export to Excel" style="padding: 2px 5px; font-size: 9px;">
         </div>
-        <table border="1">
+        <table>
             <tr class="colhead">
                 <td width="30">#</td>
                 <td>Reg Number</td>
@@ -144,36 +160,12 @@
                     <input type="button" class="inputbutton btn-red" value="Reject">
                 </td>
             </tr>
-            <tr>
-                <td align="center">2</td>
-                <td>BBM/2025/55109</td>
-                <td>SARAH OCHIENG</td>
-                <td>Business Mgmt</td>
-                <td>Y1 S1</td>
-                <td>12-Jan-2026</td>
-                <td align="center">
-                    <input type="button" class="inputbutton btn-green" value="Approve">
-                    <input type="button" class="inputbutton btn-red" value="Reject">
-                </td>
-            </tr>
-            <tr>
-                <td align="center">3</td>
-                <td>EDU/2025/55201</td>
-                <td>PETER WEKESA</td>
-                <td>Bachelor of Education</td>
-                <td>Y1 S1</td>
-                <td>11-Jan-2026</td>
-                <td align="center">
-                    <input type="button" class="inputbutton btn-green" value="Approve">
-                    <input type="button" class="inputbutton btn-red" value="Reject">
-                </td>
-            </tr>
         </table>
 
         <br>
 
         <div class="section-title">Critical Alerts / Fee Issues</div>
-        <table border="1">
+        <table>
             <tr class="colhead">
                 <td width="30">#</td>
                 <td>Reg Number</td>
@@ -189,15 +181,6 @@
                 <td style="color:red; font-weight:bold;">Payment Failure</td>
                 <td>MPESA Transaction ID verified but not reflected.</td>
                 <td>10-Jan-2026</td>
-                <td align="center" style="background:#fff3cd;">Pending</td>
-                <td align="center"><input type="button" class="inputbutton btn-orange" value="Resolve"></td>
-            </tr>
-            <tr>
-                <td align="center">2</td>
-                <td>NUR/2023/30012</td>
-                <td style="color:#0056b3; font-weight:bold;">Unit Clash</td>
-                <td>System flagging double allocation for Anatomy 101.</td>
-                <td>09-Jan-2026</td>
                 <td align="center" style="background:#fff3cd;">Pending</td>
                 <td align="center"><input type="button" class="inputbutton btn-orange" value="Resolve"></td>
             </tr>
