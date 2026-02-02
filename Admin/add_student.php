@@ -1,5 +1,11 @@
 <?php
 session_start();
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+require 'PHPMailer/src/Exception.php';
+require 'PHPMailer/src/PHPMailer.php';
+require 'PHPMailer/src/SMTP.php';
 
 /* SECURITY CHECK */
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
@@ -7,153 +13,265 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     exit();
 }
 
+$admin_name = $_SESSION['user_name'] ?? 'Administrator';
+
 /* DB CONNECTION */
 $conn = mysqli_connect("localhost", "root", "", "Portal-Asisstant-AI");
-if (!$conn) {
-    die("Database connection failed");
-}
+if (!$conn) { die("Database connection failed"); }
 
-/* INIT MESSAGE */
 $message = "";
 
-/* HANDLE FORM */
+/* HANDLE FORM LOGIC */
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['add_student'])) {
-
-    $reg   = mysqli_real_escape_string($conn, $_POST['reg_number']);
-    $fname = mysqli_real_escape_string($conn, $_POST['fname']);
-    $mname = mysqli_real_escape_string($conn, $_POST['mname']);
-    $lname = mysqli_real_escape_string($conn, $_POST['lname']);
-    $email = mysqli_real_escape_string($conn, $_POST['email']);
-
+    $fname = trim($_POST['fname']);
+    $mname = trim($_POST['mname']);
+    $lname = trim($_POST['lname']);
+    $email = trim($_POST['email']);
+    $dept = $_POST['department'];
     $full_name = trim("$fname $mname $lname");
 
-    // Default password = 123456 (hashed)
-    $password = password_hash('123456', PASSWORD_DEFAULT);
+    // Programme Codes
+    $codes = [
+        "Information Technology" => ["BIT", 4],
+        "Computer Science" => ["BSCCS", 4],
+        "Enterprise Computing" => ["BBIT", 5],
+        "Information Science & Knowledge Management" => ["BIS", 6]
+    ];
+    
+    $p_code = $codes[$dept][0] ?? "XXXX";
+    $p_pad = $codes[$dept][1] ?? 4;
+    $year = date("Y");
 
-    $sql = "INSERT INTO users 
-            (full_name, reg_number, email, password, role) 
-            VALUES 
-            ('$full_name', '$reg', '$email', '$password', 'student')";
+    // Sequence generation
+    $stmt_c = $conn->prepare("SELECT COUNT(*) as total FROM users WHERE department=? AND reg_number LIKE ?");
+    $like = "$p_code/$year/%";
+    $stmt_c->bind_param("ss", $dept, $like);
+    $stmt_c->execute();
+    $count = $stmt_c->get_result()->fetch_assoc()['total'];
+    
+    $reg_number = "$p_code/$year/" . str_pad($count + 1, $p_pad, "0", STR_PAD_LEFT);
+    $hashed_pass = password_hash($reg_number, PASSWORD_DEFAULT);
 
-    if (mysqli_query($conn, $sql)) {
-        $message = "<div style='color:green; font-weight:bold;'>Student Registered Successfully! Default password is <b>123456</b></div>";
+    $sql = "INSERT INTO users (full_name, reg_number, email, password, role, department) VALUES (?, ?, ?, ?, 'student', ?)";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("sssss", $full_name, $reg_number, $email, $hashed_pass, $dept);
+
+    if ($stmt->execute()) {
+        $mail = new PHPMailer(true);
+        try {
+            // Server settings
+            $mail->isSMTP();
+            $mail->Host       = 'smtp.gmail.com'; // Use your SMTP provider
+            $mail->SMTPAuth   = true;
+            $mail->Username   = 'noahchepkonga1@gmail.com'; // Your email
+            $mail->Password   = 'sqki pcfh udva syiu';   // Your app password
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port       = 587;
+
+            // Recipients
+            $mail->setFrom('your-email@gmail.com', 'MKU Admissions');
+            $mail->addAddress($email, $full_name);
+
+            // Content
+            $mail->isHTML(true);
+            $mail->Subject = 'Admission Confirmation - Portal Assistant AI';
+            $mail->Body    = "
+             <div style='font-family: Verdana, sans-serif; font-size:14px;'>
+    <h2 style='color:#d63384;'>Welcome to Mount Kenya University, $fname! 😘💖</h2>
+    
+    <p style='line-height:1.6em;'>
+        Your admission has been processed successfully! 💌✨<br>
+        <span style='font-size:16px;'>🎉🌹💫🌸🎀💫🌹🎉</span>
+    </p>
+    
+    <hr>
+    
+    <p><strong>Admission Number:</strong> $reg_number</p>
+    <p><strong>Default Password:</strong> $reg_number</p>
+    
+    <hr>
+    
+    <p style='line-height:1.6em;'>
+        Please change your password once you log in 🔑💖<br>
+        Don’t forget to complete your unit registration ✨📚<br>
+        <span style='font-size:16px;'>💓💞💖💋🥰💌💓💞</span>
+    </p>
+    
+    <p style='margin-top:20px; font-size:15px;'>
+        Sending you a little hug for your first day as a student 🤗❤️<br>
+        <span style='font-size:18px;'>🌟💖🌹🔥💫💋</span>
+    </p>
+    
+    <p>Best Regards,<br><strong>Registrar Academic</strong></p>
+</div>
+";
+
+            $mail->send();
+            $message = "<div class='alert success'><b>Success!</b> Student Registered and Notification Sent to $email. <br> Reg Number: $reg_number</div>";
+        } catch (Exception $e) {
+            $message = "<div class='alert success'><b>Success!</b> Student Registered ($reg_number), but email failed. Error: {$mail->ErrorInfo}</div>";
+        }
     } else {
-        $message = "<div style='color:red; font-weight:bold;'>Error: " . mysqli_error($conn) . "</div>";
+        $message = "<div class='alert error'>Error: " . $conn->error . "</div>";
     }
 }
 ?>
-
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>MKU Admin : Add New Student</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Student | Admin Portal</title>
     <style>
-        /* Base Portal Styles */
-        body { font-family: Verdana, sans-serif; font-size: 12px; background-color: #f2f2f2; margin: 0; }
-        #content { width: 1000px; margin: 10px auto; background: #fff; border: 1px solid #aaa; border-radius: 20px; overflow: hidden; box-shadow: 0 0 15px rgba(0,0,0,0.2); }
-        
-        #top_info { padding: 15px; border-bottom: 3px solid #0056b3; }
-        .logoimg { max-height: 70px; }
-        h1 { margin: 0; font-size: 22px; color: #0056b3; }
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #3730a3;
+            --bg: #f8fafc;
+            --white: #ffffff;
+            --text-main: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            --accent: #e0e7ff;
+        }
 
-        /* Navigation */
-        #navigation { background: #004080; }
-        .ult-section { list-style: none; margin: 0; padding: 0; display: flex; }
-        .ult-section li a { display: block; padding: 12px 20px; text-decoration: none; color: #fff; font-weight: bold; border-right: 1px solid #003366; }
-        .ult-section li a:hover { background: #0056b3; }
-        .active { background: #fff !important; }
-        .active a { color: #0056b3 !important; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text-main); margin: 0; line-height: 1.5; }
 
-        .left_articles { padding: 25px; }
-        fieldset { border: 1px solid #0056b3; border-radius: 8px; padding: 20px; background: #fdfdfd; }
-        legend { color: #0056b3; font-weight: bold; padding: 0 10px; font-size: 14px; }
+        /* HEADER */
+        header { background: var(--white); border-bottom: 1px solid var(--border); padding: 1rem 5%; display: flex; align-items: center; justify-content: space-between; }
+        .branding { display: flex; align-items: center; gap: 15px; }
+        .logoimg { height: 50px; border-radius: 8px; }
+        .branding h1 { margin: 0; font-size: 1.4rem; color: var(--primary); font-weight: 800; }
+        .branding small { color: var(--text-light); display: block; font-size: 0.85rem; }
+
+        /* MAIN NAV */
+        nav { background: var(--primary); padding: 0 5%; }
+        .nav-top { display: flex; gap: 10px; }
+        nav a { color: rgba(255,255,255,0.8); text-decoration: none; padding: 14px 20px; font-size: 0.9rem; font-weight: 600; transition: 0.3s; border-bottom: 3px solid transparent; }
+        nav a:hover { color: white; background: rgba(255,255,255,0.1); }
+        nav a.active { color: white; background: rgba(255,255,255,0.15); border-bottom: 3px solid white; }
+
+        /* SUB NAV */
+        .nav-sub { background: #f1f5f9; display: flex; gap: 10px; padding: 0 5%; border-bottom: 1px solid var(--border); }
+        .nav-sub a { color: var(--text-light); font-size: 0.8rem; padding: 10px 15px; text-decoration: none; font-weight: 600; }
+        .nav-sub a:hover { color: var(--primary); }
+        .nav-sub .active { color: var(--primary); font-weight: 700; border-bottom: 2px solid var(--primary); }
+
+        /* CONTENT */
+        .container { max-width: 1000px; margin: 30px auto; padding: 0 20px; }
+        .admin-strip { background: var(--accent); padding: 12px 20px; border-radius: 10px; margin-bottom: 25px; display: flex; justify-content: space-between; font-weight: 700; font-size: 0.85rem; color: var(--primary-dark); }
         
-        table { width: 100%; border-collapse: collapse; }
-        td { padding: 8px; font-size: 12px; }
-        .dentry_label { background: #f2f2f2; font-weight: bold; width: 180px; color: #333; border: 1px solid #ddd; }
+        .section-box { background: var(--white); border-radius: 12px; border: 1px solid var(--border); padding: 30px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+        /* Increased spacing and clearer grouping */
+.form-grid { 
+    display: grid; 
+    grid-template-columns: repeat(3, 1fr); 
+    gap: 30px; /* Increased from 20px to 30px for more horizontal space */
+    margin-bottom: 25px; 
+}
+
+.field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px; /* Space between the Label and the Input box */
+}
+
+/* Ensure inputs look clean within their boxes */
+input, select { 
+    width: 100%; 
+    padding: 12px 15px; 
+    border: 1px solid var(--border); 
+    border-radius: 8px; 
+    font-size: 0.95rem; 
+    background-color: #ffffff;
+}
+        .full-row { grid-column: span 3; }
         
-        input[type="text"], input[type="email"], select { width: 95%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
-        .btn-submit { background: #28a745; color: white; padding: 10px 25px; border: none; cursor: pointer; font-weight: bold; border-radius: 4px; font-size: 13px; }
-        .btn-submit:hover { background: #218838; }
-        .required { color: red; }
-        .note-box { background: #ffffcc; padding: 10px; border: 1px solid #e6db55; font-size: 11px; margin-top: 15px; border-radius: 4px; }
+        label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-light); margin-bottom: 8px; text-transform: uppercase; }
+        input, select { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; transition: 0.2s; }
+        input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+
+        .btn-reg { background: var(--primary); color: white; border: none; padding: 15px 30px; border-radius: 8px; font-weight: 700; cursor: pointer; width: 100%; }
+        .btn-reg:hover { background: var(--primary-dark); }
+        
+        .alert { padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 0.9rem; }
+        .success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
     </style>
 </head>
 <body>
 
-<div id="content">
-    <div id="top_info">
-        <table border="0" width="100%">
-            <tr>
-                 <td width="80"><img src="../Images/logo.jpg" class="logoimg" alt="MKU Logo" /></td>
-                <td>
-                    <h1>Administrative Portal</h1>
-                    <small>Mount Kenya University - Student Management System</small>
-                </td>
-            </tr>
-        </table>
+<header>
+    <div class="branding">
+        <img src="../Images/logo.jpg" class="logoimg" alt="Logo">
+        <div>
+            <h1>Student Support Agent – Admin</h1>
+            <small>Academic Administration Portal</small>
+        </div>
+    </div>
+</header>
+
+<nav>
+    <div class="nav-top">
+        <a href="Admin-index.php">Dashboard</a>
+        <a href="add_student.php" class="active">Manage Students</a>
+        <a href="Admin-index.php?section=units">Manage Units</a>
+        <a href="Admin-index.php?section=registrations">Registrations</a>
+        <a href="../logout.php">Sign Out</a>
+    </div>
+</nav>
+
+<div class="nav-sub">
+    <a href="add_student.php" class="active">Add Student</a>
+    <a href="Admin-index.php?section=students">Student Directory</a>
+</div>
+
+<div class="container">
+    <div class="admin-strip">
+        <span>Logged in: <?php echo htmlspecialchars($admin_name); ?></span>
+        <span>Action: Manual Student Enrollment</span>
     </div>
 
-    <div id="navigation">
-        <ul class="ult-section">
-            <li><a href="admin_home.php">Dashboard</a></li>
-            <li class="active"><a href="add_student.php">Add Student</a></li>
-            <li><a href="#">View All Students</a></li>
-            <li><a href="logout.php">Sign Out</a></li>
-        </ul>
+    <?php echo $message; ?>
+
+    <div class="section-box">
+        <form action="" method="POST">
+           <div class="form-grid">
+    <div class="field-group">
+        <label>First Name</label>
+        <input type="text" name="fname" placeholder="e.g. Noah" required>
     </div>
 
-    <div class="left_articles">
-        <?php echo $message; ?>
+    <div class="field-group">
+        <label>Middle Name</label>
+        <input type="text" name="mname" placeholder="Optional">
+    </div>
 
-        <fieldset>
-            <legend>Register New Student</legend>
-            <form action="add_student.php" method="post">
-                <table>
-                    <tr>
-                        <td class="dentry_label">Registration Number : <span class="required">*</span></td>
-                        <td colspan="3"><input type="text" name="reg_number" placeholder="e.g. BIT/2024/0000" required></td>
-                    </tr>
-                    <tr>
-                        <td class="dentry_label">Full Names : <span class="required">*</span></td>
-                        <td><input type="text" name="fname" placeholder="First Name" required></td>
-                        <td><input type="text" name="mname" placeholder="Middle Name"></td>
-                        <td><input type="text" name="lname" placeholder="Surname" required></td>
-                    </tr>
-                    <tr>
-                        <td class="dentry_label">Official Email : <span class="required">*</span></td>
-                        <td colspan="3"><input type="email" name="email" placeholder="student@mku.ac.ke" required></td>
-                    </tr>
-                    <tr>
-                        <td class="dentry_label">Phone Number : <span class="required">*</span></td>
-                        <td><input type="text" name="phone" placeholder="07..." required></td>
-                        <td class="dentry_label">Campus :</td>
-                        <td>
-                            <select name="campus">
-                                <option>Main Campus (Thika)</option>
-                                <option>Nairobi Campus</option>
-                                <option>Mombasa Campus</option>
-                            </select>
-                        </td>
-                    </tr>
-                </table>
-                
-                <div style="text-align: center; margin-top: 20px;">
-                    <input type="submit" name="add_student" class="btn-submit" value="REGISTER STUDENT">
+    <div class="field-group">
+        <label>Surname</label>
+        <input type="text" name="lname" placeholder="e.g. Chepkonga" required>
+    </div>
+
+
+
+                <div class="full-row">
+                    <label>Email Address</label>
+                    <input type="email" name="email" placeholder="student@mku.ac.ke" required>
                 </div>
 
-                <div class="note-box">
-                    <b>System Note:</b> Upon registration, the student's default password will be their <b>Registration Number</b>. They will be required to change it on their first login.
+                <div class="full-row">
+                    <label>Department</label>
+                    <select name="department" required>
+                        <option value="">-- Select Department --</option>
+                        <option value="Information Technology">Department of Information Technology</option>
+                        <option value="Computer Science">Department of Computer Science</option>
+                        <option value="Enterprise Computing">Department of Enterprise Computing</option>
+                        <option value="Information Science & Knowledge Management">Department of Information Science & Knowledge Management</option>
+                    </select>
                 </div>
-            </form>
-        </fieldset>
-    </div>
+            </div>
 
-    <div id="footer">
-        <p>&copy; 2026 Mount Kenya University | Admin Management System</p>
+            <button type="submit" name="add_student" class="btn-reg">REGISTER NEW STUDENT</button>
+        </form>
     </div>
 </div>
 

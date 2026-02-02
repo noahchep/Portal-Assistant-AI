@@ -1,197 +1,227 @@
 <?php
 session_start();
 
-/* ==========================================
-   ACCESS CONTROL: LOGIN + ADMIN ONLY
-========================================== */
-
-// User must be logged in
-if (!isset($_SESSION['user_id'])) {
+/* ==========================
+   ACCESS CONTROL
+========================== */
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header("Location: ../login.php");
     exit();
 }
 
-// User must be an admin
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-    header("Location: ../login.php");
-    exit();
-}
-
-// Safe to use admin name
 $admin_name = $_SESSION['user_name'] ?? 'Administrator';
+
+/* ==========================
+   DATABASE CONNECTION
+========================== */
+$conn = mysqli_connect("localhost", "root", "", "Portal-Asisstant-AI");
+if (!$conn) {
+    die("Database connection failed: " . mysqli_connect_error());
+}
+
+/* ==========================
+   DASHBOARD METRICS
+========================== */
+$total_students = 0;
+$q1 = mysqli_query($conn, "SELECT COUNT(*) AS total FROM users WHERE role='student'");
+if ($q1) { $total_students = mysqli_fetch_assoc($q1)['total']; }
+
+$total_units = 0;
+$q2 = mysqli_query($conn, "SELECT COUNT(*) AS total FROM timetable");
+if ($q2) { $total_units = mysqli_fetch_assoc($q2)['total']; }
+
+// Determine current section
+$section = $_GET['section'] ?? 'dashboard';
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Mount Kenya University : Admin Portal</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Portal | Student Support Agent</title>
     <style>
-        /* --- Base Portal Styles --- */
-        body { 
-            font-family: Verdana, sans-serif; 
-            font-size: 12px; 
-            margin: 0; 
-            background-color: #f2f2f2; 
-            /* Note: Path adjusted to go up one level to reach Images */
-            background-image: url('../Images/Alumni-Plaza.png'); 
-            background-size: cover; 
-            background-position: center center;
-            background-attachment: fixed;
-            background-repeat: no-repeat;
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #3730a3;
+            --bg: #f8fafc;
+            --white: #ffffff;
+            --text-main: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            --accent: #e0e7ff;
+            --success: #10b981;
         }
 
-        #content {
-             width: 1000px; 
-             margin: 20px auto; 
-             background: #fff;
-             border: 1px solid #aaa; 
-            box-shadow: 0 0 20px rgba(0,0,0,0.5); 
-        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text-main); margin: 0; line-height: 1.5; }
+
+        /* HEADER */
+        header { background: var(--white); border-bottom: 1px solid var(--border); padding: 1rem 5%; display: flex; align-items: center; justify-content: space-between; }
+        .branding { display: flex; align-items: center; gap: 15px; }
+        .logoimg { height: 50px; border-radius: 8px; }
+        .branding h1 { margin: 0; font-size: 1.4rem; color: var(--primary); font-weight: 800; }
+
+        /* NAVIGATION */
+        nav { background: var(--primary); padding: 0 5%; }
+        .nav-top { display: flex; gap: 10px; }
+        nav a { color: rgba(255,255,255,0.8); text-decoration: none; padding: 14px 20px; font-size: 0.9rem; font-weight: 600; transition: 0.3s; border-bottom: 3px solid transparent; }
+        nav a:hover { color: white; background: rgba(255,255,255,0.1); }
+        nav a.active { color: white; background: rgba(255,255,255,0.15); border-bottom: 3px solid white; }
+
+        .nav-sub { background: #f1f5f9; display: flex; gap: 10px; padding: 0 5%; border-bottom: 1px solid var(--border); }
+        .nav-sub a { color: var(--text-light); font-size: 0.8rem; padding: 10px 15px; text-decoration: none; font-weight: 600; }
+        .nav-sub a:hover { color: var(--primary); }
+        .nav-sub .active { color: var(--primary); font-weight: 700; border-bottom: 2px solid var(--primary); }
+
+        /* CONTAINER */
+        .container { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
         
-        #top_info { padding: 15px; border-bottom: 3px solid #0056b3; }
-        .logoimg { max-height: 70px; }
-        h1 { margin: 0; font-size: 22px; }
-        h1 a { color: #0056b3; text-decoration: none; }
+        .admin-strip { background: var(--accent); padding: 12px 20px; border-radius: 10px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; color: var(--primary-dark); font-weight: 700; font-size: 0.85rem; }
 
-        #navigation { background: #0056b3; }
-        .ult-section { list-style: none; margin: 0; padding: 0; display: flex; }
-        .primary { background: #004080; }
-        .secondary { background: #e9e9e9; border-bottom: 1px solid #ccc; }
-        
-        .ult-section li a { display: block; padding: 10px 15px; text-decoration: none; font-weight: bold; }
-        .primary li a { color: #fff; border-right: 1px solid #003366; }
-        .secondary li a { color: #333; font-size: 11px; border-right: 1px solid #ccc; }
-        .active { background: #fff !important; }
-        .active a { color: #0056b3 !important; }
+        /* DASHBOARD CARDS */
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: var(--white); padding: 25px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: 0.3s; }
+        .stat-card.actionable:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border-color: var(--primary); }
+        .stat-card h3 { margin: 0; font-size: 2rem; color: var(--primary); font-weight: 800; }
+        .stat-card p { margin: 5px 0 0 0; color: var(--text-light); font-weight: 700; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em; }
 
-        .admin-bar { background: #f9f9f9; padding: 10px; border-bottom: 1px solid #ddd; font-weight: bold; color: #444; text-align: center; }
-        .admin-role { color: #0056b3; text-transform: uppercase; }
+        /* TABLES */
+        .section-box { background: var(--white); border-radius: 12px; border: 1px solid var(--border); padding: 25px; margin-bottom: 30px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; background: #f8fafc; padding: 12px; font-size: 0.75rem; color: var(--text-light); border-bottom: 2px solid var(--border); text-transform: uppercase; }
+        td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
 
-        .left_articles { padding: 20px; }
-        .search-box { background: #eee; padding: 10px; border: 1px solid #ccc; margin-bottom: 15px; text-align: center; }
-        
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #ddd; padding: 6px 8px; font-size: 11px; }
-        .colhead { background: #eeeeee; font-weight: bold; text-align: center; color: #333; }
-        .section-title { background: #f2f2f2; font-weight: bold; padding: 10px; text-align: left; color: #0056b3; font-size: 13px; border: 1px solid #ccc; border-bottom: none; display: flex; justify-content: space-between; align-items: center; }
-        
-        .inputbutton { background: #0056b3; color: white; border: none; padding: 4px 10px; cursor: pointer; font-size: 11px; font-weight: bold; border-radius: 2px; }
-        .btn-green { background: #28a745; }
-        .btn-red { background: #dc3545; }
-        .btn-orange { background: #ffc107; color: black; }
-
-        input[type="text"] { border: 1px solid #ccc; padding: 3px; width: 200px; }
-        a { color: #0056b3; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-
-        #footer { text-align: right; padding: 10px; font-size: 11px; border-top: 1px solid #ccc; background: #f8f8f8; color: #666; }
+        .ai-note { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 4px; font-size: 0.85rem; color: #92400e; }
+        footer { text-align: center; padding: 40px; color: var(--text-light); font-size: 0.85rem; }
     </style>
 </head>
 <body>
 
-<div id="content">
-    <div id="top_info">
-        <table border="0" width="100%">
-            <tr>
-                <td width="80"><img src="../Images/logo.jpg" class="logoimg" alt="MKU Logo" /></td>
-                <td>
-                    <h1>Student Support Agent-Admin</h1>
-                    <small>Administrative Management Portal</small>
-                </td>
-            </tr>
-        </table>
-    </div>
-
-    <div id="navigation">
-        <ul class="ult-section primary">
-            <li class="active"><a href="admin_home.php">Dashboard</a></li>
-            <li><a href="#">Manage Students</a></li>
-            <li><a href="#">Staff / Lecturers</a></li>
-            <li><a href="#">Academic Units</a></li>
-            <li><a href="#">Fee Reports</a></li>
-            <li><a href="#">System Logs</a></li>
-            <li><a href="#">Settings</a></li>
-            <li><a href="../logout.php">Sign Out</a></li>
-        </ul>
-        <ul class="ult-section secondary">
-            <li class="active"><a href="#">Pending Approvals (3)</a></li>
-            <li><a href="add_student.php">Add New Student</a></li>
-            <li><a href="#">Upload Results</a></li>
-        </ul>
-    </div>
-
-    <div class="left_articles">
-        <div class="admin-bar">
-            Logged in as: <span class="admin-role"><?php echo htmlspecialchars($admin_name); ?></span> | Department: Registrar (Academic Affairs) | Campus: Main
+<header>
+    <div class="branding">
+        <img src="../Images/logo.jpg" class="logoimg" alt="Logo">
+        <div>
+            <h1>Student Support Agent – Admin</h1>
+            <small>Academic Administration Portal</small>
         </div>
-
-        <div class="search-box">
-            Search Student: <input type="text" placeholder="Enter Reg Number (e.g. BIT/2024...)">
-            <input type="button" class="inputbutton" value="Find Student">
-            &nbsp;&nbsp;|&nbsp;&nbsp;
-            Search Staff: <input type="text" placeholder="Enter Staff ID">
-            <input type="button" class="inputbutton" value="Find Staff">
-        </div>
-
-        <div class="section-title">
-            <span>Pending Student Registrations</span>
-            <input type="button" class="inputbutton btn-green" value="Export to Excel" style="padding: 2px 5px; font-size: 9px;">
-        </div>
-        <table>
-            <tr class="colhead">
-                <td width="30">#</td>
-                <td>Reg Number</td>
-                <td>Student Name</td>
-                <td>Course</td>
-                <td>Year/Sem</td>
-                <td>Submission Date</td>
-                <td width="150">Actions</td>
-            </tr>
-            <tr>
-                <td align="center">1</td>
-                <td>BIT/2025/55102</td>
-                <td>JOHN KAMAU</td>
-                <td>B.Sc Info Tech</td>
-                <td>Y1 S1</td>
-                <td>12-Jan-2026</td>
-                <td align="center">
-                    <input type="button" class="inputbutton btn-green" value="Approve">
-                    <input type="button" class="inputbutton btn-red" value="Reject">
-                </td>
-            </tr>
-        </table>
-
-        <br>
-
-        <div class="section-title">Critical Alerts / Fee Issues</div>
-        <table>
-            <tr class="colhead">
-                <td width="30">#</td>
-                <td>Reg Number</td>
-                <td>Issue Type</td>
-                <td>Description</td>
-                <td>Date Reported</td>
-                <td width="100">Status</td>
-                <td width="80">Action</td>
-            </tr>
-            <tr>
-                <td align="center">1</td>
-                <td>BIT/2024/43255</td>
-                <td style="color:red; font-weight:bold;">Payment Failure</td>
-                <td>MPESA Transaction ID verified but not reflected.</td>
-                <td>10-Jan-2026</td>
-                <td align="center" style="background:#fff3cd;">Pending</td>
-                <td align="center"><input type="button" class="inputbutton btn-orange" value="Resolve"></td>
-            </tr>
-        </table>
-
     </div>
+</header>
 
-    <div id="footer">
-        <p>&copy; 2026 Mount Kenya University. Admin Module V 4.2 | Hosted by Fountain ICT Services</p>
+<nav>
+    <div class="nav-top">
+        <a href="Admin-index.php" class="<?php echo $section === 'dashboard' ? 'active' : ''; ?>">Dashboard</a>
+        <a href="view_students.php?section=students" class="<?php echo $section === 'students' ? 'active' : ''; ?>">Manage Students</a>
+        <a href="Admin-index.php?section=units" class="<?php echo $section === 'units' ? 'active' : ''; ?>">Manage Units</a>
+        <a href="Admin-index.php?section=registrations" class="<?php echo $section === 'registrations' ? 'active' : ''; ?>">Registrations</a>
+        <a href="../logout.php">Sign Out</a>
     </div>
+</nav>
+
+<?php if ($section !== 'dashboard'): ?>
+<div class="nav-sub">
+    <?php if ($section === 'units'): ?>
+        <a href="add_unit.php">Add Unit</a>
+        <a href="add_workload.php">Add Workload</a>
+        <a href="#" class="active">View Workload</a>
+    <?php elseif ($section === 'students'): ?>
+        <a href="add_student.php">Add Student</a>
+        <a href="#" class="active">Student Directory</a>
+    <?php endif; ?>
 </div>
+<?php endif; ?>
+
+<div class="container">
+    <div class="admin-strip">
+        <span>Active Admin: <strong><?php echo htmlspecialchars($admin_name); ?></strong></span>
+        <span>Department of Registrar (Academic)</span>
+    </div>
+
+    <?php if ($section === 'dashboard'): ?>
+        <div class="dashboard-grid">
+            <div class="stat-card">
+                <h3><?php echo $total_students; ?></h3>
+                <p>Total Students Registered</p>
+            </div>
+            <div class="stat-card">
+                <h3><?php echo $total_units; ?></h3>
+                <p>Units on Offer</p>
+            </div>
+            
+            <a href="Admin-index.php?section=units" style="text-decoration: none;">
+                <div class="stat-card actionable" style="border-top: 4px solid var(--success);">
+                    <h3 style="color: var(--success);">View →</h3>
+                    <p>Academic Year Workload</p>
+                </div>
+            </a>
+        </div>
+
+        <h2 style="font-size: 1.1rem; margin-bottom: 20px;">Administrative Quick Links</h2>
+        <div class="dashboard-grid">
+            <a href="Admin-index.php?section=students" style="text-decoration: none;">
+                <div class="stat-card actionable">
+                    <div style="font-size: 1.5rem; margin-bottom: 10px;">👥</div>
+                    <p style="color: var(--primary);">Student Records</p>
+                </div>
+            </a>
+            <a href="Admin-index.php?section=units" style="text-decoration: none;">
+                <div class="stat-card actionable">
+                    <div style="font-size: 1.5rem; margin-bottom: 10px;">📅</div>
+                    <p style="color: var(--primary);">Timetable Management</p>
+                </div>
+            </a>
+            <a href="Admin-index.php?section=registrations" style="text-decoration: none;">
+                <div class="stat-card actionable">
+                    <div style="font-size: 1.5rem; margin-bottom: 10px;">✍️</div>
+                    <p style="color: var(--primary);">Registration Logs</p>
+                </div>
+            </a>
+        </div>
+
+        <div class="section-box">
+            <div class="ai-note">
+                <strong>AI System Health:</strong> The Agent is currently autonomously handling student requests regarding venue identification and unit lookups. Read-only access is enforced on the student-facing chat.
+            </div>
+        </div>
+
+    <?php elseif ($section === 'units'): ?>
+        <div class="section-box">
+            <h2 style="margin-top: 0; font-size: 1.2rem;">Current Semester Workload</h2>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Code</th>
+                            <th>Course Title</th>
+                            <th>Schedule</th>
+                            <th>Venue</th>
+                            <th>Lecturer</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php
+                        $units = mysqli_query($conn, "SELECT * FROM timetable ORDER BY id DESC");
+                        $i = 1;
+                        while ($units && $u = mysqli_fetch_assoc($units)): ?>
+                            <tr>
+                                <td><?php echo $i++; ?></td>
+                                <td><span style="background:var(--accent); color:var(--primary-dark); padding:4px 8px; border-radius:4px; font-weight:700;"><?php echo $u['unit_code']; ?></span></td>
+                                <td><?php echo $u['course_title']; ?></td>
+                                <td><?php echo $u['time_from']; ?> - <?php echo $u['time_to']; ?></td>
+                                <td><?php echo $u['venue']; ?></td>
+                                <td><?php echo $u['lecturer']; ?></td>
+                            </tr>
+                        <?php endwhile; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    <?php endif; ?>
+</div>
+
+<footer>
+    &copy; 2026 Portal Assistant AI | Mount Kenya University
+</footer>
 
 </body>
 </html>

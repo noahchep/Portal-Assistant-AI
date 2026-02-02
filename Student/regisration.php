@@ -1,221 +1,265 @@
+<?php
+session_start();
+
+/* ===============================
+   DATABASE CONNECTION
+================================ */
+$conn = mysqli_connect("localhost", "root", "", "Portal-Asisstant-AI");
+if (!$conn) {
+    die("Database connection failed: " . mysqli_connect_error());
+}
+
+$student_reg_no = "BIT/2024/43255";
+$semester = "Jan/Apr";
+$academic_year = "2026";
+
+/* ===============================
+   CORE LOGIC: REGISTRATION
+================================ */
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['register_btn'])) {
+    for ($i = 1; $i <= 8; $i++) {
+        if (!empty($_POST["courseCode$i"])) {
+            $unit_code   = mysqli_real_escape_string($conn, trim($_POST["courseCode$i"]));
+            $exam_type   = mysqli_real_escape_string($conn, $_POST["examType$i"]);
+            $class_group = mysqli_real_escape_string($conn, $_POST["classCode$i"]);
+
+            $check = mysqli_query($conn, "SELECT 1 FROM timetable WHERE unit_code='$unit_code' LIMIT 1");
+            if (mysqli_num_rows($check) > 0) {
+                mysqli_query($conn, "INSERT IGNORE INTO registered_courses 
+                    (student_reg_no, unit_code, exam_type, class_group, semester, academic_year, status)
+                    VALUES ('$student_reg_no','$unit_code','$exam_type','$class_group','$semester','$academic_year', 'Provisional')");
+            }
+        }
+    }
+    header("Location: ".$_SERVER['PHP_SELF']."?success=1");
+    exit();
+}
+
+/* ===============================
+   CORE LOGIC: CONFIRM / DROP
+================================ */
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['selected_units'])) {
+    $units = $_POST['selected_units']; 
+    foreach ($units as $u_code) {
+        $u_code = mysqli_real_escape_string($conn, $u_code);
+        if (isset($_POST['btn_confirm_action'])) {
+            mysqli_query($conn, "UPDATE registered_courses SET status='Confirmed' WHERE student_reg_no='$student_reg_no' AND unit_code='$u_code'");
+        } elseif (isset($_POST['btn_drop_action'])) {
+            mysqli_query($conn, "DELETE FROM registered_courses WHERE student_reg_no='$student_reg_no' AND unit_code='$u_code' AND status='Provisional'");
+        }
+    }
+    header("Location: ".$_SERVER['PHP_SELF']);
+    exit();
+}
+
+/* ===============================
+   DATA FETCHING
+================================ */
+$confirmed = mysqli_query($conn, "SELECT rc.*, t.course_title FROM registered_courses rc JOIN timetable t ON rc.unit_code = t.unit_code WHERE rc.student_reg_no = '$student_reg_no' AND (rc.status = 'Confirmed' OR rc.status = 'Approved')");
+$provisional = mysqli_query($conn, "SELECT rc.*, t.course_title FROM registered_courses rc JOIN timetable t ON rc.unit_code = t.unit_code WHERE rc.student_reg_no = '$student_reg_no' AND (rc.status = 'Provisional' OR rc.status IS NULL OR rc.status = '')");
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Mount Kenya University : Course Registration</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Portal | Course Registration</title>
     <style>
-        /* Base Portal Styles */
-        body { font-family: Verdana, sans-serif; font-size: 12px; background-color: #f2f2f2; margin: 0; }
-        #content { width: 1000px; margin: 10px auto; background: #fff; border: 1px solid #aaa; border-radius: 20px; }
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #3730a3;
+            --bg: #f8fafc;
+            --white: #ffffff;
+            --text-main: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text-main); margin: 0; line-height: 1.5; }
+
+        /* HEADER & BRANDING */
+        header { background: var(--white); border-bottom: 1px solid var(--border); padding: 1rem 5%; display: flex; align-items: center; justify-content: space-between; }
+        .branding { display: flex; align-items: center; gap: 15px; }
+        .logoimg { height: 50px; border-radius: 8px; }
+        .branding h1 { margin: 0; font-size: 1.4rem; color: var(--primary); font-weight: 800; }
+        .branding small { color: var(--text-light); display: block; font-size: 0.85rem; }
+
+        /* TOP NAVIGATION */
+        nav { background: var(--primary); padding: 0 5%; display: flex; gap: 10px; }
+        nav a { color: rgba(255,255,255,0.8); text-decoration: none; padding: 14px 20px; font-size: 0.9rem; font-weight: 600; transition: 0.3s; border-bottom: 3px solid transparent; }
+        nav a:hover { color: white; background: rgba(255,255,255,0.1); }
+        nav a.active { color: white; border-bottom: 3px solid white; background: rgba(255,255,255,0.15); }
+
+        /* MAIN CONTENT */
+        .container { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
         
-        /* Header & Logo */
-        #top_info { padding: 15px; border-bottom: 3px solid #0056b3; }
-        .logoimg { max-height: 70px; }
-        h1 { margin: 0; font-size: 22px; }
-        h1 a { color: #0056b3; text-decoration: none; }
+        .student-strip { background: #e0e7ff; padding: 12px 20px; border-radius: 10px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; color: var(--primary-dark); font-weight: 700; font-size: 0.9rem; }
 
-        /* Navigation */
+        .card { background: var(--white); border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.06); padding: 25px; margin-bottom: 30px; border: 1px solid var(--border); }
+        .card-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 20px; color: var(--text-main); display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
 
-        #navigation { background: #0056b3; margin-top:-48px;}
-        .ult-section { list-style: none; margin: 0; padding: 0; display: flex; }
-        .primary { background: #004080; }
-        .secondary { background: #e9e9e9; border-bottom: 1px solid #ccc; }
-        
-        .ult-section li a { display: block; padding: 10px 15px; text-decoration: none; font-weight: bold; }
-        .primary li a { color: #fff; border-right: 1px solid #003366; }
-        .secondary li a { color: #333; font-size: 11px; border-right: 1px solid #ccc; }
-        .active { background: #fff !important; }
-        .active a { color: #0056b3 !important; }
+        /* TABLES */
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; background: #f1f5f9; padding: 12px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-light); }
+        td { padding: 14px 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background: #fdfdfd; }
 
-        /* Student Info Bar */
-        .student-bar { background: #f9f9f9; padding: 10px; border-bottom: 1px solid #ddd; font-weight: bold; color: #444; }
+        /* BUTTONS & INPUTS */
+        .btn { padding: 10px 22px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
+        .btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
 
-        /* Tables & Forms */
-        .left_articles { padding: 20px; }
-        .module-header { background: #eee; padding: 10px; text-align: center; font-weight: bold; border: 1px solid #ccc; margin-top: 10px; }
-        
-        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        th, td { border: 1px solid hsl(0, 0%, 100%); padding: 8px; font-size: 11px; }
-        .dentry_label { background: #0056b3; color: #fff; font-weight: bold; text-align: center; }
-        
-        fieldset { border: 1px solid #0056b3; border-radius: 4px; padding: 15px; margin-bottom: 20px; }
-        legend { color: #0056b3; font-weight: bold; padding: 0 10px; }
+        input[type="text"], select { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: #fafafa; }
+        input[type="text"]:focus { outline: none; border-color: var(--primary); background: #fff; }
 
-        /* Input Styles */
-        input[type="text"] { width: 90%; border: 1px solid #999; padding: 3px; }
-        select { width: 95%; padding: 2px; }
-        .btn-register { background: #0056b3; color: white; padding: 10px 20px; border: none; cursor: pointer; font-weight: bold; margin-top: 10px; }
-        .btn-register:hover { background: #003d80; }
+        /* STATUS BADGE */
+        .badge { padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+        .bg-success { background: #dcfce7; color: #166534; }
+        .bg-warning { background: #fef3c7; color: #92400e; }
 
-        /* Guide Notes */
-        .guide-notes { background: #fffae6; padding: 15px; border: 1px solid #ffe58f; line-height: 1.6; }
-
-        #footer { text-align: right; padding: 10px; font-size: 11px; border-top: 1px solid #ccc; background: #f8f8f8; }
-
-        /* --- CHATBOT ENHANCED STYLES --- */
-        #chat-widget { position: fixed; bottom: 20px; right: 20px; z-index: 1000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        #chat-button { background: #0056b3; color: white; border: none; padding: 12px 24px; border-radius: 50px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.3); transition: transform 0.2s; }
-        #chat-button:hover { transform: scale(1.05); }
-        #chat-window { width: 320px; height: 450px; background: white; border: 1px solid #0056b3; border-radius: 12px; display: none; flex-direction: column; box-shadow: 0 10px 25px rgba(0,0,0,0.2); overflow: hidden; }
-        #chat-header { background: #0056b3; color: white; padding: 15px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
-        #chat-body { flex-grow: 1; padding: 15px; overflow-y: auto; background: #f9f9f9; display: flex; flex-direction: column; gap: 10px; scroll-behavior: smooth; }
-        .chat-msg { padding: 10px 14px; border-radius: 18px; max-width: 85%; font-size: 12px; line-height: 1.4; }
-        .bot { background: #eef2f7; align-self: flex-start; color: #333; border-bottom-left-radius: 2px; }
-        .user { background: #0056b3; align-self: flex-end; color: white; border-bottom-right-radius: 2px; }
-        #chat-input-area { border-top: 1px solid #eee; padding: 12px; display: flex; background: white; }
-        #chat-input { flex-grow: 1; border: 1px solid #ddd; padding: 8px 12px; border-radius: 20px; outline: none; font-size: 12px; }
-        #chat-send { background: #0056b3; color: white; border: none; margin-left: 8px; padding: 5px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; }
+        /* CHAT */
+        #chat-fab { position: fixed; bottom: 30px; right: 30px; background: var(--primary); color: white; width: 55px; height: 55px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 10px 15px rgba(79, 70, 229, 0.4); z-index: 100; }
+        #chat-window { position: fixed; bottom: 100px; right: 30px; width: 330px; height: 450px; background: white; border-radius: 16px; display: none; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); border: 1px solid var(--border); z-index: 101; overflow: hidden; }
+        /*FOOTER*/
+        footer { text-align: center; padding: 40px; color: var(--text-light); font-size: 0.85rem; }
     </style>
 </head>
 <body>
 
-<div id="content">
-    <div id="top_info">
-        <table border="0">
-            <tr>
-                <td width="80"><img src="../Images/logo.jpg" class="logoimg" alt="MKU Logo" /></td>
-                <td>
-                    <h1>Student Support Agent</h1>
-                    <small>Infinite support for infinite possibilities.</small>
-                </td>
-            </tr>
+<header>
+    <div class="branding">
+        <img src="../Images/logo.jpg" class="logoimg" alt="Logo">
+        <div>
+            <h1>Student Support Agent</h1>
+            <small>Infinite support for infinite possibilities.</small>
+        </div>
+    </div>
+    <div style="font-size: 0.85rem; color: var(--text-light);">
+        Academic Year: <strong>2026</strong> | Semester: <strong>Jan-Apr</strong>
+    </div>
+</header>
+
+<nav>
+    <a href="Home.php">Home</a>
+    <a href="personal_information.php">Information Update</a>
+    <a href="#">Fees</a>
+    <a href="teaching_timetable.php">Timetables</a>
+    <a href="#" class="active">Course Registration</a>
+    <a href="#">Sign Out</a>
+</nav>
+
+<div class="container">
+    <div class="student-strip">
+        <span><?php echo $student_reg_no; ?> | Noah Chepkonga</span>
+        <span>BIT Bachelor of Science in Information Technology</span>
+    </div>
+
+    <div class="card">
+        <div class="card-title">✅ Confirmed Units</div>
+        <table>
+            <thead>
+                <tr><th>#</th><th>Unit Code & Title</th><th>Exam Type</th><th>Group</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+                <?php $i=1; while($row = mysqli_fetch_assoc($confirmed)): ?>
+                    <tr>
+                        <td><?php echo $i++; ?></td>
+                        <td><strong><?php echo $row['unit_code']; ?></strong> - <?php echo $row['course_title']; ?></td>
+                        <td><?php echo $row['exam_type']; ?></td>
+                        <td><?php echo $row['class_group']; ?></td>
+                        <td><span class="badge bg-success">Confirmed</span></td>
+                    </tr>
+                <?php endwhile; ?>
+            </tbody>
         </table>
     </div>
 
-    <div id="navigation">
-        <ul class="ult-section primary">
-            <li><a href="Home.php">Home</a></li>
-            <li><a href="personal_information.php">Information Update</a></li>
-            <li><a href="#">Fees</a></li>
-            <li><a href="teaching_timetable.php">Timetables</a></li>
-            <li class="active"><a href="#">Course Registration</a></li>
-            <li><a href="#">Results</a></li>
-            <li><a href="#">Sign Out</a></li>
-        </ul>
-        <ul class="ult-section secondary">
-            <li class="active"><a href="#">Course Registration</a></li>
-        </ul>
+    <form action="" method="POST">
+    <div class="card">
+        <div class="card-title" style="color: var(--warning);">⏳ Provisional Units</div>
+        <table>
+            <thead>
+                <tr><th width="40">Select</th><th>Unit Code & Title</th><th>Exam Type</th><th>Group</th><th>Action</th></tr>
+            </thead>
+            <tbody>
+                <?php while($row = mysqli_fetch_assoc($provisional)): ?>
+                    <tr>
+                        <td align="center"><input type="checkbox" name="selected_units[]" value="<?php echo $row['unit_code']; ?>"></td>
+                        <td><strong><?php echo $row['unit_code']; ?></strong> - <?php echo $row['course_title']; ?></td>
+                        <td><?php echo $row['exam_type']; ?></td>
+                        <td><?php echo $row['class_group']; ?></td>
+                        <td><span class="badge bg-warning">Pending</span></td>
+                    </tr>
+                <?php endwhile; ?>
+            </tbody>
+        </table>
+        <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="submit" name="btn_drop_action" class="btn btn-outline" style="color:red;">Drop Selected</button>
+            <button type="submit" name="btn_confirm_action" class="btn btn-success">Confirm Units</button>
+        </div>
     </div>
+    </form>
 
-    <div class="left_articles">
-        <div class="student-bar">
-            BIT/2024/43255 | CHEPKONGA CHEPCHIENG NOAH | Thika (Day) - Main Campus
-        </div>
-
-        <div class="module-header">
-            BIT Bachelor of Science in Information Technology<br>
-            2025/2026 Jan/Apr Semester
-        </div>
-
-        <fieldset>
-            <legend>Confirmed Courses</legend>
+    <div class="card">
+        <div class="card-title">➕ Register New Courses</div>
+        <form action="" method="POST">
+            <input type="hidden" name="register_btn" value="1">
             <table>
-                <tr style="background:#f2f2f2; font-weight:bold;">
-                    <td>Module</td><td>Unit Code and Title</td><td>Exam Type</td><td>Group</td><td>Status</td><td>Fee</td>
-                </tr>
-                <tr><td colspan="6" align="center" style="padding: 20px; color: #666;">No Confirmed Courses yet.</td></tr>
+                <thead>
+                    <tr><th width="50">#</th><th>Unit Code</th><th>Exam Type</th><th>Class Group</th></tr>
+                </thead>
+                <tbody>
+                    <?php for($k=1; $k<=6; $k++): ?>
+                        <tr>
+                            <td align="center"><?php echo $k; ?></td>
+                            <td><input type="text" name="courseCode<?php echo $k; ?>" placeholder="e.g. BBT 1102"></td>
+                            <td>
+                                <select name="examType<?php echo $k; ?>">
+                                    <option>Regular</option><option>Retake</option>
+                                </select>
+                            </td>
+                            <td>
+                                <select name="classCode<?php echo $k; ?>">
+                                    <option>Day</option><option>Evening</option>
+                                </select>
+                            </td>
+                        </tr>
+                    <?php endfor; ?>
+                </tbody>
             </table>
-        </fieldset>
-
-        <form action="#" method="post">
-            <table>
-                <tr style="background:#eee; font-weight:bold; text-align:center;">
-                    <td width="30">#</td><td>Course Code</td><td>Exam Type</td><td>Class/Group</td>
-                </tr>
-                <script>
-                    for(let i=1; i<=8; i++) {
-                        document.write(`<tr><td align="center">${i}</td><td><input type="text" name="courseCode${i}"></td><td><select name="examType${i}"><option>First Attempt</option><option>Project</option><option>Retake</option></select></td><td><select name="classCode${i}"><option>Class I</option><option>Class II</option><option>Class III</option></select></td></tr>`);
-                    }
-                </script>
-                <tr><td colspan="4" align="center"><input type="submit" class="btn-register" value="Register Courses"></td></tr>
-            </table>
+            <div style="text-align: center; margin-top: 25px;">
+                <button type="submit" class="btn btn-primary" style="padding: 12px 40px;">Submit Registration</button>
+            </div>
         </form>
-
-        <div class="guide-notes">
-            <strong>Guide Notes:</strong>
-            <ol>
-                <li>Pay the Required Amount for the units you want to register.</li>
-                <li>Identify the COURSE CODE from the Class Timetable.</li>
-                <li>Enter course code, select exam type and group.</li>
-            </ol>
-        </div>
     </div>
-
-    <div id="footer"> &copy; 2026 Mount Kenya University </div>
 </div>
 
-<div id="chat-widget">
-    <button id="chat-button" onclick="toggleChat()">💬 chat with assistant</button>
-    <div id="chat-window">
-        <div id="chat-header">
-            <span>Portal Assistant</span>
-            <span style="cursor:pointer" onclick="toggleChat()">×</span>
-        </div>
-        <div id="chat-body">
-            <div class="chat-msg bot">Hello Noah! I can help you with registration. You can ask about "fee balance", "how to register", or "deadlines".</div>
-        </div>
-        <div id="chat-input-area">
-            <input type="text" id="chat-input" placeholder="Ask a question...">
-            <button id="chat-send" onclick="sendMessage()">Send</button>
-        </div>
+<div id="chat-fab" onclick="toggleChat()">💬</div>
+<div id="chat-window">
+    <div style="background: var(--primary); color:white; padding: 15px; font-weight:bold;">Assistant</div>
+    <div id="chat-content" style="flex:1; padding: 15px; overflow-y:auto; font-size: 0.85rem;">
+        <div style="background:#f1f5f9; padding: 10px; border-radius: 8px; margin-bottom: 10px;">Hello Noah! How can I help with your Jan-Apr registration?</div>
+    </div>
+    <div style="padding: 10px; border-top: 1px solid var(--border); display: flex; gap: 5px;">
+        <input type="text" placeholder="Type here..." style="flex:1; border-radius: 20px; padding: 5px 15px; border: 1px solid var(--border);">
     </div>
 </div>
 
 <script>
     function toggleChat() {
-        const win = document.getElementById('chat-window');
-        const btn = document.getElementById('chat-button');
-        const isHidden = win.style.display === 'none' || win.style.display === '';
-        win.style.display = isHidden ? 'flex' : 'none';
-        btn.style.display = isHidden ? 'none' : 'block';
+        const c = document.getElementById('chat-window');
+        c.style.display = (c.style.display === 'flex') ? 'none' : 'flex';
     }
-
-    function sendMessage() {
-        const input = document.getElementById('chat-input');
-        const body = document.getElementById('chat-body');
-        const userText = input.value.trim();
-
-        if (userText !== "") {
-            // Append User Message
-            appendMessage(userText, 'user');
-            input.value = "";
-
-            // Bot Response Logic
-            setTimeout(() => {
-                let response = "";
-                const val = userText.toLowerCase();
-
-                if (val.includes("fee") || val.includes("balance")) {
-                    response = "Based on your portal, your current balance is 0. You are cleared to register for units!";
-                } else if (val.includes("register") || val.includes("how")) {
-                    response = "To register: 1. Check your timetable for Unit Codes. 2. Enter the codes in the boxes (1-8). 3. Choose 'First Attempt' and 'Class I'. 4. Click 'Register Courses'.";
-                } else if (val.includes("deadline") || val.includes("when")) {
-                    response = "Registration for the Jan/Apr 2026 semester usually closes at the end of the second week of the semester. Please check the 'Downloads' section for the official academic calendar.";
-                } else if (val.includes("thank")) {
-                    response = "You're welcome, Noah! Happy studying.";
-                } else {
-                    response = "I'm not sure about that. Try asking about 'unit codes', 'fee balance', or 'registration steps'.";
-                }
-
-                appendMessage(response, 'bot');
-            }, 800);
-        }
-    }
-
-    function appendMessage(text, sender) {
-        const body = document.getElementById('chat-body');
-        const msgDiv = document.createElement('div');
-        msgDiv.className = `chat-msg ${sender}`;
-        msgDiv.textContent = text;
-        body.appendChild(msgDiv);
-        body.scrollTop = body.scrollHeight; // Auto-scroll to bottom
-    }
-
-    // Enter key support
-    document.getElementById('chat-input').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendMessage();
-    });
 </script>
+<footer>
+    &copy; 2026 Mount Kenya University | Portal Assistant AI System
+</footer>
 
 </body>
 </html>

@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-/* --- SECURITY CHECK – student must be logged in --- */
+/* --- SECURITY CHECK --- */
 if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id'])) {
     header("Location: ../login.php");
     exit();
@@ -28,199 +28,180 @@ if (!$result || mysqli_num_rows($result) !== 1) {
 }
 
 $student = mysqli_fetch_assoc($result);
-
-/* --- SPLIT FULL NAME --- */
 $name_parts = explode(" ", $student['full_name']);
 $fname = $name_parts[0] ?? '';
-$mname = $name_parts[1] ?? '';
-$lname = $name_parts[2] ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Mount Kenya University : Students Online Portal</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home | Student Support Agent</title>
     <style>
-        body { font-family: Verdana, sans-serif; font-size: 12px; background-color: #f2f2f2; margin: 0; }
-        #content { width: 1000px; margin: 10px auto; background: #fff; border: 1px solid #aaa; border-radius: 20px; }
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #3730a3;
+            --bg: #f8fafc;
+            --white: #ffffff;
+            --text-main: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            --accent: #e0e7ff;
+        }
 
-        #top_info { padding: 15px; border-bottom: 3px solid #0056b3; }
-        .logoimg { max-height: 70px; }
-        h1 { margin: 0; font-size: 22px; }
-        h1 a { color: #0056b3; text-decoration: none; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text-main); margin: 0; line-height: 1.5; }
 
-        #navigation { background: #0056b3; margin-top:-27px; }
-        .ult-section { list-style: none; margin: 0; padding: 0; display: flex; }
-        .primary { background: #004080; }
-        .secondary { background: #e9e9e9; border-bottom: 1px solid #ccc; }
-        .ult-section li a { display: block; padding: 10px 15px; text-decoration: none; font-weight: bold; }
-        .primary li a { color: #fff; border-right: 1px solid #003366; }
-        .secondary li a { color: #333; font-size: 11px; border-right: 1px solid #ccc; }
-        .active { background: #fff !important; }
-        .active a { color: #0056b3 !important; }
+        /* HEADER & BRANDING */
+        header { background: var(--white); border-bottom: 1px solid var(--border); padding: 1rem 5%; display: flex; align-items: center; justify-content: space-between; }
+        .branding { display: flex; align-items: center; gap: 15px; }
+        .logoimg { height: 50px; border-radius: 8px; }
+        .branding h1 { margin: 0; font-size: 1.4rem; color: var(--primary); font-weight: 800; }
+        .branding small { color: var(--text-light); display: block; font-size: 0.85rem; }
 
-        .student-bar { background: #f9f9f9; padding: 10px; border-bottom: 1px solid #ddd; font-weight: bold; color: #444; text-align: center; }
+        /* NAVIGATION */
+        nav { background: var(--primary); padding: 0 5%; display: flex; gap: 10px; }
+        nav a { color: rgba(255,255,255,0.8); text-decoration: none; padding: 14px 20px; font-size: 0.9rem; font-weight: 600; transition: 0.3s; border-bottom: 3px solid transparent; }
+        nav a:hover { color: white; background: rgba(255,255,255,0.1); }
+        nav a.active { color: white; border-bottom: 3px solid white; background: rgba(255,255,255,0.15); }
 
-        .left_articles { padding: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ffffff; padding: 8px; font-size: 11px; }
-        .colhead { background: #eeeeee; font-weight: bold; text-align: center; }
-        .notice-title { background: #f2f2f2; font-weight: bold; padding: 10px; text-align: center; }
-        a { color: #0056b3; text-decoration: none; }
-        a:hover { text-decoration: underline; }
+        /* CONTAINER */
+        .container { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
+        
+        .student-strip { background: var(--accent); padding: 15px 25px; border-radius: 12px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; color: var(--primary-dark); font-weight: 700; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
 
-        #footer { text-align: right; padding: 10px; font-size: 11px; border-top: 1px solid #ccc; background: #f8f8f8; }
+        /* NOTICES AREA */
+        .section-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 20px; color: var(--text-main); display: flex; align-items: center; gap: 10px; }
+        
+        .notice-card { background: var(--white); border-radius: 12px; border: 1px solid var(--border); padding: 20px; margin-bottom: 15px; transition: transform 0.2s, box-shadow 0.2s; display: flex; gap: 20px; align-items: flex-start; }
+        .notice-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); }
+        
+        .date-badge { background: #f1f5f9; padding: 10px; border-radius: 8px; text-align: center; min-width: 80px; }
+        .date-badge .day { display: block; font-size: 1.2rem; font-weight: 800; color: var(--primary); }
+        .date-badge .month { font-size: 0.7rem; text-transform: uppercase; font-weight: 700; color: var(--text-light); }
 
-        /* CHATBOT STYLES */
-        #chat-widget { position: fixed; bottom: 20px; right: 20px; z-index: 1000; font-family: Arial, sans-serif; }
-        #chat-button { background: #0056b3; color: white; border: none; padding: 12px 20px; border-radius: 50px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
-        #chat-window { width: 300px; height: 400px; background: white; border: 1px solid #0056b3; border-radius: 10px; display: none; flex-direction: column; box-shadow: 0 5px 15px rgba(0,0,0,0.3); overflow: hidden; }
-        #chat-header { background: #0056b3; color: white; padding: 10px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
-        #chat-body { flex-grow: 1; padding: 10px; overflow-y: auto; background: #fdfdfd; display: flex; flex-direction: column; gap: 8px; }
-        .chat-msg { padding: 8px 12px; border-radius: 15px; max-width: 80%; font-size: 11px; }
-        .bot { background: #e9e9e9; align-self: flex-start; color: #333; }
-        .user { background: #0056b3; align-self: flex-end; color: white; }
-        #chat-input-area { border-top: 1px solid #ccc; padding: 10px; display: flex; }
-        #chat-input { flex-grow: 1; border: 1px solid #ccc; padding: 5px; border-radius: 3px; outline: none; }
-        #chat-send { background: #0056b3; color: white; border: none; margin-left: 5px; padding: 5px 10px; border-radius: 3px; cursor: pointer; }
+        .notice-content h4 { margin: 0 0 5px 0; color: var(--primary-dark); font-size: 1rem; }
+        .notice-content p { margin: 0; font-size: 0.9rem; color: var(--text-light); line-height: 1.6; }
+        .notice-link { color: var(--primary); font-weight: 600; text-decoration: none; display: inline-block; margin-top: 10px; }
+        .notice-link:hover { text-decoration: underline; }
+
+        /* CHATBOT */
+        #chat-trigger { position: fixed; bottom: 30px; right: 30px; background: var(--primary); color: white; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 10px 25px rgba(79, 70, 229, 0.4); z-index: 100; font-size: 1.5rem; }
+        #chat-window { position: fixed; bottom: 100px; right: 30px; width: 340px; height: 480px; background: white; border-radius: 20px; display: none; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); border: 1px solid var(--border); z-index: 101; overflow: hidden; }
+        .chat-header { background: var(--primary); color: white; padding: 15px; font-weight: bold; display: flex; justify-content: space-between; }
+        #chat-body { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .msg { padding: 10px 14px; border-radius: 12px; font-size: 0.85rem; max-width: 80%; }
+        .msg.bot { background: #f1f5f9; align-self: flex-start; }
+        .msg.user { background: var(--primary); color: white; align-self: flex-end; }
+
+        footer { text-align: center; padding: 40px; color: var(--text-light); font-size: 0.85rem; }
     </style>
 </head>
 <body>
-<div id="content">
-    <!-- HEADER -->
-    <div id="top_info">
-        <table style="border: 1px solid white; border-collapse: collapse; width: 100%;">
-            <tr>
-                <td width="80"><img src="../Images/logo.jpg" class="logoimg" alt="MKU Logo" /></td>
-                <td>
-                    <h1>Student Support Agent</h1>
-                    <small>Infinite support for infinite possibilities.</small>
-                </td>
-            </tr>
-        </table>
-    </div>
 
-    <!-- NAVIGATION -->
-    <div id="navigation">
-        <ul class="ult-section primary">
-            <li class="active"><a href="Home.php">Home</a></li>
-            <li><a href="personal_information.php">Information Update</a></li>
-            <li><a href="#">Fees</a></li>
-            <li><a href="teaching_timetable.php">Timetables</a></li>
-            <li><a href="regisration.php">Course Registration</a></li>
-            <li><a href="#">Results</a></li>
-            <li><a href="#">My Requests</a></li>
-            <li><a href="../logout.php">Sign Out</a></li>
-        </ul>
-        <ul class="ult-section secondary">
-            <li class="active"><a href="Change_password.php">Change Password</a></li>
-        </ul>
-    </div>
-
-    <!-- STUDENT BAR -->
-    <div class="left_articles">
-        <div class="student-bar">
-            <?php echo htmlspecialchars($student['reg_number']); ?> | <?php echo htmlspecialchars($student['full_name']); ?> | Thika (Day) , Main Campus (Thika)
+<header>
+    <div class="branding">
+        <img src="../Images/logo.jpg" class="logoimg" alt="Logo">
+        <div>
+            <h1>Student Support Agent</h1>
+            <small>Infinite support for infinite possibilities.</small>
         </div>
+    </div>
+</header>
 
-        <!-- NOTICES TABLE -->
-        <table border="1">
-            <tr>
-                <td class="notice-title" colspan="6">Current Notices / Events</td>
-            </tr>
-            <tr class="colhead">
-                <td width="30">#</td>
-                <td>Subject</td>
-                <td>Flag</td>
-                <td>Date</td>
-                <td>Notice / Event</td>
-                <td>&nbsp;</td>
-            </tr>
-            <tr>
-                <td align="right">1.</td>
-                <td align="left">Hostel booking process</td>
-                <td align="left"></td>
-                <td align="left">05-May-2021</td>
-                <td align="left">
-                    <a href="#">
-                        kindly download hostel booking tutorial use the below link <br>
-                        https://shorturl.at/86iS3 <br>
-                        Tha . . .
-                    </a>
-                </td>
-                <td align="left">1</td>
-            </tr>
-        </table>
+<nav>
+    <a href="#" class="active">Home</a>
+    <a href="personal_information.php">Information Update</a>
+    <a href="#">Fees</a>
+    <a href="teaching_timetable.php">Timetables</a>
+    <a href="regisration.php">Course Registration</a>
+    <a href="../logout.php">Sign Out</a>
+</nav>
+
+<div class="container">
+    <div class="student-strip">
+        <span>Welcome back, <?php echo htmlspecialchars($fname); ?></span>
+        <span><?php echo htmlspecialchars($student['reg_number']); ?> | Thika Main Campus</span>
     </div>
 
-    <!-- FOOTER -->
-    <div id="footer">
-        <p>&copy; 2026 Mount Kenya University</p>
-    </div>
-</div>
+    <div class="section-title">📢 Latest Notices & Events</div>
 
-<!-- CHATBOT -->
-<div id="chat-widget">
-    <button id="chat-button" onclick="toggleChat()">Chat with Assistant</button>
-    <div id="chat-window">
-        <div id="chat-header">
-            Portal Assistant
-            <span style="cursor:pointer" onclick="toggleChat()">×</span>
+    <div class="notice-card">
+        <div class="date-badge">
+            <span class="day">05</span>
+            <span class="month">May 21</span>
         </div>
-        <div id="chat-body">
-            <div class="chat-msg bot">Welcome back, <?php echo htmlspecialchars($fname); ?>! Check the notices for the hostel booking tutorial. How else can I help you today?</div>
+        <div class="notice-content">
+            <h4>Hostel Booking Process</h4>
+            <p>To ensure a smooth accommodation experience, please follow the updated booking guidelines for the upcoming semester. You can download the full video tutorial below.</p>
+            <a href="https://shorturl.at/86iS3" class="notice-link" target="_blank">Download Booking Tutorial →</a>
         </div>
-        <div id="chat-input-area">
-            <input type="text" id="chat-input" placeholder="Ask about fees, courses...">
-            <button id="chat-send" onclick="sendMessage()">Send</button>
+    </div>
+
+    <div class="notice-card">
+        <div class="date-badge">
+            <span class="day">02</span>
+            <span class="month">Feb 26</span>
+        </div>
+        <div class="notice-content">
+            <h4>Jan-Apr Semester Registration</h4>
+            <p>Ensure all units are confirmed before the deadline to avoid late registration penalties. Contact your department head for unit code clarifications.</p>
+            <a href="regisration.php" class="notice-link">Go to Registration →</a>
         </div>
     </div>
 </div>
+
+<div id="chat-trigger" onclick="toggleChat()">💬</div>
+<div id="chat-window">
+    <div class="chat-header">
+        <span>Support Assistant</span>
+        <span style="cursor:pointer" onclick="toggleChat()">×</span>
+    </div>
+    <div id="chat-body">
+        <div class="msg bot">Welcome back, <?php echo htmlspecialchars($fname); ?>! How can I help you today?</div>
+    </div>
+    <div style="padding: 15px; border-top: 1px solid var(--border); display: flex; gap: 8px;">
+        <input type="text" id="chat-in" placeholder="Ask about hostels or fees..." style="flex:1; border: 1px solid #ddd; padding: 8px; border-radius: 20px; outline:none;">
+        <button onclick="sendMsg()" style="background: var(--primary); border: none; color: white; border-radius: 50%; width: 35px; height: 35px; cursor: pointer;">></button>
+    </div>
+</div>
+
+<footer>
+    &copy; 2026 Mount Kenya University | Portal Assistant AI
+</footer>
 
 <script>
-function toggleChat() {
-    var win = document.getElementById('chat-window');
-    var btn = document.getElementById('chat-button');
-    if (win.style.display === 'none' || win.style.display === '') {
-        win.style.display = 'flex';
-        btn.style.display = 'none';
-    } else {
-        win.style.display = 'none';
-        btn.style.display = 'block';
+    function toggleChat() {
+        const win = document.getElementById('chat-window');
+        win.style.display = (win.style.display === 'flex') ? 'none' : 'flex';
     }
-}
 
-function sendMessage() {
-    var input = document.getElementById('chat-input');
-    var body = document.getElementById('chat-body');
-    if (input.value.trim() !== "") {
-        var userMsg = document.createElement('div');
-        userMsg.className = 'chat-msg user';
-        userMsg.textContent = input.value;
-        body.appendChild(userMsg);
-        
-        var val = input.value.toLowerCase();
+    function sendMsg() {
+        const input = document.getElementById('chat-in');
+        const body = document.getElementById('chat-body');
+        if(!input.value.trim()) return;
+
+        const uMsg = document.createElement('div');
+        uMsg.className = 'msg user';
+        uMsg.textContent = input.value;
+        body.appendChild(uMsg);
+
+        const text = input.value.toLowerCase();
+        input.value = '';
+
         setTimeout(() => {
-            var botMsg = document.createElement('div');
-            botMsg.className = 'chat-msg bot';
-            if(val.includes("hostel")) {
-                botMsg.textContent = "You can find the hostel booking link in the notices section of this page. The tutorial link is: https://shorturl.at/86iS3";
-            } else if(val.includes("result")) {
-                botMsg.textContent = "Your results are available under the 'Results' tab in the top menu.";
+            const bMsg = document.createElement('div');
+            bMsg.className = 'msg bot';
+            if(text.includes('hostel')) {
+                bMsg.textContent = "The hostel booking tutorial link is available on your dashboard notice card!";
             } else {
-                botMsg.textContent = "I can help with navigation. Try asking about 'hostels', 'fees', or 'registration'.";
+                bMsg.textContent = "I'm here to help with navigation. Check the 'Timetables' or 'Fees' tab for more info.";
             }
-            body.appendChild(botMsg);
+            body.appendChild(bMsg);
             body.scrollTop = body.scrollHeight;
         }, 600);
-
-        input.value = "";
-        body.scrollTop = body.scrollHeight;
     }
-}
-document.getElementById('chat-input').addEventListener('keypress', function (e) {
-    if (e.key === 'Enter') sendMessage();
-});
+    document.getElementById('chat-in').addEventListener('keypress', (e) => { if(e.key === 'Enter') sendMsg(); });
 </script>
+
 </body>
 </html>
