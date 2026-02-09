@@ -148,7 +148,7 @@ th { background: #eee; }
 <div id="navigation">
 <ul class="ult-section">
     <li><a href="Admin-index.php">Dashboard</a></li>
-    <li><a href="add_unit.php">Add Units</a></li>
+    <li><a href="add_unit.php">Add Unit to Timetable</a></li>
     <li><a href="add_workload.php">Add Workload</a></li>
     <li class="active"><a href="manage_units.php">Manage Units</a></li>
     <li><a href="add_student.php">Manage Students</a></li>

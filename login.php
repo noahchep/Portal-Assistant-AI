@@ -17,9 +17,8 @@ $error = "";
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['signin'])) {
     $username = mysqli_real_escape_string($conn, $_POST['username']);
-    $password = $_POST['password']; // keep raw password for verification
+    $password = $_POST['password']; 
 
-    // Fetch user by registration number only
     $sql = "SELECT * FROM `users` WHERE `reg_number` = ?";
     $stmt = mysqli_prepare($conn, $sql);
     mysqli_stmt_bind_param($stmt, "s", $username);
@@ -29,14 +28,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['signin'])) {
     if ($result && mysqli_num_rows($result) === 1) {
         $row = mysqli_fetch_assoc($result);
 
-        // Verify password against hashed value in DB
         if (password_verify($password, $row['password'])) {
-            // Correct password, set session
-            $_SESSION['user_id']   = $row['id'];
-            $_SESSION['user_name'] = $row['full_name'];
-            $_SESSION['role']      = $row['role'];
+            // FIX: We must clear any old session data first
+            session_regenerate_id(true);
 
-            // Redirect based on role
+            // SET SESSIONS
+            $_SESSION['user_id']    = $row['id'];
+            $_SESSION['user_name']  = $row['full_name'];
+            $_SESSION['role']       = $row['role'];
+            
+            // CRITICAL ADDITION: This allows registration.php to see ONLY this student's units
+            $_SESSION['reg_number'] = $row['reg_number']; 
+
             if ($row['role'] == 'admin') {
                 header("Location: Admin/Admin-index.php");
             } else {
@@ -50,7 +53,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['signin'])) {
         $error = "Invalid Registration Number or Password!";
     }
 }
-
 ?>
 <!DOCTYPE html>
 <html lang="en">
