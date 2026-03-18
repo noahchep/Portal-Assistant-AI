@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Feb 09, 2026 at 11:31 AM
+-- Generation Time: Mar 18, 2026 at 09:27 AM
 -- Server version: 10.4.32-MariaDB
--- PHP Version: 8.0.30
+-- PHP Version: 8.2.12
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -49,6 +49,149 @@ INSERT INTO `academic_workload` (`id`, `unit_code`, `unit_name`, `year_level`, `
 (10, 'BMA1106', 'Foundation mathematics ', 'First Year', '1st Semester', 'Once a Year'),
 (11, 'BIT1102 ', 'Introduction to programming and algorithms ', 'Second Year', '1st Semester', 'Once a Year'),
 (12, 'BBM1202', 'Principles of Marketing ', 'First Year', '1st Semester', 'Every Semester');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `admin_referrals`
+--
+
+CREATE TABLE `admin_referrals` (
+  `id` int(11) NOT NULL,
+  `admin_reply` text DEFAULT NULL,
+  `status` enum('pending','resolved') DEFAULT 'pending',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `sender_name` varchar(100) DEFAULT NULL,
+  `conversation_id` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `admin_referrals`
+--
+
+INSERT INTO `admin_referrals` (`id`, `admin_reply`, `status`, `created_at`, `sender_name`, `conversation_id`) VALUES
+(24, NULL, 'pending', '2026-03-18 05:59:52', 'Noah  Chepkonga', NULL),
+(25, NULL, 'pending', '2026-03-18 06:00:51', 'System Admin', NULL),
+(26, NULL, 'pending', '2026-03-18 06:02:33', 'Noah  Chepkonga', NULL),
+(27, NULL, 'pending', '2026-03-18 06:28:31', 'Noah  Chepkonga', 'hu6idb525bbc5i2ke919s52qgf'),
+(28, NULL, 'pending', '2026-03-18 06:53:32', 'System Admin', '2c918aq9l2aqf2ilhhdn151dgg'),
+(29, NULL, 'pending', '2026-03-18 06:54:58', 'Noah  Chepkonga', '3br9bejjka0m440iad0b4gidhb');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `ai_knowledge_base`
+--
+
+CREATE TABLE `ai_knowledge_base` (
+  `id` int(11) NOT NULL,
+  `student_query` text NOT NULL,
+  `verified_answer` text NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `ai_knowledge_base`
+--
+
+INSERT INTO `ai_knowledge_base` (`id`, `student_query`, `verified_answer`, `created_at`) VALUES
+(19, 'Admin Escalation Reply', 'Hello How may I help you today', '2026-03-18 06:00:37'),
+(20, 'Admin Escalation Reply', 'hello', '2026-03-18 06:02:57'),
+(21, 'hello', 'hello', '2026-03-18 06:12:56'),
+(22, 'when is the exams begining>', '13th april', '2026-03-18 06:29:10'),
+(23, 'thanks', 'You are welcome', '2026-03-18 06:54:01');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `chat_messages`
+--
+
+CREATE TABLE `chat_messages` (
+  `id` int(11) NOT NULL,
+  `conversation_id` varchar(50) DEFAULT NULL,
+  `sender_type` varchar(10) DEFAULT NULL,
+  `message` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `chat_messages`
+--
+
+INSERT INTO `chat_messages` (`id`, `conversation_id`, `sender_type`, `message`, `created_at`) VALUES
+(7, '16', 'student', 'when will exams start?', '2026-03-17 05:57:39'),
+(8, '16', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin inbox for you!', '2026-03-17 05:57:41'),
+(9, '17', 'student', 'cool', '2026-03-18 03:53:12'),
+(10, '17', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin inbox for you!', '2026-03-18 03:53:12'),
+(11, '18', 'student', 'you are good?', '2026-03-18 04:13:57'),
+(12, '18', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin inbox for you!', '2026-03-18 04:13:57'),
+(13, '19', 'student', 'what is my name?', '2026-03-18 04:27:56'),
+(14, '19', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin inbox for you!', '2026-03-18 04:27:56'),
+(15, '20', 'student', 'hello', '2026-03-18 04:45:11'),
+(16, '20', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin inbox for you!', '2026-03-18 04:45:11'),
+(17, '21', 'student', 'helo', '2026-03-18 04:47:02'),
+(18, '21', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin inbox for you!', '2026-03-18 04:47:02'),
+(19, '21', 'admin', 'hi', '2026-03-18 05:00:04'),
+(20, '22', 'student', 'when does the exams start?', '2026-03-18 05:00:44'),
+(21, '22', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin inbox for you!', '2026-03-18 05:00:44'),
+(22, '22', 'admin', 'next month 13th', '2026-03-18 05:28:21'),
+(23, '22', 'admin', 'hi', '2026-03-18 05:29:05'),
+(24, '23', 'student', 'when does the exams start?', '2026-03-18 05:32:41'),
+(25, '23', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin inbox for you!', '2026-03-18 05:32:41'),
+(26, '23', 'admin', 'hi', '2026-03-18 05:36:59'),
+(27, '23', 'admin', 'helllow whatsup', '2026-03-18 05:40:31'),
+(28, '23', 'admin', 'helllow whatsup', '2026-03-18 05:41:29'),
+(29, '23', 'admin', 'hehehehe', '2026-03-18 05:41:55'),
+(30, '23', 'admin', 'yoh', '2026-03-18 05:42:07'),
+(31, '23', 'admin', 'ni mbayaa!!!', '2026-03-18 05:43:22'),
+(32, '23', 'admin', 'ni mbayaa!!!', '2026-03-18 05:53:08'),
+(33, '23', 'admin', 'n', '2026-03-18 05:53:26'),
+(34, '23', 'admin', 'hhh', '2026-03-18 05:54:05'),
+(35, '24', 'student', 'hello', '2026-03-18 05:59:52'),
+(36, '24', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin inbox for you!', '2026-03-18 05:59:52'),
+(37, '24', 'admin', 'Hello How may I help you today', '2026-03-18 06:00:37'),
+(38, '25', 'student', 'hello', '2026-03-18 06:00:51'),
+(39, '25', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin inbox for you!', '2026-03-18 06:00:52'),
+(40, '26', 'student', 'hello', '2026-03-18 06:02:33'),
+(41, '26', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin inbox for you!', '2026-03-18 06:02:33'),
+(42, '26', 'admin', 'hello', '2026-03-18 06:02:57'),
+(43, '26', 'admin', 'hello', '2026-03-18 06:12:56'),
+(44, 'hu6idb525bbc5i2ke919s52qgf', 'student', 'hello', '2026-03-18 06:25:14'),
+(45, 'hu6idb525bbc5i2ke919s52qgf', 'bot', 'hello', '2026-03-18 06:25:14'),
+(46, 'hu6idb525bbc5i2ke919s52qgf', 'student', 'when is the exams begining', '2026-03-18 06:25:37'),
+(47, 'hu6idb525bbc5i2ke919s52qgf', 'student', 'hello', '2026-03-18 06:25:45'),
+(48, 'hu6idb525bbc5i2ke919s52qgf', 'bot', 'hello', '2026-03-18 06:25:45'),
+(49, 'hu6idb525bbc5i2ke919s52qgf', 'student', 'when is the exams begining>', '2026-03-18 06:28:31'),
+(50, 'hu6idb525bbc5i2ke919s52qgf', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin!', '2026-03-18 06:28:31'),
+(51, 'hu6idb525bbc5i2ke919s52qgf', 'admin', '13th april', '2026-03-18 06:29:10'),
+(52, '2c918aq9l2aqf2ilhhdn151dgg', 'student', 'when is the exams begining>', '2026-03-18 06:29:26'),
+(53, '2c918aq9l2aqf2ilhhdn151dgg', 'bot', '13th april', '2026-03-18 06:29:26'),
+(54, '2c918aq9l2aqf2ilhhdn151dgg', 'student', 'when is the exams begining>', '2026-03-18 06:51:44'),
+(55, '2c918aq9l2aqf2ilhhdn151dgg', 'bot', '13th april', '2026-03-18 06:51:44'),
+(56, '2c918aq9l2aqf2ilhhdn151dgg', 'student', 'thanks', '2026-03-18 06:53:31'),
+(57, '2c918aq9l2aqf2ilhhdn151dgg', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin inbox for you!', '2026-03-18 06:53:32'),
+(58, '2c918aq9l2aqf2ilhhdn151dgg', 'admin', 'You are welcome', '2026-03-18 06:54:01'),
+(59, '3br9bejjka0m440iad0b4gidhb', 'student', 'when is the exam begining?', '2026-03-18 06:54:58'),
+(60, '3br9bejjka0m440iad0b4gidhb', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin inbox for you!', '2026-03-18 06:54:58'),
+(61, '3br9bejjka0m440iad0b4gidhb', 'student', 'thanks', '2026-03-18 06:55:03'),
+(62, '3br9bejjka0m440iad0b4gidhb', 'bot', 'You are welcome', '2026-03-18 06:55:03'),
+(63, '3br9bejjka0m440iad0b4gidhb', 'student', 'exam', '2026-03-18 07:27:20'),
+(64, '3br9bejjka0m440iad0b4gidhb', 'bot', '13th april', '2026-03-18 07:27:20'),
+(65, '3br9bejjka0m440iad0b4gidhb', 'student', 'when', '2026-03-18 07:27:26'),
+(66, '3br9bejjka0m440iad0b4gidhb', 'bot', '13th april', '2026-03-18 07:27:26'),
+(67, '3br9bejjka0m440iad0b4gidhb', 'student', 'begin', '2026-03-18 07:27:31'),
+(68, '3br9bejjka0m440iad0b4gidhb', 'bot', '13th april', '2026-03-18 07:27:33'),
+(69, '3br9bejjka0m440iad0b4gidhb', 'student', 'begin exam when', '2026-03-18 07:27:45'),
+(70, '3br9bejjka0m440iad0b4gidhb', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin inbox for you!', '2026-03-18 07:27:46'),
+(71, '3br9bejjka0m440iad0b4gidhb', 'student', 'name', '2026-03-18 07:29:09'),
+(72, '3br9bejjka0m440iad0b4gidhb', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin inbox for you!', '2026-03-18 07:29:10'),
+(73, '3br9bejjka0m440iad0b4gidhb', 'student', 'what is my name', '2026-03-18 07:29:16'),
+(74, '3br9bejjka0m440iad0b4gidhb', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin inbox for you!', '2026-03-18 07:29:16'),
+(75, '3br9bejjka0m440iad0b4gidhb', 'student', 'semester', '2026-03-18 07:29:33'),
+(76, '3br9bejjka0m440iad0b4gidhb', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin inbox for you!', '2026-03-18 07:29:33'),
+(77, '3br9bejjka0m440iad0b4gidhb', 'student', 'hjhj', '2026-03-18 08:20:24'),
+(78, '3br9bejjka0m440iad0b4gidhb', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin inbox for you!', '2026-03-18 08:20:26');
 
 -- --------------------------------------------------------
 
@@ -145,6 +288,24 @@ ALTER TABLE `academic_workload`
   ADD UNIQUE KEY `unit_code` (`unit_code`);
 
 --
+-- Indexes for table `admin_referrals`
+--
+ALTER TABLE `admin_referrals`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `ai_knowledge_base`
+--
+ALTER TABLE `ai_knowledge_base`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `chat_messages`
+--
+ALTER TABLE `chat_messages`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Indexes for table `registered_courses`
 --
 ALTER TABLE `registered_courses`
@@ -177,6 +338,24 @@ ALTER TABLE `users`
 --
 ALTER TABLE `academic_workload`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+
+--
+-- AUTO_INCREMENT for table `admin_referrals`
+--
+ALTER TABLE `admin_referrals`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
+
+--
+-- AUTO_INCREMENT for table `ai_knowledge_base`
+--
+ALTER TABLE `ai_knowledge_base`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
+
+--
+-- AUTO_INCREMENT for table `chat_messages`
+--
+ALTER TABLE `chat_messages`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=79;
 
 --
 -- AUTO_INCREMENT for table `registered_courses`
