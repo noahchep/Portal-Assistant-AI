@@ -1,27 +1,36 @@
 <?php
 session_start();
 
-/* --- SECURITY CHECK --- */
-if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id'])) {
-    header("Location: ../login.php");
+/* --- 1. SESSION & ROLE SECURITY CHECK --- */
+// Added check for 'role' to ensure Admins are redirected to their own dashboard
+if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
+    // If they are an admin, send them to the admin dashboard, otherwise to login
+    if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
+        header("Location: ../admin/dashboard.php");
+    } else {
+        header("Location: ../login.php?error=unauthorized");
+    }
     exit();
 }
 
-/* --- DB CONNECTION --- */
-$conn = mysqli_connect("localhost", "root", "", "Portal-Asisstant-AI");
+/* --- 2. DB CONNECTION --- */
+// Standardizing DB name to lowercase for consistency across files
+$conn = mysqli_connect("localhost", "root", "", "portal-asisstant-ai");
 if (!$conn) {
-    die("Database connection failed");
+    die("Database connection failed: " . mysqli_connect_error());
 }
 
-/* --- FETCH STUDENT DATA --- */
+/* --- 3. FETCH STUDENT DATA --- */
 $user_id = $_SESSION['user_id'];
-$sql = "SELECT full_name, reg_number FROM users WHERE id = ?";
+// It's good practice to also verify the 'role' in the database query for extra security
+$sql = "SELECT full_name, reg_number FROM users WHERE id = ? AND role = 'student'";
 $stmt = mysqli_prepare($conn, $sql);
 mysqli_stmt_bind_param($stmt, "i", $user_id);
 mysqli_stmt_execute($stmt);
 $result = mysqli_stmt_get_result($stmt);
 
 if (!$result || mysqli_num_rows($result) !== 1) {
+    // If user exists but role changed or session is invalid
     session_destroy();
     header("Location: ../login.php");
     exit();
@@ -29,7 +38,7 @@ if (!$result || mysqli_num_rows($result) !== 1) {
 
 $student = mysqli_fetch_assoc($result);
 $name_parts = explode(" ", $student['full_name']);
-$fname = $name_parts[0] ?? '';
+$fname = $name_parts[0] ?? 'Student';
 ?>
 <!DOCTYPE html>
 <html lang="en">

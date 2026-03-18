@@ -32,6 +32,10 @@ if ($q2) { $total_units = mysqli_fetch_assoc($q2)['total']; }
 
 // Determine current section
 $section = $_GET['section'] ?? 'dashboard';
+
+// Notification Logic
+$notif_q = mysqli_query($conn, "SELECT COUNT(*) as count FROM admin_referrals WHERE status='pending'");
+$notif_count = mysqli_fetch_assoc($notif_q)['count'] ?? 0;
 ?>
 
 <!DOCTYPE html>
@@ -87,6 +91,10 @@ $section = $_GET['section'] ?? 'dashboard';
 
         .ai-note { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 4px; font-size: 0.85rem; color: #92400e; }
         footer { text-align: center; padding: 40px; color: var(--text-light); font-size: 0.85rem; }
+
+        /* Floating Icon */
+        .chat-fab { position: fixed; bottom: 30px; right: 30px; background: var(--primary); color: white; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3); z-index: 1000; text-decoration: none; border: none; cursor: pointer; }
+        .badge { position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -107,6 +115,7 @@ $section = $_GET['section'] ?? 'dashboard';
         <a href="Admin-index.php?section=students" class="<?php echo ($section === 'students' || $section === 'add_student') ? 'active' : ''; ?>">Manage Students</a>
         <a href="Admin-index.php?section=units" class="<?php echo ($section === 'units' || $section === 'add_workload' || $section === 'add_unit') ? 'active' : ''; ?>">Manage Units</a>
         <a href="Admin-index.php?section=registrations" class="<?php echo ($section === 'registrations') ? 'active' : ''; ?>">Registrations</a>
+        <a href="Admin-index.php?section=escalations" class="<?php echo ($section === 'escalations') ? 'active' : ''; ?>">AI Escalations</a>
         <a href="../logout.php">Sign Out</a>
     </div>
 </nav>
@@ -180,8 +189,6 @@ $section = $_GET['section'] ?? 'dashboard';
         <?php break;
 
         case 'units':
-            // Logic change: Instead of hardcoding the table here, 
-            // we include the file that has the search bar and filter logic.
             include('view_workload.php');
             break;
 
@@ -204,10 +211,60 @@ $section = $_GET['section'] ?? 'dashboard';
         case 'registrations':
             include('view_registrations.php');
             break;
+        case 'escalations':
+            echo '<div style="height:400px; border:1px solid #ccc; border-radius:8px;">
+                    <iframe src="view_escalations.php" style="width:100%; height:100%; border:none;"></iframe>
+                    </div>';
+            break;
     } 
     ?>
 </div>
 
+<div id="chatModal" style="display:none; position:fixed; z-index:9999; bottom:90px; right:20px; width:400px; height:500px; background:white; border-radius:12px; box-shadow:0 10px 25px rgba(0,0,0,0.2); overflow:hidden; flex-direction:column;">
+    <div style="background:#4f46e5; color:white; padding:15px; display:flex; justify-content:space-between; align-items:center;">
+        <strong>AI Escalations</strong>
+        <span onclick="document.getElementById('chatModal').style.display='none'" style="cursor:pointer; font-size:20px;">&times;</span>
+    </div>
+    <div id="modalContent" style="flex:1; overflow-y:auto; background:#f9f9f9;">
+        <p style="padding:20px;">Select an escalation...</p>
+    </div>
+</div>
+
+<?php if($notif_count > 0): ?>
+    <button onclick="openEscalations()" class="chat-fab">
+        💬
+        <span class="badge"><?php echo $notif_count; ?></span>
+    </button>
+<?php endif; ?>
+<script>
+// This opens the modal and loads the list from view_escalations.php
+function openEscalations() {
+    document.getElementById('chatModal').style.display = 'flex';
+    document.getElementById('modalContent').innerHTML = '<p style="padding:20px;">Loading list...</p>';
+    
+    fetch('view_escalations.php')
+        .then(response => response.text())
+        .then(data => {
+            document.getElementById('modalContent').innerHTML = data;
+        });
+}
+
+// Global function that can be called from IFRAMES or the MAIN PAGE
+function loadMessage(conv_id) {
+    // Show the modal
+    document.getElementById('chatModal').style.display = 'flex';
+    
+   // Replace the fetch logic with an IFRAME
+    const content = document.getElementById('modalContent');
+    // This is the "Trapping" mechanism
+    content.innerHTML = `
+        <iframe src="view_conversation.php?conv_id=${conv_id}" 
+                style="width:100%; height:100%; border:none; display:block;">
+        </iframe>`;
+  
+}
+</script>
+ 
 <footer>
     &copy; 2026 Portal Assistant AI | Mount Kenya University
 </footer>
