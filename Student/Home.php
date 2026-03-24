@@ -2,9 +2,7 @@
 session_start();
 
 /* --- 1. SESSION & ROLE SECURITY CHECK --- */
-// Added check for 'role' to ensure Admins are redirected to their own dashboard
 if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
-    // If they are an admin, send them to the admin dashboard, otherwise to login
     if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
         header("Location: ../admin/dashboard.php");
     } else {
@@ -14,7 +12,6 @@ if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id']) || $_SESSION['ro
 }
 
 /* --- 2. DB CONNECTION --- */
-// Standardizing DB name to lowercase for consistency across files
 $conn = mysqli_connect("localhost", "root", "", "portal-asisstant-ai");
 if (!$conn) {
     die("Database connection failed: " . mysqli_connect_error());
@@ -22,21 +19,23 @@ if (!$conn) {
 
 /* --- 3. FETCH STUDENT DATA --- */
 $user_id = $_SESSION['user_id'];
-// It's good practice to also verify the 'role' in the database query for extra security
-$sql = "SELECT full_name, reg_number FROM users WHERE id = ? AND role = 'student'";
+$sql = "SELECT full_name, reg_number, password FROM users WHERE id = ? AND role = 'student'";
 $stmt = mysqli_prepare($conn, $sql);
 mysqli_stmt_bind_param($stmt, "i", $user_id);
 mysqli_stmt_execute($stmt);
 $result = mysqli_stmt_get_result($stmt);
 
 if (!$result || mysqli_num_rows($result) !== 1) {
-    // If user exists but role changed or session is invalid
     session_destroy();
     header("Location: ../login.php");
     exit();
 }
 
 $student = mysqli_fetch_assoc($result);
+
+// Security Check: Is the student still using the default password?
+$is_default_password = password_verify($student['reg_number'], $student['password']);
+
 $name_parts = explode(" ", $student['full_name']);
 $fname = $name_parts[0] ?? 'Student';
 ?>
@@ -56,29 +55,33 @@ $fname = $name_parts[0] ?? 'Student';
             --text-light: #64748b;
             --border: #e2e8f0;
             --accent: #e0e7ff;
+            --warning-bg: #fff7ed;
+            --warning-text: #9a3412;
+            --warning-border: #fdba74;
         }
 
         body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text-main); margin: 0; line-height: 1.5; }
 
-        /* HEADER & BRANDING */
         header { background: var(--white); border-bottom: 1px solid var(--border); padding: 1rem 5%; display: flex; align-items: center; justify-content: space-between; }
         .branding { display: flex; align-items: center; gap: 15px; }
         .logoimg { height: 50px; border-radius: 8px; }
         .branding h1 { margin: 0; font-size: 1.4rem; color: var(--primary); font-weight: 800; }
         .branding small { color: var(--text-light); display: block; font-size: 0.85rem; }
 
-        /* NAVIGATION */
         nav { background: var(--primary); padding: 0 5%; display: flex; gap: 10px; }
         nav a { color: rgba(255,255,255,0.8); text-decoration: none; padding: 14px 20px; font-size: 0.9rem; font-weight: 600; transition: 0.3s; border-bottom: 3px solid transparent; }
         nav a:hover { color: white; background: rgba(255,255,255,0.1); }
         nav a.active { color: white; border-bottom: 3px solid white; background: rgba(255,255,255,0.15); }
 
-        /* CONTAINER */
         .container { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
         
-        .student-strip { background: var(--accent); padding: 15px 25px; border-radius: 12px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; color: var(--primary-dark); font-weight: 700; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .student-strip { background: var(--accent); padding: 15px 25px; border-radius: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; color: var(--primary-dark); font-weight: 700; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
 
-        /* NOTICES AREA */
+        /* SECURITY ALERT STYLING */
+        .security-alert { background: var(--warning-bg); border: 1px solid var(--warning-border); color: var(--warning-text); padding: 15px 25px; border-radius: 12px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; }
+        .security-alert button { background: var(--warning-text); color: white; border: none; padding: 8px 15px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .security-alert button:hover { opacity: 0.9; }
+
         .section-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 20px; color: var(--text-main); display: flex; align-items: center; gap: 10px; }
         
         .notice-card { background: var(--white); border-radius: 12px; border: 1px solid var(--border); padding: 20px; margin-bottom: 15px; transition: transform 0.2s, box-shadow 0.2s; display: flex; gap: 20px; align-items: flex-start; }
@@ -91,18 +94,17 @@ $fname = $name_parts[0] ?? 'Student';
         .notice-content h4 { margin: 0 0 5px 0; color: var(--primary-dark); font-size: 1rem; }
         .notice-content p { margin: 0; font-size: 0.9rem; color: var(--text-light); line-height: 1.6; }
         .notice-link { color: var(--primary); font-weight: 600; text-decoration: none; display: inline-block; margin-top: 10px; }
-        .notice-link:hover { text-decoration: underline; }
 
-        /* CHATBOT */
         #chat-trigger { position: fixed; bottom: 30px; right: 30px; background: var(--primary); color: white; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 10px 25px rgba(79, 70, 229, 0.4); z-index: 100; font-size: 1.5rem; }
-        #chat-window { position: fixed; bottom: 100px; right: 30px; width: 340px; height: 480px; background: white; border-radius: 20px; display: none; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); border: 1px solid var(--border); z-index: 101; overflow: hidden; }
-        .chat-header { background: var(--primary); color: white; padding: 15px; font-weight: bold; display: flex; justify-content: space-between; }
-        #chat-body { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-        .msg { padding: 10px 14px; border-radius: 12px; font-size: 0.85rem; max-width: 80%; }
-        .msg.bot { background: #f1f5f9; align-self: flex-start; }
-        .msg.user { background: var(--primary); color: white; align-self: flex-end; }
 
         footer { text-align: center; padding: 40px; color: var(--text-light); font-size: 0.85rem; }
+
+        /* Animation for same-page interface */
+        #passwordInterface { animation: slideDown 0.4s ease-out; }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
@@ -118,7 +120,7 @@ $fname = $name_parts[0] ?? 'Student';
 </header>
 
 <nav>
-    <a href="#" class="active">Home</a>
+    <a href="home.php" class="active">Home</a>
     <a href="personal_information.php">Information Update</a>
     <a href="#">Fees</a>
     <a href="teaching_timetable.php">Timetables</a>
@@ -132,6 +134,17 @@ $fname = $name_parts[0] ?? 'Student';
         <span><?php echo htmlspecialchars($student['reg_number']); ?> | Thika Main Campus</span>
     </div>
 
+    <?php if ($is_default_password): ?>
+    <div id="securityAlertBox" class="security-alert">
+        <span>⚠️ <strong>Security Notice:</strong> You are still using your registration number as your password. Change it now to protect your personal data.</span>
+        <button id="toggleBtn" onclick="toggleSecurityForm()">Change Password</button>
+    </div>
+
+    <div id="passwordInterface" style="display: none; margin-bottom: 30px;">
+        <?php include('security_update.php'); ?>
+    </div>
+    <?php endif; ?>
+
     <div class="section-title">📢 Latest Notices & Events</div>
 
     <div class="notice-card">
@@ -141,7 +154,7 @@ $fname = $name_parts[0] ?? 'Student';
         </div>
         <div class="notice-content">
             <h4>Hostel Booking Process</h4>
-            <p>To ensure a smooth accommodation experience, please follow the updated booking guidelines for the upcoming semester. You can download the full video tutorial below.</p>
+            <p>To ensure a smooth accommodation experience, follow the updated booking guidelines.</p>
             <a href="https://shorturl.at/86iS3" class="notice-link" target="_blank">Download Booking Tutorial →</a>
         </div>
     </div>
@@ -153,64 +166,38 @@ $fname = $name_parts[0] ?? 'Student';
         </div>
         <div class="notice-content">
             <h4>Jan-Apr Semester Registration</h4>
-            <p>Ensure all units are confirmed before the deadline to avoid late registration penalties. Contact your department head for unit code clarifications.</p>
+            <p>Ensure all units are confirmed before the deadline. Contact department for unit code clarifications.</p>
             <a href="regisration.php" class="notice-link">Go to Registration →</a>
         </div>
     </div>
 </div>
 
 <div id="chat-trigger" onclick="toggleChat()">💬</div>
-<div id="chat-window">
-    <div class="chat-header">
-        <span>Support Assistant</span>
-        <span style="cursor:pointer" onclick="toggleChat()">×</span>
-    </div>
-    <div id="chat-body">
-        <div class="msg bot">Welcome back, <?php echo htmlspecialchars($fname); ?>! How can I help you today?</div>
-    </div>
-    <div style="padding: 15px; border-top: 1px solid var(--border); display: flex; gap: 8px;">
-        <input type="text" id="chat-in" placeholder="Ask about hostels or fees..." style="flex:1; border: 1px solid #ddd; padding: 8px; border-radius: 20px; outline:none;">
-        <button onclick="sendMsg()" style="background: var(--primary); border: none; color: white; border-radius: 50%; width: 35px; height: 35px; cursor: pointer;">></button>
-    </div>
-</div>
-
 <footer>
     &copy; 2026 Mount Kenya University | Portal Assistant AI
 </footer>
 
 <script>
+    // Interface Toggle Logic
+    function toggleSecurityForm() {
+        const form = document.getElementById('passwordInterface');
+        const btn = document.getElementById('toggleBtn');
+        
+        if (form.style.display === "none") {
+            form.style.display = "block";
+            btn.innerText = "Cancel";
+            btn.style.background = "#64748b";
+            form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+            form.style.display = "none";
+            btn.innerText = "Change Password";
+            btn.style.background = "var(--warning-text)";
+        }
+    }
+
     function toggleChat() {
-        const win = document.getElementById('chat-window');
-        win.style.display = (win.style.display === 'flex') ? 'none' : 'flex';
+        // Chat toggle placeholder
     }
-
-    function sendMsg() {
-        const input = document.getElementById('chat-in');
-        const body = document.getElementById('chat-body');
-        if(!input.value.trim()) return;
-
-        const uMsg = document.createElement('div');
-        uMsg.className = 'msg user';
-        uMsg.textContent = input.value;
-        body.appendChild(uMsg);
-
-        const text = input.value.toLowerCase();
-        input.value = '';
-
-        setTimeout(() => {
-            const bMsg = document.createElement('div');
-            bMsg.className = 'msg bot';
-            if(text.includes('hostel')) {
-                bMsg.textContent = "The hostel booking tutorial link is available on your dashboard notice card!";
-            } else {
-                bMsg.textContent = "I'm here to help with navigation. Check the 'Timetables' or 'Fees' tab for more info.";
-            }
-            body.appendChild(bMsg);
-            body.scrollTop = body.scrollHeight;
-        }, 600);
-    }
-    document.getElementById('chat-in').addEventListener('keypress', (e) => { if(e.key === 'Enter') sendMsg(); });
 </script>
-
 </body>
 </html>
