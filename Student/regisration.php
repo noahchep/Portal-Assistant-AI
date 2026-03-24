@@ -43,7 +43,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['register_btn'])) {
             }
         }
     }
-    header("Location: ".$_SERVER['PHP_SELF']."?success=1");
+
+    // MODIFIED: Survey Check after Registration
+    $check_survey = mysqli_query($conn, "SELECT survey_done FROM users WHERE id = '$user_id'");
+    $s_status = mysqli_fetch_assoc($check_survey);
+
+    if ($s_status && $s_status['survey_done'] == 0) {
+        header("Location: survey.php?source=new_reg");
+    } else {
+        header("Location: ".$_SERVER['PHP_SELF']."?success=1");
+    }
     exit();
 }
 
@@ -60,7 +69,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['selected_units'])) {
             mysqli_query($conn, "DELETE FROM registered_courses WHERE student_reg_no='$student_reg_no' AND unit_code='$u_code' AND status='Provisional'");
         }
     }
-    header("Location: ".$_SERVER['PHP_SELF']);
+
+    // MODIFIED: Survey Check after Confirmation
+    $check_survey = mysqli_query($conn, "SELECT survey_done FROM users WHERE id = '$user_id'");
+    $s_status = mysqli_fetch_assoc($check_survey);
+
+    if ($s_status && $s_status['survey_done'] == 0 && isset($_POST['btn_confirm_action'])) {
+        header("Location: survey.php?source=confirm");
+    } else {
+        header("Location: ".$_SERVER['PHP_SELF']);
+    }
     exit();
 }
 

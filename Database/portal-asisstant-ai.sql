@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Mar 24, 2026 at 11:22 AM
+-- Generation Time: Mar 24, 2026 at 12:21 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -242,7 +242,30 @@ INSERT INTO `registered_courses` (`id`, `student_reg_no`, `unit_code`, `exam_typ
 (16, 'BIS/2026/00001', 'BUCUOO7', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-24 08:25:49'),
 (17, 'BIS/2026/00001', 'BAF1101', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-24 08:26:10'),
 (18, 'BIS/2026/00001', 'BIT2026', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-24 08:26:34'),
-(19, 'BIS/2026/00001', 'BBM1101', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-24 08:26:58');
+(19, 'BIS/2026/00001', 'BBM1101', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-24 08:26:58'),
+(20, 'BIT/2026/00002', 'BAF1101', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-24 11:16:40');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `survey_responses`
+--
+
+CREATE TABLE `survey_responses` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `challenge_type` varchar(255) DEFAULT NULL,
+  `ease_rating` int(11) DEFAULT NULL,
+  `submitted_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `survey_responses`
+--
+
+INSERT INTO `survey_responses` (`id`, `user_id`, `challenge_type`, `ease_rating`, `submitted_at`) VALUES
+(1, 28, 'Finding Codes', 3, '2026-03-24 11:17:07'),
+(2, 28, 'Finding Codes', 3, '2026-03-24 11:18:05');
 
 -- --------------------------------------------------------
 
@@ -289,18 +312,19 @@ CREATE TABLE `users` (
   `password` varchar(255) NOT NULL,
   `role` enum('student','admin') DEFAULT 'student',
   `department` varchar(100) NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `survey_done` tinyint(1) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `full_name`, `reg_number`, `email`, `password`, `role`, `department`, `created_at`) VALUES
-(1, 'System Admin', 'ADMIN/001', 'admin@mku.ac.ke', '$2y$10$P.VKg4sPX1yHxleIOEwf1OKlHbYUWXlERdv.GC4clNTvCJWjwS5uG', 'admin', '', '2026-01-18 19:01:19'),
-(21, 'Noah  Chepkonga', 'BIT/2026/0001', 'novrah4g@gmail.com', '$2y$10$NvoWE/x6V5/MQ2kbnHknWebAS872q/gcj7L0gukzBvXT9gGsRmycq', 'student', 'Information Technology', '2026-02-02 08:31:07'),
-(27, 'Vera Michael', 'BIS/2026/00001', 'veramichael678@gmail.com', '$2y$10$Dth685QYpVp9Vh2PJxp9AOnfxgTTg2TMI5NUl4zpJ77HVwW5T3yHK', 'student', 'Information Science', '2026-03-24 06:37:30'),
-(28, 'Noah Chepkonga', 'BIT/2026/00002', 'noahchep1@gmail.com', '$2y$10$Vd5OPSVMIbT8Dchwo.4LpOm6Zi7Y.9OcSJyo1/HVBG3043uOznE96', 'student', 'Information Technology', '2026-03-24 07:32:49');
+INSERT INTO `users` (`id`, `full_name`, `reg_number`, `email`, `password`, `role`, `department`, `created_at`, `survey_done`) VALUES
+(1, 'System Admin', 'ADMIN/001', 'admin@mku.ac.ke', '$2y$10$P.VKg4sPX1yHxleIOEwf1OKlHbYUWXlERdv.GC4clNTvCJWjwS5uG', 'admin', '', '2026-01-18 19:01:19', 0),
+(21, 'Noah  Chepkonga', 'BIT/2026/0001', 'novrah4g@gmail.com', '$2y$10$NvoWE/x6V5/MQ2kbnHknWebAS872q/gcj7L0gukzBvXT9gGsRmycq', 'student', 'Information Technology', '2026-02-02 08:31:07', 0),
+(27, 'Vera Michael', 'BIS/2026/00001', 'veramichael678@gmail.com', '$2y$10$Dth685QYpVp9Vh2PJxp9AOnfxgTTg2TMI5NUl4zpJ77HVwW5T3yHK', 'student', 'Information Science', '2026-03-24 06:37:30', 0),
+(28, 'Noah Chepkonga', 'BIT/2026/00002', 'noahchep1@gmail.com', '$2y$10$Vd5OPSVMIbT8Dchwo.4LpOm6Zi7Y.9OcSJyo1/HVBG3043uOznE96', 'student', 'Information Technology', '2026-03-24 07:32:49', 1);
 
 --
 -- Indexes for dumped tables
@@ -338,6 +362,13 @@ ALTER TABLE `registered_courses`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_student_unit` (`student_reg_no`,`unit_code`),
   ADD KEY `fk_registered_unit` (`unit_code`);
+
+--
+-- Indexes for table `survey_responses`
+--
+ALTER TABLE `survey_responses`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `user_id` (`user_id`);
 
 --
 -- Indexes for table `timetable`
@@ -387,7 +418,13 @@ ALTER TABLE `chat_messages`
 -- AUTO_INCREMENT for table `registered_courses`
 --
 ALTER TABLE `registered_courses`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
+
+--
+-- AUTO_INCREMENT for table `survey_responses`
+--
+ALTER TABLE `survey_responses`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `timetable`
@@ -410,6 +447,12 @@ ALTER TABLE `users`
 --
 ALTER TABLE `registered_courses`
   ADD CONSTRAINT `fk_registered_unit` FOREIGN KEY (`unit_code`) REFERENCES `timetable` (`unit_code`) ON UPDATE CASCADE;
+
+--
+-- Constraints for table `survey_responses`
+--
+ALTER TABLE `survey_responses`
+  ADD CONSTRAINT `survey_responses_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`);
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
