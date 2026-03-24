@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Mar 18, 2026 at 09:27 AM
+-- Generation Time: Mar 24, 2026 at 11:22 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -75,7 +75,9 @@ INSERT INTO `admin_referrals` (`id`, `admin_reply`, `status`, `created_at`, `sen
 (26, NULL, 'pending', '2026-03-18 06:02:33', 'Noah  Chepkonga', NULL),
 (27, NULL, 'pending', '2026-03-18 06:28:31', 'Noah  Chepkonga', 'hu6idb525bbc5i2ke919s52qgf'),
 (28, NULL, 'pending', '2026-03-18 06:53:32', 'System Admin', '2c918aq9l2aqf2ilhhdn151dgg'),
-(29, NULL, 'pending', '2026-03-18 06:54:58', 'Noah  Chepkonga', '3br9bejjka0m440iad0b4gidhb');
+(29, NULL, 'pending', '2026-03-18 06:54:58', 'Noah  Chepkonga', '3br9bejjka0m440iad0b4gidhb'),
+(30, NULL, 'pending', '2026-03-18 15:10:44', 'Noah  Chepkonga', 'm2bt8q3vmib70ucbbcp7jlddmm'),
+(31, NULL, 'pending', '2026-03-24 09:23:15', 'Vera Michael', 'b6krnmh6tdfjionsp62h55sqjv');
 
 -- --------------------------------------------------------
 
@@ -99,7 +101,8 @@ INSERT INTO `ai_knowledge_base` (`id`, `student_query`, `verified_answer`, `crea
 (20, 'Admin Escalation Reply', 'hello', '2026-03-18 06:02:57'),
 (21, 'hello', 'hello', '2026-03-18 06:12:56'),
 (22, 'when is the exams begining>', '13th april', '2026-03-18 06:29:10'),
-(23, 'thanks', 'You are welcome', '2026-03-18 06:54:01');
+(23, 'thanks', 'You are welcome', '2026-03-18 06:54:01'),
+(24, 'when is the exams begining', 'hello', '2026-03-24 06:36:46');
 
 -- --------------------------------------------------------
 
@@ -191,7 +194,24 @@ INSERT INTO `chat_messages` (`id`, `conversation_id`, `sender_type`, `message`, 
 (75, '3br9bejjka0m440iad0b4gidhb', 'student', 'semester', '2026-03-18 07:29:33'),
 (76, '3br9bejjka0m440iad0b4gidhb', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin inbox for you!', '2026-03-18 07:29:33'),
 (77, '3br9bejjka0m440iad0b4gidhb', 'student', 'hjhj', '2026-03-18 08:20:24'),
-(78, '3br9bejjka0m440iad0b4gidhb', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin inbox for you!', '2026-03-18 08:20:26');
+(78, '3br9bejjka0m440iad0b4gidhb', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin inbox for you!', '2026-03-18 08:20:26'),
+(79, 'm2bt8q3vmib70ucbbcp7jlddmm', 'student', 'vision', '2026-03-18 15:10:44'),
+(80, 'm2bt8q3vmib70ucbbcp7jlddmm', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin inbox for you!', '2026-03-18 15:10:44'),
+(81, 'm2bt8q3vmib70ucbbcp7jlddmm', 'student', 'when is the exams begining', '2026-03-18 15:11:27'),
+(82, 'm2bt8q3vmib70ucbbcp7jlddmm', 'bot', '13th april', '2026-03-18 15:11:27'),
+(83, 'm2bt8q3vmib70ucbbcp7jlddmm', 'admin', 'hello', '2026-03-24 06:36:46'),
+(84, 'b6krnmh6tdfjionsp62h55sqjv', 'student', 'when is exams', '2026-03-24 09:23:14'),
+(85, 'b6krnmh6tdfjionsp62h55sqjv', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin inbox for you!', '2026-03-24 09:23:15'),
+(86, 'b6krnmh6tdfjionsp62h55sqjv', 'student', 'when is the exams begining', '2026-03-24 09:23:38'),
+(87, 'b6krnmh6tdfjionsp62h55sqjv', 'bot', '13th april', '2026-03-24 09:23:38'),
+(88, 'b6krnmh6tdfjionsp62h55sqjv', 'student', 'cook', '2026-03-24 09:23:44'),
+(89, 'b6krnmh6tdfjionsp62h55sqjv', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin inbox for you!', '2026-03-24 09:23:45'),
+(90, 'b6krnmh6tdfjionsp62h55sqjv', 'student', 'okey', '2026-03-24 09:23:47'),
+(91, 'b6krnmh6tdfjionsp62h55sqjv', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin inbox for you!', '2026-03-24 09:23:48'),
+(92, 'b6krnmh6tdfjionsp62h55sqjv', 'student', 'cool', '2026-03-24 09:23:50'),
+(93, 'b6krnmh6tdfjionsp62h55sqjv', 'bot', 'I\'m not sure about that. I\'ve forwarded your query to the Admin inbox for you!', '2026-03-24 09:23:51'),
+(94, 'b6krnmh6tdfjionsp62h55sqjv', 'student', 'thanks', '2026-03-24 09:23:56'),
+(95, 'b6krnmh6tdfjionsp62h55sqjv', 'bot', 'You are welcome', '2026-03-24 09:23:56');
 
 -- --------------------------------------------------------
 
@@ -218,7 +238,11 @@ CREATE TABLE `registered_courses` (
 INSERT INTO `registered_courses` (`id`, `student_reg_no`, `unit_code`, `exam_type`, `class_group`, `semester`, `academic_year`, `status`, `registered_at`) VALUES
 (13, 'BIT/2026/0001', 'BIT2026', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-02-02 09:29:33'),
 (14, 'BIT/2026/0003', 'BAF1101', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-02-02 09:30:29'),
-(15, 'ADMIN/001', 'BIT2026', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-02-03 13:08:23');
+(15, 'ADMIN/001', 'BIT2026', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-02-03 13:08:23'),
+(16, 'BIS/2026/00001', 'BUCUOO7', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-24 08:25:49'),
+(17, 'BIS/2026/00001', 'BAF1101', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-24 08:26:10'),
+(18, 'BIS/2026/00001', 'BIT2026', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-24 08:26:34'),
+(19, 'BIS/2026/00001', 'BBM1101', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-24 08:26:58');
 
 -- --------------------------------------------------------
 
@@ -247,7 +271,9 @@ CREATE TABLE `timetable` (
 
 INSERT INTO `timetable` (`id`, `unit_code`, `course_title`, `time_from`, `time_to`, `venue`, `unit_group`, `lecturer`, `exam_date`, `semester`, `academic_year`, `created_at`) VALUES
 (4, 'BIT2026', 'Artificial Inteligence', '10:00', '13:00', 'MLT Hall B', 'Jan24', 'Muchiri', '0000-00-00', '', '2026', '2026-02-02 06:18:58'),
-(10, 'BAF1101', 'Financial Accounting I ', '07:00', '10:00', 'CC1', 'CLASS 1', 'Mrs. MATHENGE  ', '0000-00-00', '', '2026', '2026-02-02 06:47:46');
+(10, 'BAF1101', 'Financial Accounting I ', '07:00', '10:00', 'CC1', 'CLASS 1', 'Mrs. MATHENGE  ', '0000-00-00', '', '2026', '2026-02-02 06:47:46'),
+(14, 'BBM1101', 'Introduction To Business Studies', '13:00', '16:00', 'MLT Hall B', NULL, 'Mr Margaret ', NULL, '1', '2026', '2026-03-24 08:21:03'),
+(15, 'BUCUOO7 ', 'Communication Skills And Academic Writting', '07:01', '10:00', 'CT HALL', 'Jan24', 'Md Helena', NULL, '1', '2026', '2026-03-24 08:23:54');
 
 -- --------------------------------------------------------
 
@@ -273,8 +299,8 @@ CREATE TABLE `users` (
 INSERT INTO `users` (`id`, `full_name`, `reg_number`, `email`, `password`, `role`, `department`, `created_at`) VALUES
 (1, 'System Admin', 'ADMIN/001', 'admin@mku.ac.ke', '$2y$10$P.VKg4sPX1yHxleIOEwf1OKlHbYUWXlERdv.GC4clNTvCJWjwS5uG', 'admin', '', '2026-01-18 19:01:19'),
 (21, 'Noah  Chepkonga', 'BIT/2026/0001', 'novrah4g@gmail.com', '$2y$10$NvoWE/x6V5/MQ2kbnHknWebAS872q/gcj7L0gukzBvXT9gGsRmycq', 'student', 'Information Technology', '2026-02-02 08:31:07'),
-(23, 'Noah  Chepkonga', 'BIT/2026/0002', 'noahchep1@gmail.com', '$2y$10$lhqDf8T0GoKaxX8sJZxx6.QwGEOBdcnw9ywNgbA8BuW0dEFvVqi3m', 'student', 'Information Technology', '2026-02-02 08:42:12'),
-(24, 'My Love  Vera', 'BIT/2026/0003', 'veramichael678@gmail.com', '$2y$10$vZfLBvVjwDg5aQsDIemsLuOD9Qrn2IueA72JV4ls0PRPYPH5ezbI.', 'student', 'Information Technology', '2026-02-02 08:46:29');
+(27, 'Vera Michael', 'BIS/2026/00001', 'veramichael678@gmail.com', '$2y$10$Dth685QYpVp9Vh2PJxp9AOnfxgTTg2TMI5NUl4zpJ77HVwW5T3yHK', 'student', 'Information Science', '2026-03-24 06:37:30'),
+(28, 'Noah Chepkonga', 'BIT/2026/00002', 'noahchep1@gmail.com', '$2y$10$Vd5OPSVMIbT8Dchwo.4LpOm6Zi7Y.9OcSJyo1/HVBG3043uOznE96', 'student', 'Information Technology', '2026-03-24 07:32:49');
 
 --
 -- Indexes for dumped tables
@@ -343,37 +369,37 @@ ALTER TABLE `academic_workload`
 -- AUTO_INCREMENT for table `admin_referrals`
 --
 ALTER TABLE `admin_referrals`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
 
 --
 -- AUTO_INCREMENT for table `ai_knowledge_base`
 --
 ALTER TABLE `ai_knowledge_base`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
 
 --
 -- AUTO_INCREMENT for table `chat_messages`
 --
 ALTER TABLE `chat_messages`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=79;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=96;
 
 --
 -- AUTO_INCREMENT for table `registered_courses`
 --
 ALTER TABLE `registered_courses`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
 
 --
 -- AUTO_INCREMENT for table `timetable`
 --
 ALTER TABLE `timetable`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
 
 --
 -- Constraints for dumped tables
