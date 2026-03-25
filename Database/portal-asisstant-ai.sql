@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Mar 24, 2026 at 12:21 PM
+-- Generation Time: Mar 25, 2026 at 09:01 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -238,12 +238,17 @@ CREATE TABLE `registered_courses` (
 INSERT INTO `registered_courses` (`id`, `student_reg_no`, `unit_code`, `exam_type`, `class_group`, `semester`, `academic_year`, `status`, `registered_at`) VALUES
 (13, 'BIT/2026/0001', 'BIT2026', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-02-02 09:29:33'),
 (14, 'BIT/2026/0003', 'BAF1101', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-02-02 09:30:29'),
-(15, 'ADMIN/001', 'BIT2026', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-02-03 13:08:23'),
 (16, 'BIS/2026/00001', 'BUCUOO7', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-24 08:25:49'),
 (17, 'BIS/2026/00001', 'BAF1101', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-24 08:26:10'),
 (18, 'BIS/2026/00001', 'BIT2026', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-24 08:26:34'),
 (19, 'BIS/2026/00001', 'BBM1101', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-24 08:26:58'),
-(20, 'BIT/2026/00002', 'BAF1101', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-24 11:16:40');
+(20, 'BIT/2026/00002', 'BAF1101', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-24 11:16:40'),
+(22, 'BIT/2026/00002', 'BBM1101', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-25 04:50:58'),
+(29, 'BIS/2026/00001', 'BIT1101', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-25 05:37:50'),
+(32, 'BEC/2026/00003', 'BAF1101', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-25 06:05:43'),
+(33, 'BEC/2026/00003', 'BMA1106', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-25 06:15:54'),
+(34, 'BEC/2026/00003', 'BIT1101', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-25 07:08:23'),
+(35, 'BEC/2026/00003', 'BUCUOO7', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-25 07:13:09');
 
 -- --------------------------------------------------------
 
@@ -255,17 +260,14 @@ CREATE TABLE `survey_responses` (
   `id` int(11) NOT NULL,
   `user_id` int(11) NOT NULL,
   `challenge_type` varchar(255) DEFAULT NULL,
+  `guidance_need` varchar(255) DEFAULT NULL,
+  `chatbot_help` varchar(255) DEFAULT NULL,
+  `ui_experience` varchar(255) DEFAULT NULL,
+  `academic_value` varchar(255) DEFAULT NULL,
   `ease_rating` int(11) DEFAULT NULL,
+  `student_comments` text DEFAULT NULL,
   `submitted_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `survey_responses`
---
-
-INSERT INTO `survey_responses` (`id`, `user_id`, `challenge_type`, `ease_rating`, `submitted_at`) VALUES
-(1, 28, 'Finding Codes', 3, '2026-03-24 11:17:07'),
-(2, 28, 'Finding Codes', 3, '2026-03-24 11:18:05');
 
 -- --------------------------------------------------------
 
@@ -296,7 +298,9 @@ INSERT INTO `timetable` (`id`, `unit_code`, `course_title`, `time_from`, `time_t
 (4, 'BIT2026', 'Artificial Inteligence', '10:00', '13:00', 'MLT Hall B', 'Jan24', 'Muchiri', '0000-00-00', '', '2026', '2026-02-02 06:18:58'),
 (10, 'BAF1101', 'Financial Accounting I ', '07:00', '10:00', 'CC1', 'CLASS 1', 'Mrs. MATHENGE  ', '0000-00-00', '', '2026', '2026-02-02 06:47:46'),
 (14, 'BBM1101', 'Introduction To Business Studies', '13:00', '16:00', 'MLT Hall B', NULL, 'Mr Margaret ', NULL, '1', '2026', '2026-03-24 08:21:03'),
-(15, 'BUCUOO7 ', 'Communication Skills And Academic Writting', '07:01', '10:00', 'CT HALL', 'Jan24', 'Md Helena', NULL, '1', '2026', '2026-03-24 08:23:54');
+(15, 'BUCUOO7 ', 'Communication Skills And Academic Writting', '07:01', '10:00', 'CT HALL', 'Jan24', 'Md Helena', NULL, '1', '2026', '2026-03-24 08:23:54'),
+(16, 'BIT1101', 'Computer Architecture', '10:10', '13:00', 'CC1', 'Jan24', 'Muchiri', NULL, '1', '2026', '2026-03-25 05:21:37'),
+(17, 'BMA1106', 'Foundation mathematics ', '07:00', '10:00', 'MLT Hall B', 'Jan24', 'Mrs Ochieng', NULL, '1', '2026', '2026-03-25 05:43:32');
 
 -- --------------------------------------------------------
 
@@ -321,10 +325,10 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `full_name`, `reg_number`, `email`, `password`, `role`, `department`, `created_at`, `survey_done`) VALUES
-(1, 'System Admin', 'ADMIN/001', 'admin@mku.ac.ke', '$2y$10$P.VKg4sPX1yHxleIOEwf1OKlHbYUWXlERdv.GC4clNTvCJWjwS5uG', 'admin', '', '2026-01-18 19:01:19', 0),
-(21, 'Noah  Chepkonga', 'BIT/2026/0001', 'novrah4g@gmail.com', '$2y$10$NvoWE/x6V5/MQ2kbnHknWebAS872q/gcj7L0gukzBvXT9gGsRmycq', 'student', 'Information Technology', '2026-02-02 08:31:07', 0),
-(27, 'Vera Michael', 'BIS/2026/00001', 'veramichael678@gmail.com', '$2y$10$Dth685QYpVp9Vh2PJxp9AOnfxgTTg2TMI5NUl4zpJ77HVwW5T3yHK', 'student', 'Information Science', '2026-03-24 06:37:30', 0),
-(28, 'Noah Chepkonga', 'BIT/2026/00002', 'noahchep1@gmail.com', '$2y$10$Vd5OPSVMIbT8Dchwo.4LpOm6Zi7Y.9OcSJyo1/HVBG3043uOznE96', 'student', 'Information Technology', '2026-03-24 07:32:49', 1);
+(1, 'System Admin', 'ADMIN/001', 'admin@mku.ac.ke', '$2y$10$P.VKg4sPX1yHxleIOEwf1OKlHbYUWXlERdv.GC4clNTvCJWjwS5uG', 'admin', '', '2026-01-18 19:01:19', 1),
+(27, 'Vera Michael', 'BIS/2026/00001', 'veramichael678@gmail.com', '$2y$10$Dth685QYpVp9Vh2PJxp9AOnfxgTTg2TMI5NUl4zpJ77HVwW5T3yHK', 'student', 'Information Science', '2026-03-24 06:37:30', 1),
+(28, 'Noah Chepkonga', 'BIT/2026/00002', 'noahchep1@gmail.com', '$2y$10$Vd5OPSVMIbT8Dchwo.4LpOm6Zi7Y.9OcSJyo1/HVBG3043uOznE96', 'student', 'Information Technology', '2026-03-24 07:32:49', 1),
+(30, 'Chepkonga', 'BEC/2026/00003', 'novrah4g@gmail.com', '$2y$10$OVp3ZSt4QeD0m1diYkBmdeZJ4QuK8jN9Fh5n3hYBnl2ysoACZYFUS', 'student', 'Enterprise Computing', '2026-03-25 06:02:57', 1);
 
 --
 -- Indexes for dumped tables
@@ -418,25 +422,25 @@ ALTER TABLE `chat_messages`
 -- AUTO_INCREMENT for table `registered_courses`
 --
 ALTER TABLE `registered_courses`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=36;
 
 --
 -- AUTO_INCREMENT for table `survey_responses`
 --
 ALTER TABLE `survey_responses`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT for table `timetable`
 --
 ALTER TABLE `timetable`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=31;
 
 --
 -- Constraints for dumped tables

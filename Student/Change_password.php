@@ -1,12 +1,21 @@
 <?php
 session_start();
 
-/* SECURITY CHECK – student must be logged in */
-if (!isset($_SESSION['user_id'])) {
-    header("Location: ../login.php");
+// 1. Check if user_id exists (Are they logged in?)
+// 2. Check if the role is 'student' (Are they allowed here?)
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
+    
+    // Optional: If they are an admin trying to sneak in, send them to their own dashboard
+    if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
+        header("Location: ../admin/admin_dashboard.php?error=access_denied");
+    } else {
+        // Otherwise, send to login
+        header("Location: ../login.php");
+    }
     exit();
 }
 
+/* Rest of your database connection and logic... */
 /* DB CONNECTION */
 $conn = mysqli_connect("localhost", "root", "", "Portal-Asisstant-AI");
 if (!$conn) {

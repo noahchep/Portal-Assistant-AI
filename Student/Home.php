@@ -1,15 +1,21 @@
 <?php
 session_start();
 
-/* --- 1. SESSION & ROLE SECURITY CHECK --- */
-if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
+// 1. Check if user_id exists (Are they logged in?)
+// 2. Check if the role is 'student' (Are they allowed here?)
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
+    
+    // Optional: If they are an admin trying to sneak in, send them to their own dashboard
     if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
-        header("Location: ../admin/dashboard.php");
+        header("Location: ../admin/admin_dashboard.php?error=access_denied");
     } else {
-        header("Location: ../login.php?error=unauthorized");
+        // Otherwise, send to login
+        header("Location: ../login.php");
     }
     exit();
 }
+
+/* Rest of your database connection and logic... */
 
 /* --- 2. DB CONNECTION --- */
 $conn = mysqli_connect("localhost", "root", "", "portal-asisstant-ai");
