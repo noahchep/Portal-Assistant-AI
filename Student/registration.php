@@ -16,17 +16,18 @@ $reg_number = $student_reg_no;
 
 // 2. Fetch the Student's real name and department
 $user_id = $_SESSION['user_id'];
-$user_query = mysqli_query($conn, "SELECT full_name, department FROM users WHERE id = '$user_id'");
+$user_query = mysqli_query($conn, "SELECT full_name, department, survey_done FROM users WHERE id = '$user_id'");
 $user_data = mysqli_fetch_assoc($user_query);
 
 $student_name = $user_data['full_name'] ?? 'Unknown Student';
 $student_dept = $user_data['department'] ?? 'General';
+$survey_done_status = $user_data['survey_done'] ?? 0;
 
 $semester = "Jan/Apr";
 $academic_year = "2026";
 
 /* ===============================
-   CORE LOGIC: REGISTRATION
+    CORE LOGIC: REGISTRATION
 ================================ */
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['register_btn'])) {
     for ($i = 1; $i <= 8; $i++) {
@@ -44,25 +45,27 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['register_btn'])) {
         }
     }
 
-    // MODIFIED: Survey Check after Registration
-    $check_survey = mysqli_query($conn, "SELECT survey_done FROM users WHERE id = '$user_id'");
-    $s_status = mysqli_fetch_assoc($check_survey);
-
-    if ($s_status && $s_status['survey_done'] == 0) {
-        header("Location: survey.php?source=new_reg");
-    } else {
-        header("Location: ".$_SERVER['PHP_SELF']."?success=1");
-    }
+    header("Location: registration.php?added=1");
     exit();
 }
 
 /* ===============================
-   CORE LOGIC: CONFIRM / DROP
+    CORE LOGIC: CONFIRM / DROP
 ================================ */
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['selected_units'])) {
+    
     $units = $_POST['selected_units']; 
+
+    // 1. REDIRECT TO SURVEY: Only if they click Confirm and haven't done the survey
+    if (isset($_POST['btn_confirm_action']) && $survey_done_status == 0) {
+        header("Location: survey.php");
+        exit();
+    }
+
+    // 2. PROCESS ACTION: Run if survey is done OR if they are dropping units
     foreach ($units as $u_code) {
         $u_code = mysqli_real_escape_string($conn, $u_code);
+        
         if (isset($_POST['btn_confirm_action'])) {
             mysqli_query($conn, "UPDATE registered_courses SET status='Confirmed' WHERE student_reg_no='$student_reg_no' AND unit_code='$u_code'");
         } elseif (isset($_POST['btn_drop_action'])) {
@@ -70,20 +73,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['selected_units'])) {
         }
     }
 
-    // MODIFIED: Survey Check after Confirmation
-    $check_survey = mysqli_query($conn, "SELECT survey_done FROM users WHERE id = '$user_id'");
-    $s_status = mysqli_fetch_assoc($check_survey);
-
-    if ($s_status && $s_status['survey_done'] == 0 && isset($_POST['btn_confirm_action'])) {
-        header("Location: survey.php?source=confirm");
-    } else {
-        header("Location: ".$_SERVER['PHP_SELF']);
-    }
+    header("Location: registration.php?updated=1");
     exit();
 }
 
 /* ===============================
-   DATA FETCHING
+    DATA FETCHING
 ================================ */
 $confirmed = mysqli_query($conn, "SELECT rc.*, t.course_title FROM registered_courses rc JOIN timetable t ON rc.unit_code = t.unit_code WHERE rc.student_reg_no = '$student_reg_no' AND (rc.status = 'Confirmed' OR rc.status = 'Approved')");
 $provisional = mysqli_query($conn, "SELECT rc.*, t.course_title FROM registered_courses rc JOIN timetable t ON rc.unit_code = t.unit_code WHERE rc.student_reg_no = '$student_reg_no' AND (rc.status = 'Provisional' OR rc.status IS NULL OR rc.status = '')");
@@ -104,7 +99,7 @@ if (!$confirmed || !$provisional) {
             --primary: #4f46e5;
             --primary-dark: #3730a3;
             --bg: #f8fafc;
-            --white: #ffffff;
+            --white: #white;
             --text-main: #1e293b;
             --text-light: #64748b;
             --border: #e2e8f0;
@@ -114,7 +109,7 @@ if (!$confirmed || !$provisional) {
 
         body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text-main); margin: 0; line-height: 1.5; }
 
-        header { background: var(--white); border-bottom: 1px solid var(--border); padding: 1rem 5%; display: flex; align-items: center; justify-content: space-between; }
+        header { background: white; border-bottom: 1px solid var(--border); padding: 1rem 5%; display: flex; align-items: center; justify-content: space-between; }
         .branding { display: flex; align-items: center; gap: 15px; }
         .logoimg { height: 50px; border-radius: 8px; }
         .branding h1 { margin: 0; font-size: 1.4rem; color: var(--primary); font-weight: 800; }
@@ -128,7 +123,7 @@ if (!$confirmed || !$provisional) {
         .container { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
         .student-strip { background: #e0e7ff; padding: 12px 20px; border-radius: 10px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; color: var(--primary-dark); font-weight: 700; font-size: 0.9rem; }
 
-        .card { background: var(--white); border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); padding: 25px; margin-bottom: 30px; border: 1px solid var(--border); }
+        .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); padding: 25px; margin-bottom: 30px; border: 1px solid var(--border); }
         .card-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 20px; color: var(--text-main); display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
 
         table { width: 100%; border-collapse: collapse; }
@@ -147,10 +142,7 @@ if (!$confirmed || !$provisional) {
         .bg-success { background: #dcfce7; color: #166534; }
         .bg-warning { background: #fef3c7; color: #92400e; }
 
-        /* CHAT SYSTEM STYLES */
         #chat-fab { position: fixed; bottom: 30px; right: 30px; background: var(--primary); color: white; width: 55px; height: 55px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 10px 15px rgba(79, 70, 229, 0.4); z-index: 100; font-size: 1.5rem; transition: 0.3s; }
-        #chat-fab:hover { transform: scale(1.1); }
-        
         #chat-window { position: fixed; bottom: 100px; right: 30px; width: 350px; height: 500px; background: white; border-radius: 16px; display: none; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); border: 1px solid var(--border); z-index: 101; overflow: hidden; }
         #chat-content { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #fcfcfc; scroll-behavior: smooth; }
         
@@ -190,6 +182,12 @@ if (!$confirmed || !$provisional) {
     <span><?php echo htmlspecialchars($reg_number); ?> | <?php echo htmlspecialchars($student_name); ?></span>
     <span><?php echo htmlspecialchars($student_dept); ?></span>
 </div>
+
+    <?php if(isset($_GET['survey_complete'])): ?>
+        <div class="card" style="background: #dcfce7; border-left: 5px solid #10b981; color: #166534; padding: 15px; margin-bottom: 20px;">
+            🎉 <strong>Survey Recorded!</strong> You can now proceed to confirm your units.
+        </div>
+    <?php endif; ?>
 
     <div class="card">
         <div class="card-title">✅ Confirmed Units</div>
@@ -287,7 +285,7 @@ if (!$confirmed || !$provisional) {
                style="flex:1; border-radius: 20px; padding: 8px 15px; border: 1px solid var(--border); font-size: 0.85rem;"
                onkeypress="if(event.key === 'Enter') sendChatMessage()">
         <button onclick="sendChatMessage()" style="background: var(--primary); border: none; color: white; border-radius: 50%; width: 35px; height: 35px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
-            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576 6.636 10.07Zm6.787-8.201L1.591 6.602l4.339 2.76 7.494-7.493Z"/></svg>
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576 6.636 10.07Zm6.787-8.201L1.591 6.602l4.339 2.76 7.494-7.493Z"/></svg>
         </button>
     </div>
 </div>
@@ -306,12 +304,10 @@ if (!$confirmed || !$provisional) {
         
         if(!msg) return;
 
-        // Add user bubble
         box.innerHTML += `<div class="msg msg-user">${msg}</div>`;
         input.value = '';
         box.scrollTop = box.scrollHeight;
 
-        // Fetch response from server
         try {
             const response = await fetch('chat_process_ml.php', {
                 method: 'POST',
@@ -319,8 +315,6 @@ if (!$confirmed || !$provisional) {
                 body: 'message=' + encodeURIComponent(msg)
             });
             const text = await response.text();
-            
-            // Add bot bubble
             box.innerHTML += `<div class="msg msg-bot">${text}</div>`;
             box.scrollTop = box.scrollHeight;
         } catch (e) {

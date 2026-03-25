@@ -1,22 +1,46 @@
 <?php
 /* ==========================
    DATABASE CONNECTION
-   We use include_once to prevent errors if already connected in index
 ========================== */
 include_once('db_connect.php');
 
-// Fallback connection if index variable is different
 if (!$conn) {
     $conn = mysqli_connect("localhost", "root", "", "Portal-Asisstant-AI");
 }
 
+/* ==========================
+   DROP STUDENT LOGIC
+========================== */
+if (isset($_GET['drop_id'])) {
+    $drop_id = mysqli_real_escape_string($conn, $_GET['drop_id']);
+    
+    // 1. Delete dependent data first (Survey Responses)
+    mysqli_query($conn, "DELETE FROM survey_responses WHERE user_id = '$drop_id'");
+    
+    // 2. Delete other dependent data (Registered Courses)
+    // We fetch the reg_number first to clear their course registrations
+    $reg_query = mysqli_query($conn, "SELECT reg_number FROM users WHERE id = '$drop_id'");
+    $reg_data = mysqli_fetch_assoc($reg_query);
+    if($reg_data) {
+        $reg_no = $reg_data['reg_number'];
+        mysqli_query($conn, "DELETE FROM registered_courses WHERE student_reg_no = '$reg_no'");
+    }
+
+    // 3. Finally, delete the student from the users table
+    $delete_user = "DELETE FROM users WHERE id = '$drop_id' AND role = 'student'";
+    
+    if (mysqli_query($conn, $delete_user)) {
+        echo "<script>alert('Student and all associated records dropped successfully'); window.location='Admin-index.php?section=students';</script>";
+    } else {
+        echo "<script>alert('Error dropping student: " . mysqli_error($conn) . "');</script>";
+    }
+}
 /* ==========================
    SEARCH & FILTER LOGIC
 ========================== */
 $search = $_GET['search'] ?? '';
 $dept_filter = $_GET['dept'] ?? 'all';
 
-// Base Query
 $query = "SELECT * FROM users WHERE role='student'";
 
 if ($dept_filter !== 'all') {
@@ -64,6 +88,7 @@ $current_view_count = ($result) ? mysqli_num_rows($result) : 0;
                     <th>Full Name</th>
                     <th>Department</th>
                     <th>Email</th>
+                    <th>Action</th>
                 </tr>
             </thead>
             <tbody>
@@ -75,12 +100,19 @@ $current_view_count = ($result) ? mysqli_num_rows($result) : 0;
                         <td><?php echo $i++; ?></td>
                         <td><strong><?php echo htmlspecialchars($row['reg_number']); ?></strong></td>
                         <td><?php echo htmlspecialchars($row['full_name']); ?></td>
-                        <td><span class="dept-badge" style="background: var(--accent); color: var(--primary-dark); padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 0.75rem;"><?php echo htmlspecialchars($row['department']); ?></span></td>
+                        <td><span class="dept-badge" style="background: #e0e7ff; color: var(--primary-dark); padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 0.75rem;"><?php echo htmlspecialchars($row['department']); ?></span></td>
                         <td><?php echo htmlspecialchars($row['email']); ?></td>
+                        <td>
+                            <a href="Admin-index.php?section=students&drop_id=<?php echo $row['id']; ?>" 
+                               onclick="return confirm('Are you sure you want to drop this student? This action cannot be undone.');" 
+                               style="background: #fee2e2; color: #dc2626; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 0.75rem; font-weight: 700; border: 1px solid #fecaca;">
+                               Drop
+                            </a>
+                        </td>
                     </tr>
                 <?php endwhile; 
                 else: ?>
-                    <tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text-light);">No student records found matching your criteria.</td></tr>
+                    <tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-light);">No student records found matching your criteria.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>

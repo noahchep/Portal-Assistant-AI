@@ -109,7 +109,7 @@ if (!$timetable_q) {
     <a href="personal_information.php">Information Update</a>
        <a href="#">Fees</a>
     <a href="#" class="active">Timetables</a>
-    <a href="regisration.php">Course Registration</a>
+    <a href="registration.php">Course Registration</a>
     <a href="../logout.php">Sign Out</a>
 </nav>
 
