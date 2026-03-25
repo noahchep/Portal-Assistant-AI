@@ -213,20 +213,39 @@ switch ($intent) {
     5. THE GEMINI API FUNCTION
 ================================ */
 function callGeminiAPI($message) {
-    $apiKey = "AIzaSyDZKvwEH5dxLcMmnmVBvOBgh5RyBP0lLTo"; 
-    $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . $apiKey;
-    $systemPrompt = "You are an MKU Student Assistant. Be helpful and natural. Return 'OFFLINE_ESCALATE' for specific student grades or fee balances.";
-    
-    $data = ["contents" => [["parts" => [["text" => $systemPrompt . "\n\nStudent: " . $message]]]]];
+    $apiKey = "AIzaSyBYtDG2I6Mk5Ci0VQT7aBJ4r94xoXRTI9U";
+
+    $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-lite:generateContent?key=" . $apiKey;
+    $systemPrompt = "You are an MKU Student Assistant named Vera. Be helpful and natural. Return 'OFFLINE_ESCALATE' for grades or fees.";
+
+    $data = [
+        "contents" => [
+            [
+                "parts" => [
+                    ["text" => $systemPrompt . "\n\nStudent: " . $message]
+                ]
+            ]
+        ]
+    ];
+
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); 
+
     $result = curl_exec($ch);
+
+    if (curl_errno($ch)) {
+        return "Connection Error: " . curl_error($ch);
+    }
+
     $response = json_decode($result, true);
     curl_close($ch);
-    
-    return trim($response['candidates'][0]['content']['parts'][0]['text'] ?? "OFFLINE_ESCALATE");
+
+    if (isset($response['error'])) {
+        return "Google API Error: " . $response['error']['message'];
+    }
+
+    return $response['candidates'][0]['content']['parts'][0]['text'] ?? "No response";
 }
 ?>
