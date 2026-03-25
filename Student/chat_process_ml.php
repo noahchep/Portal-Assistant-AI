@@ -46,8 +46,24 @@ if ($kb_result->num_rows > 0) {
 /* ===============================
     3. MACHINE LEARNING ENGINE
 ================================ */
-$samples = ['hi', 'hello', 'units', 'show me units', 'workload', 'registration', 'register', 'ai', 'artificial intelligence'];
-$labels = ['greet', 'greet', 'view_all', 'view_all', 'view_all', 'reg_help', 'reg_help', 'ai_check', 'ai_check'];
+// Training data for intent classification
+$samples = [
+    'hi', 'hello', 'hey', 'good morning',            // greet
+    'unit', 'units', 'show me units', 'workload',    // view_all
+    'first year', 'second year', 'third year',       // view_all (text versions)
+    'math', 'programming', 'database', 'bit1101',    // search_unit
+    'registration', 'register', 'enroll',            // reg_help
+    'ai', 'artificial intelligence', 'bot info'      // ai_check
+];
+
+$labels = [
+    'greet', 'greet', 'greet', 'greet',
+    'view_all', 'view_all', 'view_all', 'view_all',
+    'view_all', 'view_all', 'view_all',
+    'search_unit', 'search_unit', 'search_unit', 'search_unit',
+    'reg_help', 'reg_help', 'reg_help',
+    'ai_check', 'ai_check', 'ai_check'
+];
 
 $vectorizer = new TokenCountVectorizer(new WhitespaceTokenizer());
 $vectorizer->fit($samples);
@@ -57,10 +73,13 @@ $transformer->transform($samples);
 $classifier = new NaiveBayes();
 $classifier->train($samples, $labels);
 
-$local_keywords = ['unit', 'course', 'workload', '3.1', '3.2', '2.1', '2.2', 'register', 'enroll', 'hi', 'ai', 'artificial'];
+// Check if we should even use ML or just fallback immediately
+$local_keywords = ['unit', 'units', 'course', 'workload', '1.1', '1.2', '2.1', '2.2', 'register', 'enroll', 'hi', 'ai', 'math', 'java', 'programming', 'database', 'year'];
 $found_local_match = false;
 foreach ($local_keywords as $word) {
     if (strpos($user_input, $word) !== false) { $found_local_match = true; break; }
+    similar_text($user_input, $word, $percent);
+    if ($percent > 80) { $found_local_match = true; $user_input = $word; break; }
 }
 
 if (!$found_local_match) {
@@ -77,27 +96,94 @@ if (!$found_local_match) {
 ================================ */
 switch ($intent) {
     case 'greet':
-        echo "Hello! I am your AI Assistant. How can I help you today?";
+        $greetings = [
+            "Hello! I am your AI Assistant. How can I help you with your units today?",
+            "Hi there! I'm ready to help you search the Master Plan. What's on your mind?",
+            "Greetings! You can ask me for a full workload (e.g., 'units for 1.1') or search for a specific unit."
+        ];
+        echo $greetings[array_rand($greetings)];
+        break;
+
+    case 'search_unit':
+        $search_term = "%$user_input%";
+        $s_stmt = $conn->prepare("SELECT unit_code, unit_name, year_level FROM academic_workload WHERE unit_name LIKE ? OR unit_code LIKE ?");
+        $s_stmt->bind_param("ss", $search_term, $search_term);
+        $s_stmt->execute();
+        $s_res = $s_stmt->get_result();
+
+        if ($s_res->num_rows > 0) {
+            $starters = ["I found these matching units:", "Here is what the Master Plan says:", "Matching results:"];
+            echo "<b>" . $starters[array_rand($starters)] . "</b><br>";
+            while ($row = $s_res->fetch_assoc()) {
+                echo "• " . $row['unit_code'] . " - " . $row['unit_name'] . " (" . $row['year_level'] . ")<br>";
+            }
+        } else {
+            // FUZZY "DID YOU MEAN" LOGIC
+            $all_units = mysqli_query($conn, "SELECT unit_name FROM academic_workload");
+            $closest_match = null;
+            $shortest_dist = -1;
+
+            while ($unit = mysqli_fetch_assoc($all_units)) {
+                $lev = levenshtein($user_input, strtolower($unit['unit_name']));
+                if ($lev <= 3 && ($lev < $shortest_dist || $shortest_dist == -1)) {
+                    $closest_match = $unit['unit_name'];
+                    $shortest_dist = $lev;
+                }
+            }
+
+            if ($closest_match) {
+                echo "I couldn't find a direct match for '$user_input'. Did you mean <b>$closest_match</b>?";
+            } else {
+                goto fallback_logic; 
+            }
+        }
         break;
 
     case 'view_all':
-        // Your logic for academic_workload table
-        echo "Listing available units...";
+        $year_map = ['1' => 'First Year', '2' => 'Second Year', '3' => 'Third Year', '4' => 'Fourth Year'];
+        $sem_map = ['1' => '1st Semester', '2' => '2nd Semester'];
+
+        $target_year = 'First Year';
+        $target_sem = '1st Semester';
+
+        if (preg_match('/([1-4])\.([1-2])/', $_POST['message'], $matches)) {
+            $target_year = $year_map[$matches[1]];
+            $target_sem = $sem_map[$matches[2]];
+        }
+
+        $w_stmt = $conn->prepare("SELECT unit_code, unit_name FROM academic_workload WHERE year_level = ? AND semester_level = ?");
+        $w_stmt->bind_param("ss", $target_year, $target_sem);
+        $w_stmt->execute();
+        $w_res = $w_stmt->get_result();
+
+        if ($w_res->num_rows > 0) {
+            $intros = [
+                "For $target_year ($target_sem), the units are as follows:",
+                "I've retrieved the workload for $target_year $target_sem:",
+                "According to the Master Plan, you'll be taking these units in $target_year:"
+            ];
+            echo "<b>" . $intros[array_rand($intros)] . "</b><br>";
+            while ($row = $w_res->fetch_assoc()) {
+                echo "• " . $row['unit_code'] . " - " . $row['unit_name'] . "<br>";
+            }
+        } else {
+            echo "I couldn't find units for $target_year $target_sem in the system.";
+        }
         break;
 
     case 'fallback':
     default:
-        // FIRST: Log the student's message so the Admin sees it in history
+        fallback_logic:
+        // Save user message
         $stmt_msg = $conn->prepare("INSERT INTO chat_messages (conversation_id, sender_type, message) VALUES (?, 'student', ?)");
         $stmt_msg->bind_param("ss", $sess_id, $user_input);
         $stmt_msg->execute();
 
-        // SECOND: Call the Gemini API
         $ai_response = callGeminiAPI($user_input);
         $student_name = $_SESSION['user_name'] ?? 'Guest Student';
 
         if ($ai_response == "OFFLINE_ESCALATE") {
-            // Check for existing referral to avoid duplicates
+            // Referral Logic
             $check_ref = $conn->prepare("SELECT id FROM admin_referrals WHERE conversation_id = ? AND status = 'pending'");
             $check_ref->bind_param("s", $sess_id);
             $check_ref->execute();
@@ -109,16 +195,16 @@ switch ($intent) {
             }
 
             $bot_msg = "I'm not sure about that. I've forwarded your query to the Admin inbox for you!";
+            echo $bot_msg;
+            
             $stmt_bot = $conn->prepare("INSERT INTO chat_messages (conversation_id, sender_type, message) VALUES (?, 'bot', ?)");
             $stmt_bot->bind_param("ss", $sess_id, $bot_msg);
             $stmt_bot->execute();
-            echo $bot_msg;
         } else {
-            // Log the successful Gemini response
+            echo $ai_response;
             $stmt_bot = $conn->prepare("INSERT INTO chat_messages (conversation_id, sender_type, message) VALUES (?, 'bot', ?)");
             $stmt_bot->bind_param("ss", $sess_id, $ai_response);
             $stmt_bot->execute();
-            echo $ai_response;
         }
         break; 
 }
@@ -127,29 +213,20 @@ switch ($intent) {
     5. THE GEMINI API FUNCTION
 ================================ */
 function callGeminiAPI($message) {
-    $apiKey = "YOUR_ACTUAL_API_KEY_HERE"; 
+    $apiKey = "AIzaSyDZKvwEH5dxLcMmnmVBvOBgh5RyBP0lLTo"; 
     $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . $apiKey;
+    $systemPrompt = "You are an MKU Student Assistant. Be helpful and natural. Return 'OFFLINE_ESCALATE' for specific student grades or fee balances.";
     
-    // This prompt forces Gemini to escalate sensitive topics
-    $systemPrompt = "You are an MKU Student Assistant. Be helpful. If a question is about specific student grades, specific fee balances, or any technical issue you cannot solve, return exactly 'OFFLINE_ESCALATE'.";
-    
-    $data = [
-        "contents" => [
-            ["parts" => [["text" => $systemPrompt . "\n\nStudent: " . $message]]]
-        ]
-    ];
-
+    $data = ["contents" => [["parts" => [["text" => $systemPrompt . "\n\nStudent: " . $message]]]]];
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // For local testing
-    
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); 
     $result = curl_exec($ch);
     $response = json_decode($result, true);
     curl_close($ch);
     
-    $text_response = $response['candidates'][0]['content']['parts'][0]['text'] ?? "OFFLINE_ESCALATE";
-    return trim($text_response);
+    return trim($response['candidates'][0]['content']['parts'][0]['text'] ?? "OFFLINE_ESCALATE");
 }
 ?>
