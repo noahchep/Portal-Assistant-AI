@@ -141,16 +141,59 @@ if (isset($_POST['add_student'])) {
         </div>
 
         <div class="form-group">
-            <label style="display:block; font-weight:700; margin-bottom:8px; color: #374151;">Department</label>
-            <select name="department" required style="width:100%; padding:12px; border:1px solid #d1d5db; border-radius:8px; background: #fff; cursor: pointer;">
-                <option value="">-- Choose Department --</option>
-                <option value="Information Technology">Information Technology (BIT)</option>
-                <option value="Computer Science">Computer Science (BCS)</option>
-                <option value="Enterprise Computing">Enterprise Computing (BEC)</option>
-                <option value="Information Science">Information Science (BIS)</option>
-            </select>
-        </div>
+    <label style="display:block; font-weight:700; margin-bottom:8px; color: #374151;">Department</label>
+    <select name="department" required style="width:100%; padding:12px; border:1px solid #d1d5db; border-radius:8px; background: #fff; cursor: pointer;">
+        <option value="">-- Choose Department --</option>
 
+        <optgroup label="Computing & Informatics">
+            <option value="Information Technology">Information Technology</option>
+            <option value="Information Science">Information Science & Knowledge Management</option>
+        </optgroup>
+
+        <optgroup label="Business & Economics">
+            <option value="Management">Management</option>
+            <option value="Economics">Economics</option>
+            <option value="Accounting and Finance">Accounting and Finance</option>
+        </optgroup>
+
+        <optgroup label="Health Sciences & Medicine">
+            <option value="Community Health">Community Health, Epidemiology & Biostatistics</option>
+            <option value="Environmental Health">Environmental Health & Health Systems Management</option>
+            <option value="Nursing">Nursing</option>
+            <option value="Pharmacy">Pharmacy</option>
+            <option value="Medical School">Medical School</option>
+            <option value="Clinical Medicine">Clinical Medicine</option>
+        </optgroup>
+
+        <optgroup label="Education">
+            <option value="Educational Management">Educational Management & Curriculum Studies</option>
+            <option value="Educational Psychology">Educational Psychology & Technology (EPT)</option>
+            <option value="Special Needs Education">Special Needs Education & Early Childhood</option>
+        </optgroup>
+
+        <optgroup label="Engineering & Built Environment">
+            <option value="Energy Engineering">Energy & Environmental Engineering</option>
+            <option value="Electrical Engineering">Electrical & Electronic Engineering</option>
+        </optgroup>
+
+        <optgroup label="Pure & Applied Sciences">
+            <option value="Natural Sciences">Natural Sciences</option>
+            <option value="Animal Health">Animal Health and Production</option>
+        </optgroup>
+
+        <optgroup label="Social Sciences & Humanities">
+            <option value="Psychology">Psychology, Humanities & Languages</option>
+            <option value="Law">Law</option>
+            <option value="Security Studies">Security Studies, Justice and Ethics</option>
+            <option value="Journalism">Journalism & Mass Communication</option>
+        </optgroup>
+
+        <optgroup label="Hospitality & Tourism">
+            <option value="Hospitality Management">Hospitality Management</option>
+            <option value="Travel and Tourism">Travel and Tourism Management</option>
+        </optgroup>
+    </select>
+</div>
         <div style="grid-column: span 2; background: #f9fafb; padding: 15px; border-radius: 8px; border-left: 4px solid #2563eb;">
             <p style="margin: 0; font-size: 0.85rem; color: #4b5563;">
                 <strong>Automatic System:</strong> A unique ID (e.g., BIT/<?php echo date('Y'); ?>/43255) and a default password will be generated and emailed to the student upon confirmation.

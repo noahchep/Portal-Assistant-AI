@@ -2,20 +2,14 @@
 session_start();
 
 // 1. Check if user_id exists (Are they logged in?)
-// 2. Check if the role is 'student' (Are they allowed here?)
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
-    
-    // Optional: If they are an admin trying to sneak in, send them to their own dashboard
     if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
         header("Location: ../admin/admin_dashboard.php?error=access_denied");
     } else {
-        // Otherwise, send to login
         header("Location: ../login.php");
     }
     exit();
 }
-
-/* Rest of your database connection and logic... */
 
 /* DATABASE CONNECTION */
 $conn = mysqli_connect("localhost", "root", "", "Portal-Asisstant-AI");
@@ -24,12 +18,13 @@ $conn = mysqli_connect("localhost", "root", "", "Portal-Asisstant-AI");
 $student_reg_no = $_SESSION['reg_number'] ?? ''; 
 $reg_number = $student_reg_no; 
 
-// 2. Fetch the Student's real name and department
+// 2. Fetch the Student's real name and department from the users table
 $user_id = $_SESSION['user_id'];
 $user_query = mysqli_query($conn, "SELECT full_name, department, survey_done FROM users WHERE id = '$user_id'");
 $user_data = mysqli_fetch_assoc($user_query);
 
 $student_name = $user_data['full_name'] ?? 'Unknown Student';
+// CAPTURING THE DEPARTMENT
 $student_dept = $user_data['department'] ?? 'General';
 $survey_done_status = $user_data['survey_done'] ?? 0;
 
@@ -46,11 +41,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['register_btn'])) {
             $exam_type   = mysqli_real_escape_string($conn, $_POST["examType$i"]);
             $class_group = mysqli_real_escape_string($conn, $_POST["classCode$i"]);
 
+            // Check if the unit exists in the master timetable
             $check = mysqli_query($conn, "SELECT 1 FROM timetable WHERE unit_code='$unit_code' LIMIT 1");
             if (mysqli_num_rows($check) > 0) {
+                // MODIFIED: Added 'department' to the columns and '$student_dept' to the values
                 mysqli_query($conn, "INSERT IGNORE INTO registered_courses 
-                    (student_reg_no, unit_code, exam_type, class_group, semester, academic_year, status)
-                    VALUES ('$student_reg_no','$unit_code','$exam_type','$class_group','$semester','$academic_year', 'Provisional')");
+                    (student_reg_no, unit_code, exam_type, class_group, semester, academic_year, status, department)
+                    VALUES ('$student_reg_no','$unit_code','$exam_type','$class_group','$semester','$academic_year', 'Provisional', '$student_dept')");
             }
         }
     }
@@ -63,7 +60,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['register_btn'])) {
     CORE LOGIC: CONFIRM / DROP
 ================================ */
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['selected_units'])) {
-    
     $units = $_POST['selected_units']; 
 
     // 1. REDIRECT TO SURVEY: Only if they click Confirm and haven't done the survey
@@ -109,7 +105,7 @@ if (!$confirmed || !$provisional) {
             --primary: #4f46e5;
             --primary-dark: #3730a3;
             --bg: #f8fafc;
-            --white: #white;
+            --white: #ffffff;
             --text-main: #1e293b;
             --text-light: #64748b;
             --border: #e2e8f0;
@@ -117,7 +113,7 @@ if (!$confirmed || !$provisional) {
             --warning: #f59e0b;
         }
 
-        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text-main); margin: 0; line-height: 1.5; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text-main); margin: 0; line-height: 1.5; }
 
         header { background: white; border-bottom: 1px solid var(--border); padding: 1rem 5%; display: flex; align-items: center; justify-content: space-between; }
         .branding { display: flex; align-items: center; gap: 15px; }
@@ -137,28 +133,27 @@ if (!$confirmed || !$provisional) {
         .card-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 20px; color: var(--text-main); display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
 
         table { width: 100%; border-collapse: collapse; }
-        th { text-align: left; background: #f1f5f9; padding: 12px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-light); }
+        th { text-align: left; background: #f1f5f9; padding: 12px; font-size: 0.75rem; text-transform: uppercase; color: var(--text-light); }
         td { padding: 14px 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
-        tr:hover { background: #fdfdfd; }
 
-        .btn { padding: 10px 22px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; }
+        .btn { padding: 10px 22px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: 0.2s; display: inline-flex; align-items: center; }
         .btn-primary { background: var(--primary); color: white; }
         .btn-success { background: var(--success); color: white; }
         .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
 
-        input[type="text"], select { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: #fafafa; }
+        input[type="text"], select { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; }
 
-        .badge { padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+        .badge { padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
         .bg-success { background: #dcfce7; color: #166534; }
         .bg-warning { background: #fef3c7; color: #92400e; }
 
-        #chat-fab { position: fixed; bottom: 30px; right: 30px; background: var(--primary); color: white; width: 55px; height: 55px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 10px 15px rgba(79, 70, 229, 0.4); z-index: 100; font-size: 1.5rem; transition: 0.3s; }
-        #chat-window { position: fixed; bottom: 100px; right: 30px; width: 350px; height: 500px; background: white; border-radius: 16px; display: none; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); border: 1px solid var(--border); z-index: 101; overflow: hidden; }
-        #chat-content { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #fcfcfc; scroll-behavior: smooth; }
+        #chat-fab { position: fixed; bottom: 30px; right: 30px; background: var(--primary); color: white; width: 55px; height: 55px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 10px 15px rgba(79, 70, 229, 0.4); z-index: 100; font-size: 1.5rem; }
+        #chat-window { position: fixed; bottom: 100px; right: 30px; width: 350px; height: 500px; background: white; border-radius: 16px; display: none; flex-direction: column; box-shadow: 0 20px 25px rgba(0,0,0,0.1); border: 1px solid var(--border); z-index: 101; overflow: hidden; }
+        #chat-content { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
         
-        .msg { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 0.85rem; line-height: 1.4; }
-        .msg-bot { align-self: flex-start; background: #f1f5f9; color: var(--text-main); border-bottom-left-radius: 2px; border-left: 3px solid var(--primary); }
-        .msg-user { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 2px; }
+        .msg { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 0.85rem; }
+        .msg-bot { align-self: flex-start; background: #f1f5f9; border-left: 3px solid var(--primary); }
+        .msg-user { align-self: flex-end; background: var(--primary); color: white; }
 
         footer { text-align: center; padding: 40px; color: var(--text-light); font-size: 0.85rem; }
     </style>
@@ -287,16 +282,12 @@ if (!$confirmed || !$provisional) {
     </div>
     <div id="chat-content">
         <div class="msg msg-bot">
-            Hello <?php echo explode(' ', $student_name)[0]; ?>! I'm your AI assistant. I can check the Master Plan for unit codes or help you with registration. How can I help?
+            Hello <?php echo explode(' ', $student_name)[0]; ?>! I'm your AI assistant. How can I help?
         </div>
     </div>
-    <div style="padding: 12px; border-top: 1px solid var(--border); display: flex; gap: 8px; background: white;">
-        <input type="text" id="chat-input" placeholder="Ask about units..." 
-               style="flex:1; border-radius: 20px; padding: 8px 15px; border: 1px solid var(--border); font-size: 0.85rem;"
-               onkeypress="if(event.key === 'Enter') sendChatMessage()">
-        <button onclick="sendChatMessage()" style="background: var(--primary); border: none; color: white; border-radius: 50%; width: 35px; height: 35px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
-            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576 6.636 10.07Zm6.787-8.201L1.591 6.602l4.339 2.76 7.494-7.493Z"/></svg>
-        </button>
+    <div style="padding: 12px; border-top: 1px solid var(--border); display: flex; gap: 8px;">
+        <input type="text" id="chat-input" placeholder="Ask about units..." style="flex:1; border-radius: 20px; padding: 8px 15px; border: 1px solid var(--border);">
+        <button onclick="sendChatMessage()" style="background: var(--primary); color: white; border-radius: 50%; border:none; width: 35px; height:35px;">➤</button>
     </div>
 </div>
 
@@ -304,14 +295,12 @@ if (!$confirmed || !$provisional) {
     function toggleChat() {
         const win = document.getElementById('chat-window');
         win.style.display = (win.style.display === 'flex') ? 'none' : 'flex';
-        if(win.style.display === 'flex') document.getElementById('chat-input').focus();
     }
 
     async function sendChatMessage() {
         const input = document.getElementById('chat-input');
         const box = document.getElementById('chat-content');
         const msg = input.value.trim();
-        
         if(!msg) return;
 
         box.innerHTML += `<div class="msg msg-user">${msg}</div>`;
@@ -328,7 +317,7 @@ if (!$confirmed || !$provisional) {
             box.innerHTML += `<div class="msg msg-bot">${text}</div>`;
             box.scrollTop = box.scrollHeight;
         } catch (e) {
-            box.innerHTML += `<div class="msg msg-bot" style="color:red">Sorry, I'm having trouble connecting to the brain.</div>`;
+            box.innerHTML += `<div class="msg msg-bot" style="color:red">Connection error.</div>`;
         }
     }
 </script>
