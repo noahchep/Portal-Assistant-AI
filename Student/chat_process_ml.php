@@ -185,7 +185,162 @@ function extractWordFromQuery($input) {
 }
 
 /* ============================================================
-    3. PRIORITY 1: KNOWLEDGE BASE CHECK
+    3. FUZZY MATCHING FUNCTIONS
+============================================================ */
+function fuzzyMatch($input, $target, $threshold = 70) {
+    // Convert to lowercase for comparison
+    $input = strtolower(trim($input));
+    $target = strtolower(trim($target));
+    
+    // Exact match
+    if ($input === $target) {
+        return true;
+    }
+    
+    // Calculate similarity percentage
+    similar_text($input, $target, $percent);
+    
+    // Levenshtein distance (lower is better)
+    $distance = levenshtein($input, $target);
+    $max_len = max(strlen($input), strlen($target));
+    $lev_percent = ($max_len > 0) ? (1 - ($distance / $max_len)) * 100 : 0;
+    
+    // Use the better of the two percentages
+    $similarity = max($percent, $lev_percent);
+    
+    return $similarity >= $threshold;
+}
+
+function getClosestMatch($input, $options, $threshold = 70) {
+    $best_match = null;
+    $best_score = 0;
+    
+    foreach ($options as $option) {
+        $input = strtolower(trim($input));
+        $option = strtolower(trim($option));
+        
+        // Calculate similarity
+        similar_text($input, $option, $percent);
+        $distance = levenshtein($input, $option);
+        $max_len = max(strlen($input), strlen($option));
+        $lev_percent = ($max_len > 0) ? (1 - ($distance / $max_len)) * 100 : 0;
+        $score = max($percent, $lev_percent);
+        
+        if ($score > $best_score && $score >= $threshold) {
+            $best_score = $score;
+            $best_match = $option;
+        }
+    }
+    
+    return $best_match;
+}
+
+function fuzzySearchUnits($search_term, $conn, $limit = 5) {
+    // Get all unit codes and names
+    $query = "SELECT unit_code, unit_name FROM academic_workload";
+    $result = mysqli_query($conn, $query);
+    
+    $matches = [];
+    $search = strtolower(trim($search_term));
+    
+    while ($row = mysqli_fetch_assoc($result)) {
+        $unit_code = strtolower($row['unit_code']);
+        $unit_name = strtolower($row['unit_name']);
+        
+        // Calculate similarity for code
+        similar_text($search, $unit_code, $code_similarity);
+        $code_distance = levenshtein($search, $unit_code);
+        $code_max_len = max(strlen($search), strlen($unit_code));
+        $code_lev_percent = ($code_max_len > 0) ? (1 - ($code_distance / $code_max_len)) * 100 : 0;
+        $code_score = max($code_similarity, $code_lev_percent);
+        
+        // Calculate similarity for name
+        similar_text($search, $unit_name, $name_similarity);
+        $name_distance = levenshtein($search, $unit_name);
+        $name_max_len = max(strlen($search), strlen($unit_name));
+        $name_lev_percent = ($name_max_len > 0) ? (1 - ($name_distance / $name_max_len)) * 100 : 0;
+        $name_score = max($name_similarity, $name_lev_percent);
+        
+        // Use the best score (prioritize code matches slightly)
+        $score = max($code_score, $name_score);
+        
+        if ($score >= 60) { // 60% similarity threshold
+            $matches[] = [
+                'unit_code' => $row['unit_code'],
+                'unit_name' => $row['unit_name'],
+                'score' => $score,
+                'matched_on' => ($code_score > $name_score) ? 'code' : 'name'
+            ];
+        }
+    }
+    
+    // Sort by score (highest first)
+    usort($matches, function($a, $b) {
+        return $b['score'] <=> $a['score'];
+    });
+    
+    // Return top matches
+    return array_slice($matches, 0, $limit);
+}
+
+function fuzzyDetectIntent($input) {
+    // Common intent phrases with variations
+    $intent_patterns = [
+        'greet' => ['hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening', 'howdy', 'sup', 'yo', 'hie', 'helo', 'helloo', 'morning'],
+        'farewell' => ['bye', 'goodbye', 'see you', 'later', 'ciao', 'farewell', 'talk later', 'by', 'bey', 'seeya'],
+        'gratitude' => ['thank', 'thanks', 'appreciate', 'grateful', 'thx', 'thanx', 'thankyou', 'thnx'],
+        'how_are_you' => ['how are you', 'how do you do', 'how are you doing', 'how is it going', 'whats up', 'how r u', 'howre you', 'how you doing'],
+        'my_courses' => ['my courses', 'my units', 'registered courses', 'what am i taking', 'enrolled in', 'my classes', 'my subjects', 'my reg courses', 'my registred courses'],
+        'reg_help' => ['how to register', 'register for units', 'registration process', 'how do i register', 'register courses', 'enroll', 'add units', 'sign up', 'registration help', 'how to enroll', 'how to add units'],
+        'view_all' => ['show me', 'view units', 'list units', 'units for', 'courses for', 'subjects for', 'first year', 'second year', 'third year', 'fourth year'],
+        'timetable' => ['timetable', 'schedule', 'class schedule', 'my classes', 'lecture schedule', 'time table', 'class time', 'when is class'],
+        'exam_info' => ['exam', 'test', 'assessment', 'exam schedule', 'exam date', 'when is exam', 'exam time'],
+        'student_info' => ['who am i', 'my details', 'my info', 'my profile', 'my registration number', 'my email', 'student details'],
+        'search_unit' => ['search unit', 'find unit', 'look up', 'unit details', 'course details', 'about unit', 'tell me about'],
+        'ai_check' => ['what can you do', 'help', 'capabilities', 'what do you do', 'features', 'how can you help', 'what you can do']
+    ];
+    
+    $input_lower = strtolower(trim($input));
+    $best_intent = null;
+    $best_score = 0;
+    
+    foreach ($intent_patterns as $intent => $patterns) {
+        foreach ($patterns as $pattern) {
+            // Check if pattern is contained in input
+            if (strpos($input_lower, $pattern) !== false) {
+                return $intent;
+            }
+            
+            // For longer patterns, try fuzzy matching
+            if (strlen($pattern) > 5) {
+                similar_text($input_lower, $pattern, $similarity);
+                if ($similarity > $best_score && $similarity > 70) {
+                    $best_score = $similarity;
+                    $best_intent = $intent;
+                }
+            }
+        }
+    }
+    
+    // Try word-by-word matching for typos
+    if (!$best_intent) {
+        $words = explode(' ', $input_lower);
+        foreach ($words as $word) {
+            foreach ($intent_patterns as $intent => $patterns) {
+                foreach ($patterns as $pattern) {
+                    if (fuzzyMatch($word, $pattern, 75)) {
+                        return $intent;
+                    }
+                }
+            }
+        }
+    }
+    
+    return $best_intent;
+}
+
+/* ============================================================
+    4. PRIORITY 1: KNOWLEDGE BASE CHECK
 ============================================================ */
 $check_kb = $conn->prepare("SELECT verified_answer FROM ai_knowledge_base WHERE student_query LIKE ? LIMIT 1");
 $search_term = "%$user_input%";
@@ -210,7 +365,7 @@ if ($kb_result->num_rows > 0) {
 }
 
 /* ===============================
-    4. PRIORITY 2: VOCABULARY CHECK (NEW)
+    5. PRIORITY 2: VOCABULARY CHECK
 ================================ */
 $vocabulary_check = detectVocabularyIntent($user_input);
 
@@ -221,7 +376,6 @@ if ($vocabulary_check) {
     if ($definition) {
         echo $definition;
         
-        // Friendly follow-up
         $followups = [
             "📖 Want me to explain another word?",
             "💡 Would you like to see how to use this word in a sentence?",
@@ -231,7 +385,6 @@ if ($vocabulary_check) {
         ];
         echo "<br><br><i>" . getRandomResponse($followups) . "</i>";
         
-        // Log the query
         $stmt_bot = $conn->prepare("INSERT INTO chat_messages (conversation_id, sender_type, message) VALUES (?, 'bot', ?)");
         $definition_short = substr($definition, 0, 500);
         $stmt_bot->bind_param("ss", $sess_id, $definition_short);
@@ -242,7 +395,6 @@ if ($vocabulary_check) {
         echo "💡 <i>Tip: Try asking about academic terms like 'algorithm', 'database', 'semester', or 'curriculum'!</i><br><br>";
         echo "📝 I've noted this word and will add it to my vocabulary soon!";
         
-        // Save unknown word request
         $requested_by = $_SESSION['user_name'] ?? 'Guest';
         $stmt = $conn->prepare("INSERT INTO vocabulary_requests (word, requested_by) VALUES (?, ?)");
         $stmt->bind_param("ss", $word_to_define, $requested_by);
@@ -252,7 +404,7 @@ if ($vocabulary_check) {
 }
 
 /* ===============================
-    5. SOCIAL INTENT DETECTION
+    6. SOCIAL INTENT DETECTION
 ================================ */
 function detectSocialIntent($input) {
     $gratitude = ['thank', 'thanks', 'thnx', 'thank you', 'appreciate', 'grateful', 'thx'];
@@ -301,26 +453,76 @@ function detectSocialIntent($input) {
 }
 
 /* ===============================
-    6. ACADEMIC INTENT DETECTION
+    7. ACADEMIC INTENT DETECTION (ENHANCED WITH FUZZY)
 ================================ */
 function detectIntent($input) {
+    // First, try fuzzy intent detection
+    $fuzzy_intent = fuzzyDetectIntent($input);
+    if ($fuzzy_intent) {
+        switch ($fuzzy_intent) {
+            case 'reg_help':
+                return ['intent' => 'reg_help'];
+            case 'my_courses':
+                return ['intent' => 'my_courses'];
+            case 'timetable':
+                return ['intent' => 'timetable'];
+            case 'exam_info':
+                return ['intent' => 'exam_info'];
+            case 'student_info':
+                return ['intent' => 'student_info'];
+            case 'ai_check':
+                return ['intent' => 'ai_check'];
+            case 'greet':
+                return ['intent' => 'greet'];
+            case 'farewell':
+                return ['intent' => 'farewell'];
+            case 'gratitude':
+                return ['intent' => 'gratitude'];
+            case 'how_are_you':
+                return ['intent' => 'how_are_you'];
+            case 'view_all':
+                // Extract year from input
+                $year_patterns = [
+                    'first' => 'First Year',
+                    'second' => 'Second Year',
+                    'third' => 'Third Year',
+                    'fourth' => 'Fourth Year',
+                    '1st' => 'First Year',
+                    '2nd' => 'Second Year',
+                    '3rd' => 'Third Year',
+                    '4th' => 'Fourth Year'
+                ];
+                foreach ($year_patterns as $pattern => $year) {
+                    if (strpos($input, $pattern) !== false) {
+                        return ['intent' => 'view_all', 'year' => $year];
+                    }
+                }
+                return ['intent' => 'view_all'];
+        }
+    }
+    
+    // Check for unit details/prerequisites
+    if (preg_match('/(details?|about|tell me about|info|prerequisites?|requirements?)/i', $input) && preg_match('/[A-Z]{3,4}[0-9]{4}/i', $input, $matches)) {
+        return ['intent' => 'unit_details', 'unit_code' => strtoupper($matches[0])];
+    }
+    
+    // Check for registration help FIRST (priority over view_all)
+    $reg_keywords = ['how to register', 'register for units', 'registration process', 'how do i register', 'register courses', 'enroll', 'add units', 'sign up for units'];
+    foreach ($reg_keywords as $keyword) {
+        if (strpos($input, $keyword) !== false || fuzzyMatch($input, $keyword, 70)) {
+            return ['intent' => 'reg_help'];
+        }
+    }
+    
     $year_patterns = [
-        '/first\s*year/i' => 'First Year',
-        '/second\s*year/i' => 'Second Year',
-        '/third\s*year/i' => 'Third Year',
-        '/fourth\s*year/i' => 'Fourth Year',
-        '/1st\s*year/i' => 'First Year',
-        '/2nd\s*year/i' => 'Second Year',
-        '/3rd\s*year/i' => 'Third Year',
-        '/4th\s*year/i' => 'Fourth Year',
-        '/year\s*1/i' => 'First Year',
-        '/year\s*2/i' => 'Second Year',
-        '/year\s*3/i' => 'Third Year',
-        '/year\s*4/i' => 'Fourth Year'
+        '/first\s*year|1st\s*year|year\s*1|freshman/i' => 'First Year',
+        '/second\s*year|2nd\s*year|year\s*2|sophomore/i' => 'Second Year',
+        '/third\s*year|3rd\s*year|year\s*3|junior/i' => 'Third Year',
+        '/fourth\s*year|4th\s*year|year\s*4|senior/i' => 'Fourth Year'
     ];
     
     foreach ($year_patterns as $pattern => $year) {
-        if (preg_match($pattern, $input)) {
+        if (preg_match($pattern, strtolower($input))) {
             return ['intent' => 'view_all', 'year' => $year];
         }
     }
@@ -337,14 +539,14 @@ function detectIntent($input) {
     
     $timetable_keywords = ['class', 'schedule', 'timetable', 'lecture', 'when is my class', 'what class', 'this week', 'today\'s class', 'classes for', 'my classes', 'class schedule'];
     foreach ($timetable_keywords as $keyword) {
-        if (strpos($input, $keyword) !== false) {
+        if (strpos($input, $keyword) !== false || fuzzyMatch($input, $keyword, 70)) {
             return ['intent' => 'timetable'];
         }
     }
     
     $exam_keywords = ['exam', 'test', 'assessment', 'when is exam', 'exam date'];
     foreach ($exam_keywords as $keyword) {
-        if (strpos($input, $keyword) !== false) {
+        if (strpos($input, $keyword) !== false || fuzzyMatch($input, $keyword, 70)) {
             return ['intent' => 'exam_info'];
         }
     }
@@ -356,9 +558,9 @@ function detectIntent($input) {
         }
     }
     
-    $courses_keywords = ['my courses', 'my units', 'registered courses', 'what am i taking', 'enrolled in'];
+    $courses_keywords = ['my courses', 'my units', 'registered courses', 'what am i taking', 'enrolled in', 'all units', 'available units', 'all courses'];
     foreach ($courses_keywords as $keyword) {
-        if (strpos($input, $keyword) !== false) {
+        if (strpos($input, $keyword) !== false || fuzzyMatch($input, $keyword, 70)) {
             return ['intent' => 'my_courses'];
         }
     }
@@ -380,6 +582,9 @@ if ($social_intent) {
         }
         if (isset($priority_check['semester'])) {
             $GLOBALS['target_semester'] = $priority_check['semester'];
+        }
+        if (isset($priority_check['unit_code'])) {
+            $GLOBALS['target_unit'] = $priority_check['unit_code'];
         }
     } else {
         // Use ML for other intents
@@ -419,7 +624,7 @@ if ($social_intent) {
 }
 
 /* ===============================
-    7. HELPER FUNCTIONS
+    8. HELPER FUNCTIONS
 ================================ */
 function formatResponse($data, $title) {
     if (empty($data)) {
@@ -438,7 +643,7 @@ function getRandomResponse($responses) {
 }
 
 /* ===============================
-    8. SOCIAL RESPONSES
+    9. SOCIAL RESPONSES
 ================================ */
 $social_responses = [
     'gratitude' => [
@@ -481,7 +686,7 @@ $social_responses = [
 ];
 
 /* ===============================
-    9. MAIN ACTION LOGIC
+    10. MAIN ACTION LOGIC
 ================================ */
 switch ($intent) {
     case 'greet':
@@ -520,6 +725,121 @@ switch ($intent) {
     case 'farewell':
         echo getRandomResponse($social_responses['farewell']);
         break;
+
+        case 'unit_details':
+            $unit_code = $GLOBALS['target_unit'] ?? '';
+            
+            if ($unit_code) {
+                // Get unit details
+                $unit_query = "SELECT * FROM academic_workload WHERE unit_code = ?";
+                $unit_stmt = $conn->prepare($unit_query);
+                $unit_stmt->bind_param("s", $unit_code);
+                $unit_stmt->execute();
+                $unit_result = $unit_stmt->get_result();
+                
+                if ($unit_result->num_rows > 0) {
+                    $unit = $unit_result->fetch_assoc();
+                    
+                    echo "<b>📖 Unit Details: {$unit['unit_code']} - {$unit['unit_name']}</b><br><br>";
+                    echo "<b>📚 Year Level:</b> {$unit['year_level']}<br>";
+                    echo "<b>📅 Semester:</b> {$unit['semester_level']}<br>";
+                    echo "<b>🕒 Offering Time:</b> {$unit['offering_time']}<br>";
+                    
+                    // Get prerequisites if table exists
+                    $prereq_check = $conn->query("SHOW TABLES LIKE 'unit_prerequisites'");
+                    if ($prereq_check && $prereq_check->num_rows > 0) {
+                        $prereq_query = "SELECT prerequisite_code FROM unit_prerequisites WHERE unit_code = ?";
+                        $prereq_stmt = $conn->prepare($prereq_query);
+                        if ($prereq_stmt) {
+                            $prereq_stmt->bind_param("s", $unit_code);
+                            $prereq_stmt->execute();
+                            $prereq_result = $prereq_stmt->get_result();
+                            
+                            if ($prereq_result && $prereq_result->num_rows > 0) {
+                                echo "<b>📋 Prerequisites:</b><br>";
+                                while ($prereq = $prereq_result->fetch_assoc()) {
+                                    echo "  • {$prereq['prerequisite_code']}<br>";
+                                }
+                            } else {
+                                echo "<b>📋 Prerequisites:</b> None required<br>";
+                            }
+                            $prereq_stmt->close();
+                        } else {
+                            echo "<b>📋 Prerequisites:</b> Check with academic advisor<br>";
+                        }
+                    } else {
+                        echo "<b>📋 Prerequisites:</b> Check with academic advisor<br>";
+                    }
+                    
+                    // Get lecturer info if table exists
+                    $lecturer_check = $conn->query("SHOW TABLES LIKE 'unit_lecturers'");
+                    if ($lecturer_check && $lecturer_check->num_rows > 0) {
+                        $lecturer_query = "SELECT lecturer_name, email, office FROM unit_lecturers WHERE unit_code = ? LIMIT 1";
+                        $lecturer_stmt = $conn->prepare($lecturer_query);
+                        if ($lecturer_stmt) {
+                            $lecturer_stmt->bind_param("s", $unit_code);
+                            $lecturer_stmt->execute();
+                            $lecturer_result = $lecturer_stmt->get_result();
+                            
+                            if ($lecturer_result && $lecturer_result->num_rows > 0) {
+                                $lecturer = $lecturer_result->fetch_assoc();
+                                echo "<br><b>👨‍🏫 Lecturer:</b> {$lecturer['lecturer_name']}<br>";
+                                if (!empty($lecturer['email'])) {
+                                    echo "<b>📧 Email:</b> {$lecturer['email']}<br>";
+                                }
+                                if (!empty($lecturer['office'])) {
+                                    echo "<b>🏢 Office:</b> {$lecturer['office']}<br>";
+                                }
+                            }
+                            $lecturer_stmt->close();
+                        }
+                    }
+                    
+                    // Check if student is registered for this unit
+                    $student_reg = $_SESSION['reg_number'] ?? null;
+                    if ($student_reg) {
+                        $check_reg_query = "SELECT status FROM registered_courses WHERE student_reg_no = ? AND unit_code = ?";
+                        $check_reg_stmt = $conn->prepare($check_reg_query);
+                        if ($check_reg_stmt) {
+                            $check_reg_stmt->bind_param("ss", $student_reg, $unit_code);
+                            $check_reg_stmt->execute();
+                            $check_reg_result = $check_reg_stmt->get_result();
+                            
+                            if ($check_reg_result && $check_reg_result->num_rows > 0) {
+                                $reg_status = $check_reg_result->fetch_assoc();
+                                echo "<br><b>✅ Registration Status:</b> {$reg_status['status']}<br>";
+                            } else {
+                                echo "<br><b>⚠️ You are not registered for this unit yet.</b><br>";
+                            }
+                            $check_reg_stmt->close();
+                        }
+                    }
+                    
+                    echo "<br><b>💡 What would you like to do next?</b><br>";
+                    echo "• Ask about another unit (e.g., 'Tell me about BIT2026')<br>";
+                    echo "• Check your timetable<br>";
+                    echo "• View your registered courses<br>";
+                    echo "• Get registration help<br>";
+                    
+                } else {
+                    echo "❌ I couldn't find unit '{$unit_code}' in our system.<br><br>";
+                    
+                    // Try fuzzy search to suggest similar units
+                    $fuzzy_matches = fuzzySearchUnits($unit_code, $conn, 3);
+                    if (!empty($fuzzy_matches)) {
+                        echo "<b>💡 Did you mean one of these?</b><br><br>";
+                        foreach ($fuzzy_matches as $match) {
+                            echo "• <b>{$match['unit_code']}</b> - {$match['unit_name']}<br>";
+                        }
+                        echo "<br>Try asking: 'Tell me about " . $fuzzy_matches[0]['unit_code'] . "'<br>";
+                    } else {
+                        echo "💡 <i>Tip: Try searching with the correct unit code like 'BMA1106' or 'BIT2026'</i><br>";
+                        echo "• Ask me to 'Show all first year units' to see available courses<br>";
+                        echo "• Check your registered courses by asking 'My courses'<br>";
+                    }
+                }
+            }
+            break;
 
     case 'view_all':
         $target_year = $GLOBALS['target_year'] ?? null;
@@ -642,34 +962,75 @@ switch ($intent) {
         $student_reg = $_SESSION['reg_number'] ?? null;
         
         if ($student_reg) {
-            $query = "SELECT rc.unit_code, aw.unit_name, rc.status, rc.academic_year, aw.year_level, aw.semester_level
-                     FROM registered_courses rc 
-                     JOIN academic_workload aw ON rc.unit_code = aw.unit_code 
-                     WHERE rc.student_reg_no = ? 
-                     ORDER BY aw.year_level, aw.semester_level";
-            $stmt = $conn->prepare($query);
-            $stmt->bind_param("s", $student_reg);
-            $stmt->execute();
-            $result = $stmt->get_result();
+            // Show registered units
+            $registered_query = "SELECT rc.unit_code, aw.unit_name, rc.status, rc.academic_year, aw.year_level, aw.semester_level
+                                FROM registered_courses rc 
+                                LEFT JOIN academic_workload aw ON rc.unit_code = aw.unit_code 
+                                WHERE rc.student_reg_no = ? 
+                                ORDER BY aw.year_level, aw.semester_level";
+            $registered_stmt = $conn->prepare($registered_query);
+            $registered_stmt->bind_param("s", $student_reg);
+            $registered_stmt->execute();
+            $registered_result = $registered_stmt->get_result();
             
-            if ($result->num_rows > 0) {
+            if ($registered_result->num_rows > 0) {
                 echo "<b>📚 Your Registered Courses</b><br><br>";
                 $current_year = '';
-                while ($row = $result->fetch_assoc()) {
+                while ($row = $registered_result->fetch_assoc()) {
                     if ($current_year != $row['academic_year']) {
                         if ($current_year != '') echo "<br>";
                         $current_year = $row['academic_year'];
                         echo "<b>Academic Year: {$current_year}</b><br>";
                     }
-                    echo "• {$row['unit_code']} - {$row['unit_name']} <br>";
+                    echo "• {$row['unit_code']} - " . ($row['unit_name'] ?? 'Unit Name Not Found') . "<br>";
                     echo "  <span style='font-size:0.9em; color:#666;'>{$row['year_level']}, {$row['semester_level']} • Status: {$row['status']}</span><br>";
                 }
-                echo "<br>💡 <i>Need to register for more units? Let me know!</i>";
+                echo "<br><hr><br>";
             } else {
-                echo "📭 You haven't registered for any courses yet. <br><br>💡 <i>Would you like help with the registration process?</i>";
+                echo "<b>⚠️ You haven't registered for any units yet.</b><br><br><hr><br>";
+            }
+            
+            // Show ALL available units
+            $all_units_query = "SELECT unit_code, unit_name, year_level, semester_level, offering_time 
+                               FROM academic_workload 
+                               ORDER BY year_level, semester_level, unit_code";
+            $all_units_result = mysqli_query($conn, $all_units_query);
+            
+            if (mysqli_num_rows($all_units_result) > 0) {
+                echo "<b>📚 All Available Units</b><br><br>";
+                
+                $units_by_year = [];
+                while ($row = mysqli_fetch_assoc($all_units_result)) {
+                    $year = $row['year_level'];
+                    $semester = $row['semester_level'];
+                    if (!isset($units_by_year[$year])) {
+                        $units_by_year[$year] = [];
+                    }
+                    if (!isset($units_by_year[$year][$semester])) {
+                        $units_by_year[$year][$semester] = [];
+                    }
+                    $units_by_year[$year][$semester][] = $row;
+                }
+                
+                foreach ($units_by_year as $year => $semesters) {
+                    echo "<b>📖 {$year}</b><br>";
+                    foreach ($semesters as $semester => $units) {
+                        echo "<b>  📌 {$semester}:</b><br>";
+                        foreach ($units as $unit) {
+                            echo "    • <b>{$unit['unit_code']}</b> - {$unit['unit_name']}<br>";
+                            echo "      <span style='font-size:0.85em; color:#666;'>Offered: {$unit['offering_time']}</span><br>";
+                        }
+                        echo "<br>";
+                    }
+                    echo "<br>";
+                }
+                
+                echo "💡 <i>Need to register for units? Just ask me 'how to register' and I'll guide you!</i>";
+            } else {
+                echo "📭 No units found in the system. Please contact the academic office.";
             }
         } else {
-            echo "🔐 Please log in to view your registered courses.";
+            echo "🔐 Please log in to view your courses.";
         }
         break;
 
@@ -734,6 +1095,7 @@ switch ($intent) {
         preg_match('/[A-Z]{3,4}[0-9]{4}/i', $user_input, $matches);
         $search_term = isset($matches[0]) ? $matches[0] : $user_input;
         
+        // First try exact match
         $search_pattern = "%$search_term%";
         $stmt = $conn->prepare("SELECT unit_code, unit_name, year_level, semester_level, offering_time 
                                 FROM academic_workload 
@@ -750,37 +1112,176 @@ switch ($intent) {
                 echo "  📚 {$row['year_level']}, {$row['semester_level']}<br>";
                 echo "  🕒 Offered: {$row['offering_time']}<br><br>";
             }
+            echo "💡 <i>Want more details about any of these units? Just ask me!</i>";
         } else {
-            echo "🔍 Hmm, I couldn't find '$search_term' in our system. 🤔<br><br>";
-            echo "💡 <i>Try checking the unit code or name. Need help finding a specific course?</i>";
+            // Try fuzzy search
+            $fuzzy_matches = fuzzySearchUnits($search_term, $conn);
+            
+            if (!empty($fuzzy_matches)) {
+                echo "<b>🔍 Did you mean one of these?</b><br><br>";
+                foreach ($fuzzy_matches as $match) {
+                    echo "• <b>{$match['unit_code']}</b> - {$match['unit_name']}<br>";
+                    echo "  <span style='font-size:0.85em; color:#666;'>Matched on: {$match['matched_on']} (" . round($match['score']) . "% similar)</span><br><br>";
+                }
+                echo "💡 <i>Try asking for details about any of these units!</i>";
+            } else {
+                echo "🔍 Hmm, I couldn't find '$search_term' in our system. 🤔<br><br>";
+                echo "💡 <i>Tips for better results:</i><br>";
+                echo "• Check the unit code format (e.g., BMA1106)<br>";
+                echo "• Try spelling the unit name correctly<br>";
+                echo "• Ask me to list all units for your year level<br><br>";
+                echo "Would you like me to show you all available units?";
+            }
         }
         break;
 
     case 'reg_help':
-        $responses = [
-            "📝 To register for courses:<br>
-             1️⃣ Go to the registration section in your portal<br>
-             2️⃣ Select the units for your year level<br>
-             3️⃣ Confirm your registration<br><br>
-             Need help with specific units? Just ask me about them! 😊",
+        $student_reg = $_SESSION['reg_number'] ?? null;
+        $student_name = $_SESSION['user_name'] ?? 'Student';
+        
+        if ($student_reg) {
+            // Get student's registered courses to determine their year level
+            $year_query = "SELECT DISTINCT aw.year_level 
+                          FROM registered_courses rc 
+                          JOIN academic_workload aw ON rc.unit_code = aw.unit_code 
+                          WHERE rc.student_reg_no = ? 
+                          LIMIT 1";
+            $year_stmt = $conn->prepare($year_query);
+            $year_stmt->bind_param("s", $student_reg);
+            $year_stmt->execute();
+            $year_result = $year_stmt->get_result();
             
-            "🎓 Registration help? I've got you!<br>
-             • First, check your year level requirements<br>
-             • Pick your units from the academic workload<br>
-             • Submit before the deadline!<br><br>
-             Want me to show you available units for your year?"
-        ];
-        echo getRandomResponse($responses);
+            $student_year = 'First Year'; // Default
+            if ($year_result->num_rows > 0) {
+                $student_year = $year_result->fetch_assoc()['year_level'];
+            }
+            
+            // Get available units for student's year
+            $units_query = "SELECT unit_code, unit_name, semester_level, offering_time 
+                           FROM academic_workload 
+                           WHERE year_level = ? 
+                           ORDER BY semester_level, unit_code";
+            $units_stmt = $conn->prepare($units_query);
+            $units_stmt->bind_param("s", $student_year);
+            $units_stmt->execute();
+            $units_result = $units_stmt->get_result();
+            
+            // Get already registered units
+            $registered_query = "SELECT unit_code FROM registered_courses WHERE student_reg_no = ?";
+            $registered_stmt = $conn->prepare($registered_query);
+            $registered_stmt->bind_param("s", $student_reg);
+            $registered_stmt->execute();
+            $registered_result = $registered_stmt->get_result();
+            $registered_units = [];
+            while ($row = $registered_result->fetch_assoc()) {
+                $registered_units[] = $row['unit_code'];
+            }
+            
+            echo "<b>🎓 Course Registration Guide</b><br><br>";
+            echo "Hi $student_name! I'll help you register for your $student_year units.<br><br>";
+            
+            echo "<b>📋 Step-by-Step Registration Process:</b><br>";
+            echo "1️⃣ <b>Review Available Units:</b> Check the units listed below for your year level<br>";
+            echo "2️⃣ <b>Select Your Units:</b> Choose the units you want to register for<br>";
+            echo "3️⃣ <b>Submit Registration:</b> Go to the registration portal and confirm your selection<br>";
+            echo "4️⃣ <b>Wait for Confirmation:</b> Your registration will be processed within 24-48 hours<br><br>";
+            
+            if ($units_result->num_rows > 0) {
+                echo "<b>📚 Available Units for {$student_year}:</b><br><br>";
+                $units_by_semester = [];
+                while ($row = $units_result->fetch_assoc()) {
+                    $semester = $row['semester_level'];
+                    if (!isset($units_by_semester[$semester])) {
+                        $units_by_semester[$semester] = [];
+                    }
+                    $units_by_semester[$semester][] = $row;
+                }
+                
+                foreach ($units_by_semester as $semester => $units) {
+                    echo "<b>📌 {$semester}:</b><br>";
+                    foreach ($units as $unit) {
+                        $status = in_array($unit['unit_code'], $registered_units) ? "✅ Already Registered" : "⚪ Available";
+                        echo "  • <b>{$unit['unit_code']}</b> - {$unit['unit_name']}<br>";
+                        echo "    <span style='font-size:0.85em; color:#666;'>Offered: {$unit['offering_time']} • {$status}</span><br>";
+                    }
+                    echo "<br>";
+                }
+            } else {
+                echo "⚠️ No units found for your year level. Please contact the academic office.<br><br>";
+            }
+            
+            if (!empty($registered_units)) {
+                echo "<b>✅ You're currently registered for:</b> " . implode(", ", $registered_units) . "<br><br>";
+            }
+            
+            echo "<b>💡 Pro Tips:</b><br>";
+            echo "• Register early to secure your preferred units<br>";
+            echo "• Make sure you meet all prerequisites for your chosen units<br>";
+            echo "• You can register for a maximum of 8 units per semester<br>";
+            echo "• Contact the academic advisor if you need help selecting units<br><br>";
+            
+            echo "Would you like me to help you with anything else? You can ask me to:<br>";
+            echo "• Show specific unit details (e.g., 'Tell me about BMA1106')<br>";
+            echo "• Check unit prerequisites<br>";
+            echo "• View your current timetable<br>";
+            echo "• See all available units<br>";
+            
+        } else {
+            echo "<b>🎓 Course Registration Guide</b><br><br>";
+            echo "To register for units, please follow these steps:<br><br>";
+            echo "1️⃣ <b>Log in to the portal</b> using your registration number and password<br>";
+            echo "2️⃣ <b>Navigate to the Registration section</b> in the main menu<br>";
+            echo "3️⃣ <b>Select your year level</b> to view available units<br>";
+            echo "4️⃣ <b>Choose your units</b> and confirm your selection<br>";
+            echo "5️⃣ <b>Submit your registration</b> before the deadline<br><br>";
+            
+            // Show all available units for preview
+            $all_units_query = "SELECT unit_code, unit_name, year_level, semester_level, offering_time 
+                               FROM academic_workload 
+                               ORDER BY year_level, semester_level, unit_code";
+            $all_units_result = mysqli_query($conn, $all_units_query);
+            
+            if (mysqli_num_rows($all_units_result) > 0) {
+                echo "<b>📚 Preview of Available Units:</b><br><br>";
+                $units_by_year = [];
+                while ($row = mysqli_fetch_assoc($all_units_result)) {
+                    $year = $row['year_level'];
+                    $semester = $row['semester_level'];
+                    if (!isset($units_by_year[$year])) {
+                        $units_by_year[$year] = [];
+                    }
+                    if (!isset($units_by_year[$year][$semester])) {
+                        $units_by_year[$year][$semester] = [];
+                    }
+                    $units_by_year[$year][$semester][] = $row;
+                }
+                
+                foreach ($units_by_year as $year => $semesters) {
+                    echo "<b>📖 {$year}</b><br>";
+                    foreach ($semesters as $semester => $units) {
+                        echo "<b>  📌 {$semester}:</b><br>";
+                        foreach ($units as $unit) {
+                            echo "    • <b>{$unit['unit_code']}</b> - {$unit['unit_name']}<br>";
+                        }
+                        echo "<br>";
+                    }
+                }
+            }
+            
+            echo "🔐 <i>Please log in first so I can show you the units available for your specific year level and help you register!</i>";
+        }
         break;
 
     case 'ai_check':
         echo "🤖 I'm your friendly AI academic assistant! Here's what I can do:<br><br>
               ✅ Show units by year level (e.g., 'Show me second year units')<br>
               ✅ Search for specific units by code or name<br>
+              ✅ Get detailed unit information (e.g., 'Tell me about BMA1106')<br>
               ✅ Display your timetable (login required)<br>
               ✅ Show your exam schedule (login required)<br>
               ✅ List your registered courses (login required)<br>
-              ✅ Help with registration questions<br>
+              ✅ Show all available units (login required)<br>
+              ✅ Guide you through course registration (e.g., 'how to register')<br>
               ✅ Define words and build vocabulary (e.g., 'What does algorithm mean?')<br><br>
               💬 And I love small talk too! Ask me how I'm doing! 😊<br><br>
               What would you like to know?";
