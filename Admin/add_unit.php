@@ -1,11 +1,9 @@
 <?php
 /* ==========================
    DATABASE CONNECTION
-   Using include_once to prevent redeclaration if already in index
 ========================== */
 include_once('db_connect.php');
 
-// Ensure $conn is available (fallback if index variable is different)
 if (!$conn) {
     $conn = mysqli_connect("localhost", "root", "", "Portal-Asisstant-AI");
 }
@@ -17,9 +15,10 @@ $message = "";
 ========================== */
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_unit'])) {
 
-    // 1. Collect and Sanitize
+    // 1. Collect and Sanitize (Added day_of_week)
     $unit_code      = mysqli_real_escape_string($conn, trim($_POST['unit_code']));
     $course_title   = mysqli_real_escape_string($conn, $_POST['course_title']);
+    $day_of_week    = mysqli_real_escape_string($conn, $_POST['day_of_week']); // New Field
     $time_from      = mysqli_real_escape_string($conn, $_POST['time_from']);
     $time_to        = mysqli_real_escape_string($conn, $_POST['time_to']);
     $venue          = mysqli_real_escape_string($conn, $_POST['venue']);
@@ -29,12 +28,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_unit'])) {
     $semester       = mysqli_real_escape_string($conn, $_POST['semester']);
     $academic_year  = mysqli_real_escape_string($conn, $_POST['academic_year']);
 
-    // 2. SQL Statement
+    // 2. Updated SQL Statement
     $sql = "INSERT INTO timetable 
-            (unit_code, course_title, time_from, time_to, venue, unit_group, 
+            (unit_code, course_title, day_of_week, time_from, time_to, venue, unit_group, 
              lecturer, exam_date, semester, academic_year) 
             VALUES 
-            ('$unit_code','$course_title','$time_from','$time_to','$venue',
+            ('$unit_code','$course_title','$day_of_week','$time_from','$time_to','$venue',
              '$unit_group','$lecturer','$exam_date','$semester','$academic_year')";
 
     // 3. Execution & Error Handling
@@ -51,17 +50,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_unit'])) {
 ?>
 
 <style>
-    .form-container { background: #fff; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; }
+    .form-container { background: #fff; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; font-family: sans-serif; }
     .msg-box { padding: 12px; margin-bottom: 20px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; }
     .msg-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
     .msg-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
-    
     .grid-form { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
     .full-width { grid-column: span 2; }
-    
     .form-group label { display: block; font-weight: bold; margin-bottom: 5px; color: #475569; font-size: 0.85rem; }
     .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
-    
     .btn-save { background: #4f46e5; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
     .btn-save:hover { background: #3730a3; }
 </style>
@@ -91,6 +87,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_unit'])) {
         </div>
 
         <div class="form-group">
+            <label>Day of Week</label>
+            <select name="day_of_week" required>
+                <option value="">-- Select Day --</option>
+                <option value="Monday">Monday</option>
+                <option value="Tuesday">Tuesday</option>
+                <option value="Wednesday">Wednesday</option>
+                <option value="Thursday">Thursday</option>
+                <option value="Friday">Friday</option>
+                <option value="Saturday">Saturday</option>
+                <option value="Sunday">Sunday</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Venue</label>
+            <input type="text" name="venue" placeholder="e.g. CC1">
+        </div>
+
+        <div class="form-group">
             <label>Time From</label>
             <input type="time" name="time_from" required>
         </div>
@@ -98,11 +113,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_unit'])) {
         <div class="form-group">
             <label>Time To</label>
             <input type="time" name="time_to" required>
-        </div>
-
-        <div class="form-group">
-            <label>Venue</label>
-            <input type="text" name="venue" placeholder="e.g. CC1">
         </div>
 
         <div class="form-group">
@@ -124,20 +134,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_unit'])) {
             <label>Semester</label>
             <select name="semester" required>
                 <option value="">-- Select --</option>
-                <option value="Jan-Apr">Jan – Apr</option>
-                <option value="May-Aug">May – Aug</option>
-                <option value="Sep-Dec">Sep – Dec</option>
+                <option value="1">Jan – Apr</option>
+                <option value="2">May – Aug</option>
+                <option value="3">Sep – Dec</option>
             </select>
         </div>
 
         <div class="form-group">
             <label>Academic Year</label>
-            <input type="text" name="academic_year" required placeholder="2025/2026">
+            <input type="text" name="academic_year" required placeholder="2026">
         </div>
 
         <div class="full-width">
             <button type="submit" name="save_unit" class="btn-save">Save Unit to Timetable</button>
         </div>
-
     </form>
 </div>

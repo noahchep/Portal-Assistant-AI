@@ -2,20 +2,14 @@
 session_start();
 
 // 1. Check if user_id exists (Are they logged in?)
-// 2. Check if the role is 'student' (Are they allowed here?)
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
-    
-    // Optional: If they are an admin trying to sneak in, send them to their own dashboard
     if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
         header("Location: ../admin/Admin-index.php?error=access_denied");
     } else {
-        // Otherwise, send to login
         header("Location: ../login.php");
     }
     exit();
 }
-
-/* Rest of your database connection and logic... */
 
 /* ==========================
    DATABASE CONNECTION
@@ -43,9 +37,12 @@ $department = $user['department'];
 $semester = "Jan-Apr";
 $academic_year = "2025/2026";
 
+// Orders logically by day of the week, then by time
 $timetable_q = mysqli_query(
     $conn, 
-    "SELECT * FROM timetable ORDER BY time_from ASC"
+    "SELECT * FROM timetable 
+     ORDER BY FIELD(day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'), 
+     time_from ASC"
 );
 
 if (!$timetable_q) {
@@ -72,34 +69,31 @@ if (!$timetable_q) {
 
         body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text-main); margin: 0; line-height: 1.5; }
 
-        /* HEADER & BRANDING */
         header { background: var(--white); border-bottom: 1px solid var(--border); padding: 1rem 5%; display: flex; align-items: center; justify-content: space-between; }
         .branding { display: flex; align-items: center; gap: 15px; }
         .logoimg { height: 50px; border-radius: 8px; }
         .branding h1 { margin: 0; font-size: 1.4rem; color: var(--primary); font-weight: 800; }
         .branding small { color: var(--text-light); display: block; font-size: 0.85rem; }
 
-        /* NAVIGATION */
         nav { background: var(--primary); padding: 0 5%; display: flex; gap: 10px; }
         nav a { color: rgba(255,255,255,0.8); text-decoration: none; padding: 14px 20px; font-size: 0.9rem; font-weight: 600; transition: 0.3s; border-bottom: 3px solid transparent; }
         nav a:hover { color: white; background: rgba(255,255,255,0.1); }
         nav a.active { color: white; border-bottom: 3px solid white; background: rgba(255,255,255,0.15); }
 
-        /* CONTAINER */
-        .container { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
+        .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
         
         .student-strip { background: #e0e7ff; padding: 12px 20px; border-radius: 10px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; color: var(--primary-dark); font-weight: 700; font-size: 0.9rem; }
 
-        /* TIMETABLE CARD */
-        .card { background: var(--white); border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); padding: 25px; border: 1px solid var(--border); }
+        .card { background: var(--white); border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); padding: 25px; border: 1px solid var(--border); overflow-x: auto; }
         .card-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 20px; color: var(--text-main); border-bottom: 1px solid var(--border); padding-bottom: 12px; text-align: center; }
 
-        table { width: 100%; border-collapse: collapse; }
+        table { width: 100%; border-collapse: collapse; min-width: 900px; }
         th { text-align: center; background: #f1f5f9; padding: 12px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-light); border: 1px solid var(--border); }
         td { padding: 12px; border: 1px solid var(--border); font-size: 0.85rem; text-align: center; }
         tr:hover { background: #fdfdfd; }
         
         .unit-code { font-weight: 700; color: var(--primary); }
+        .day-badge { background: #e0e7ff; color: #4338ca; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 0.75rem; }
         
         footer { text-align: center; padding: 40px; color: var(--text-light); font-size: 0.85rem; }
     </style>
@@ -123,7 +117,7 @@ if (!$timetable_q) {
 <nav>
     <a href="Home.php">Home</a>
     <a href="personal_information.php">Information Update</a>
-       <a href="#">Fees</a>
+    <a href="#">Fees</a>
     <a href="#" class="active">Timetables</a>
     <a href="registration.php">Course Registration</a>
     <a href="../logout.php">Sign Out</a>
@@ -149,7 +143,7 @@ if (!$timetable_q) {
                     <th>Course Title</th>
                     <th>Time From</th>
                     <th>Time To</th>
-                    <th>Venue</th>
+                    <th>Day</th> <th>Venue</th>
                     <th>Group</th>
                     <th>Lecturer</th>
                     <th>Exam Date</th>
@@ -166,7 +160,7 @@ if (!$timetable_q) {
                             <td style='text-align:left;'>{$row['course_title']}</td>
                             <td>" . date("H:i", strtotime($row['time_from'])) . "</td>
                             <td>" . date("H:i", strtotime($row['time_to'])) . "</td>
-                            <td><strong>{$row['venue']}</strong></td>
+                            <td><span class='day-badge'>{$row['day_of_week']}</span></td> <td><strong>{$row['venue']}</strong></td>
                             <td>{$row['unit_group']}</td>
                             <td>{$row['lecturer']}</td>
                             <td>" . ($row['exam_date'] ?: '<span style="color:#ccc;">TBD</span>') . "</td>
@@ -174,7 +168,7 @@ if (!$timetable_q) {
                         $counter++;
                     }
                 } else {
-                    echo "<tr><td colspan='9' style='padding:40px; color:var(--text-light);'>No timetable records found for this semester.</td></tr>";
+                    echo "<tr><td colspan='10' style='padding:40px; color:var(--text-light);'>No timetable records found for this semester.</td></tr>";
                 }
                 ?>
             </tbody>

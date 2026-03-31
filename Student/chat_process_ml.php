@@ -297,7 +297,8 @@ function fuzzyDetectIntent($input) {
         'exam_info' => ['exam', 'test', 'assessment', 'exam schedule', 'exam date', 'when is exam', 'exam time'],
         'student_info' => ['who am i', 'my details', 'my info', 'my profile', 'my registration number', 'my email', 'student details'],
         'search_unit' => ['search unit', 'find unit', 'look up', 'unit details', 'course details', 'about unit', 'tell me about'],
-        'ai_check' => ['what can you do', 'help', 'capabilities', 'what do you do', 'features', 'how can you help', 'what you can do']
+        'ai_check' => ['what can you do', 'help', 'capabilities', 'what do you do', 'features', 'how can you help', 'what you can do'],
+        'unit_day' => ['when is', 'what day', 'what time', 'schedule for', 'class for', 'taught on', 'day is', 'time is']
     ];
     
     $input_lower = strtolower(trim($input));
@@ -480,6 +481,12 @@ function detectIntent($input) {
                 return ['intent' => 'gratitude'];
             case 'how_are_you':
                 return ['intent' => 'how_are_you'];
+            case 'unit_day':
+                // Extract unit code from query
+                if (preg_match('/([A-Z]{3,4}[0-9]{4})/i', $input, $matches)) {
+                    return ['intent' => 'unit_day', 'unit_code' => strtoupper($matches[1])];
+                }
+                return ['intent' => 'unit_day'];
             case 'view_all':
                 // Extract year from input
                 $year_patterns = [
@@ -499,6 +506,11 @@ function detectIntent($input) {
                 }
                 return ['intent' => 'view_all'];
         }
+    }
+    
+    // Check for unit day/time queries
+    if (preg_match('/(when|what day|what time|schedule for|class for|taught on)\s+(is\s+)?([A-Z]{3,4}[0-9]{4})/i', $input, $matches)) {
+        return ['intent' => 'unit_day', 'unit_code' => strtoupper($matches[3])];
     }
     
     // Check for unit details/prerequisites
@@ -725,121 +737,197 @@ switch ($intent) {
     case 'farewell':
         echo getRandomResponse($social_responses['farewell']);
         break;
-
-        case 'unit_details':
-            $unit_code = $GLOBALS['target_unit'] ?? '';
+    
+    case 'unit_day':
+        $unit_code = $GLOBALS['target_unit'] ?? '';
+        
+        // If no unit code was captured, try to extract it from input
+        if (!$unit_code && preg_match('/([A-Z]{3,4}[0-9]{4})/i', $user_input, $matches)) {
+            $unit_code = strtoupper($matches[1]);
+        }
+        
+        if ($unit_code) {
+            $current_semester = '1';
+            $current_year = date('Y');
             
-            if ($unit_code) {
-                // Get unit details
-                $unit_query = "SELECT * FROM academic_workload WHERE unit_code = ?";
-                $unit_stmt = $conn->prepare($unit_query);
-                $unit_stmt->bind_param("s", $unit_code);
-                $unit_stmt->execute();
-                $unit_result = $unit_stmt->get_result();
-                
-                if ($unit_result->num_rows > 0) {
-                    $unit = $unit_result->fetch_assoc();
-                    
-                    echo "<b>📖 Unit Details: {$unit['unit_code']} - {$unit['unit_name']}</b><br><br>";
-                    echo "<b>📚 Year Level:</b> {$unit['year_level']}<br>";
-                    echo "<b>📅 Semester:</b> {$unit['semester_level']}<br>";
-                    echo "<b>🕒 Offering Time:</b> {$unit['offering_time']}<br>";
-                    
-                    // Get prerequisites if table exists
-                    $prereq_check = $conn->query("SHOW TABLES LIKE 'unit_prerequisites'");
-                    if ($prereq_check && $prereq_check->num_rows > 0) {
-                        $prereq_query = "SELECT prerequisite_code FROM unit_prerequisites WHERE unit_code = ?";
-                        $prereq_stmt = $conn->prepare($prereq_query);
-                        if ($prereq_stmt) {
-                            $prereq_stmt->bind_param("s", $unit_code);
-                            $prereq_stmt->execute();
-                            $prereq_result = $prereq_stmt->get_result();
-                            
-                            if ($prereq_result && $prereq_result->num_rows > 0) {
-                                echo "<b>📋 Prerequisites:</b><br>";
-                                while ($prereq = $prereq_result->fetch_assoc()) {
-                                    echo "  • {$prereq['prerequisite_code']}<br>";
-                                }
-                            } else {
-                                echo "<b>📋 Prerequisites:</b> None required<br>";
-                            }
-                            $prereq_stmt->close();
-                        } else {
-                            echo "<b>📋 Prerequisites:</b> Check with academic advisor<br>";
-                        }
-                    } else {
-                        echo "<b>📋 Prerequisites:</b> Check with academic advisor<br>";
-                    }
-                    
-                    // Get lecturer info if table exists
-                    $lecturer_check = $conn->query("SHOW TABLES LIKE 'unit_lecturers'");
-                    if ($lecturer_check && $lecturer_check->num_rows > 0) {
-                        $lecturer_query = "SELECT lecturer_name, email, office FROM unit_lecturers WHERE unit_code = ? LIMIT 1";
-                        $lecturer_stmt = $conn->prepare($lecturer_query);
-                        if ($lecturer_stmt) {
-                            $lecturer_stmt->bind_param("s", $unit_code);
-                            $lecturer_stmt->execute();
-                            $lecturer_result = $lecturer_stmt->get_result();
-                            
-                            if ($lecturer_result && $lecturer_result->num_rows > 0) {
-                                $lecturer = $lecturer_result->fetch_assoc();
-                                echo "<br><b>👨‍🏫 Lecturer:</b> {$lecturer['lecturer_name']}<br>";
-                                if (!empty($lecturer['email'])) {
-                                    echo "<b>📧 Email:</b> {$lecturer['email']}<br>";
-                                }
-                                if (!empty($lecturer['office'])) {
-                                    echo "<b>🏢 Office:</b> {$lecturer['office']}<br>";
-                                }
-                            }
-                            $lecturer_stmt->close();
-                        }
-                    }
-                    
-                    // Check if student is registered for this unit
-                    $student_reg = $_SESSION['reg_number'] ?? null;
-                    if ($student_reg) {
-                        $check_reg_query = "SELECT status FROM registered_courses WHERE student_reg_no = ? AND unit_code = ?";
-                        $check_reg_stmt = $conn->prepare($check_reg_query);
-                        if ($check_reg_stmt) {
-                            $check_reg_stmt->bind_param("ss", $student_reg, $unit_code);
-                            $check_reg_stmt->execute();
-                            $check_reg_result = $check_reg_stmt->get_result();
-                            
-                            if ($check_reg_result && $check_reg_result->num_rows > 0) {
-                                $reg_status = $check_reg_result->fetch_assoc();
-                                echo "<br><b>✅ Registration Status:</b> {$reg_status['status']}<br>";
-                            } else {
-                                echo "<br><b>⚠️ You are not registered for this unit yet.</b><br>";
-                            }
-                            $check_reg_stmt->close();
-                        }
-                    }
-                    
-                    echo "<br><b>💡 What would you like to do next?</b><br>";
-                    echo "• Ask about another unit (e.g., 'Tell me about BIT2026')<br>";
-                    echo "• Check your timetable<br>";
-                    echo "• View your registered courses<br>";
-                    echo "• Get registration help<br>";
-                    
+            // Get timetable info for the specific unit
+            $query = "SELECT day_of_week, time_from, time_to, venue, lecturer, course_title 
+                     FROM timetable 
+                     WHERE unit_code = ? AND semester = ? AND academic_year = ? 
+                     LIMIT 1";
+            $stmt = $conn->prepare($query);
+            $stmt->bind_param("sss", $unit_code, $current_semester, $current_year);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($result->num_rows > 0) {
+                $row = $result->fetch_assoc();
+                echo "<b>📚 {$unit_code} - {$row['course_title']}</b><br><br>";
+                if (!empty($row['day_of_week']) && $row['day_of_week'] != '0000-00-00') {
+                    echo "📆 <b>Day:</b> {$row['day_of_week']}<br>";
+                    echo "⏰ <b>Time:</b> {$row['time_from']} - {$row['time_to']}<br>";
+                    echo "📍 <b>Venue:</b> {$row['venue']}<br>";
+                    echo "👨‍🏫 <b>Lecturer:</b> {$row['lecturer']}<br><br>";
+                    echo "💡 <i>Would you like to know about any other unit's schedule?</i>";
                 } else {
-                    echo "❌ I couldn't find unit '{$unit_code}' in our system.<br><br>";
-                    
-                    // Try fuzzy search to suggest similar units
-                    $fuzzy_matches = fuzzySearchUnits($unit_code, $conn, 3);
-                    if (!empty($fuzzy_matches)) {
-                        echo "<b>💡 Did you mean one of these?</b><br><br>";
-                        foreach ($fuzzy_matches as $match) {
-                            echo "• <b>{$match['unit_code']}</b> - {$match['unit_name']}<br>";
-                        }
-                        echo "<br>Try asking: 'Tell me about " . $fuzzy_matches[0]['unit_code'] . "'<br>";
-                    } else {
-                        echo "💡 <i>Tip: Try searching with the correct unit code like 'BMA1106' or 'BIT2026'</i><br>";
-                        echo "• Ask me to 'Show all first year units' to see available courses<br>";
-                        echo "• Check your registered courses by asking 'My courses'<br>";
+                    echo "❌ The schedule for {$unit_code} hasn't been released yet.<br><br>";
+                    echo "💡 <i>Please check back later or contact the academic office for more information.</i>";
+                }
+            } else {
+                echo "❌ I couldn't find the schedule for {$unit_code}.<br><br>";
+                echo "💡 <i>Possible reasons:</i><br>";
+                echo "• The unit code might be incorrect<br>";
+                echo "• You may not be registered for this unit<br>";
+                echo "• The timetable for this semester hasn't been released yet<br><br>";
+                echo "Try asking: 'Show me my timetable' to see all your classes, or 'What units are available?'";
+            }
+        } else {
+            echo "❓ Please specify which unit you want to know about.<br><br>";
+            echo "For example:<br>";
+            echo "• 'When is BIT3208 taught?'<br>";
+            echo "• 'What day is BBM1101?'<br>";
+            echo "• 'Schedule for BAF1101'<br><br>";
+            echo "Or you can ask 'Show me my timetable' to see all your classes at once!";
+        }
+        break;
+
+    case 'unit_details':
+        $unit_code = $GLOBALS['target_unit'] ?? '';
+        
+        if ($unit_code) {
+            // Get unit details
+            $unit_query = "SELECT * FROM academic_workload WHERE unit_code = ?";
+            $unit_stmt = $conn->prepare($unit_query);
+            $unit_stmt->bind_param("s", $unit_code);
+            $unit_stmt->execute();
+            $unit_result = $unit_stmt->get_result();
+            
+            if ($unit_result->num_rows > 0) {
+                $unit = $unit_result->fetch_assoc();
+                
+                echo "<b>📖 Unit Details: {$unit['unit_code']} - {$unit['unit_name']}</b><br><br>";
+                echo "<b>📚 Year Level:</b> {$unit['year_level']}<br>";
+                echo "<b>📅 Semester:</b> {$unit['semester_level']}<br>";
+                echo "<b>🕒 Offering Time:</b> {$unit['offering_time']}<br>";
+                
+                // Get timetable info to show day and time if available
+                $current_semester = '1';
+                $current_year = date('Y');
+                $timetable_query = "SELECT day_of_week, time_from, time_to, venue, lecturer 
+                                   FROM timetable 
+                                   WHERE unit_code = ? AND semester = ? AND academic_year = ? 
+                                   LIMIT 1";
+                $timetable_stmt = $conn->prepare($timetable_query);
+                $timetable_stmt->bind_param("sss", $unit_code, $current_semester, $current_year);
+                $timetable_stmt->execute();
+                $timetable_result = $timetable_stmt->get_result();
+                
+                if ($timetable_result->num_rows > 0) {
+                    $schedule = $timetable_result->fetch_assoc();
+                    echo "<br><b>📅 Class Schedule:</b><br>";
+                    echo "   📆 Day: {$schedule['day_of_week']}<br>";
+                    echo "   ⏰ Time: {$schedule['time_from']} - {$schedule['time_to']}<br>";
+                    echo "   📍 Venue: {$schedule['venue']}<br>";
+                    if (!empty($schedule['lecturer'])) {
+                        echo "   👨‍🏫 Lecturer: {$schedule['lecturer']}<br>";
                     }
                 }
+                
+                // Get prerequisites if table exists
+                $prereq_check = $conn->query("SHOW TABLES LIKE 'unit_prerequisites'");
+                if ($prereq_check && $prereq_check->num_rows > 0) {
+                    $prereq_query = "SELECT prerequisite_code FROM unit_prerequisites WHERE unit_code = ?";
+                    $prereq_stmt = $conn->prepare($prereq_query);
+                    if ($prereq_stmt) {
+                        $prereq_stmt->bind_param("s", $unit_code);
+                        $prereq_stmt->execute();
+                        $prereq_result = $prereq_stmt->get_result();
+                        
+                        if ($prereq_result && $prereq_result->num_rows > 0) {
+                            echo "<br><b>📋 Prerequisites:</b><br>";
+                            while ($prereq = $prereq_result->fetch_assoc()) {
+                                echo "  • {$prereq['prerequisite_code']}<br>";
+                            }
+                        } else {
+                            echo "<br><b>📋 Prerequisites:</b> None required<br>";
+                        }
+                        $prereq_stmt->close();
+                    } else {
+                        echo "<br><b>📋 Prerequisites:</b> Check with academic advisor<br>";
+                    }
+                } else {
+                    echo "<br><b>📋 Prerequisites:</b> Check with academic advisor<br>";
+                }
+                
+                // Get lecturer info if table exists
+                $lecturer_check = $conn->query("SHOW TABLES LIKE 'unit_lecturers'");
+                if ($lecturer_check && $lecturer_check->num_rows > 0) {
+                    $lecturer_query = "SELECT lecturer_name, email, office FROM unit_lecturers WHERE unit_code = ? LIMIT 1";
+                    $lecturer_stmt = $conn->prepare($lecturer_query);
+                    if ($lecturer_stmt) {
+                        $lecturer_stmt->bind_param("s", $unit_code);
+                        $lecturer_stmt->execute();
+                        $lecturer_result = $lecturer_stmt->get_result();
+                        
+                        if ($lecturer_result && $lecturer_result->num_rows > 0) {
+                            $lecturer = $lecturer_result->fetch_assoc();
+                            echo "<br><b>👨‍🏫 Lecturer:</b> {$lecturer['lecturer_name']}<br>";
+                            if (!empty($lecturer['email'])) {
+                                echo "<b>📧 Email:</b> {$lecturer['email']}<br>";
+                            }
+                            if (!empty($lecturer['office'])) {
+                                echo "<b>🏢 Office:</b> {$lecturer['office']}<br>";
+                            }
+                        }
+                        $lecturer_stmt->close();
+                    }
+                }
+                
+                // Check if student is registered for this unit
+                $student_reg = $_SESSION['reg_number'] ?? null;
+                if ($student_reg) {
+                    $check_reg_query = "SELECT status FROM registered_courses WHERE student_reg_no = ? AND unit_code = ?";
+                    $check_reg_stmt = $conn->prepare($check_reg_query);
+                    if ($check_reg_stmt) {
+                        $check_reg_stmt->bind_param("ss", $student_reg, $unit_code);
+                        $check_reg_stmt->execute();
+                        $check_reg_result = $check_reg_stmt->get_result();
+                        
+                        if ($check_reg_result && $check_reg_result->num_rows > 0) {
+                            $reg_status = $check_reg_result->fetch_assoc();
+                            echo "<br><b>✅ Registration Status:</b> {$reg_status['status']}<br>";
+                        } else {
+                            echo "<br><b>⚠️ You are not registered for this unit yet.</b><br>";
+                        }
+                        $check_reg_stmt->close();
+                    }
+                }
+                
+                echo "<br><b>💡 What would you like to do next?</b><br>";
+                echo "• Ask about another unit (e.g., 'Tell me about BIT2026')<br>";
+                echo "• Check your timetable<br>";
+                echo "• View your registered courses<br>";
+                echo "• Get registration help<br>";
+                
+            } else {
+                echo "❌ I couldn't find unit '{$unit_code}' in our system.<br><br>";
+                
+                // Try fuzzy search to suggest similar units
+                $fuzzy_matches = fuzzySearchUnits($unit_code, $conn, 3);
+                if (!empty($fuzzy_matches)) {
+                    echo "<b>💡 Did you mean one of these?</b><br><br>";
+                    foreach ($fuzzy_matches as $match) {
+                        echo "• <b>{$match['unit_code']}</b> - {$match['unit_name']}<br>";
+                    }
+                    echo "<br>Try asking: 'Tell me about " . $fuzzy_matches[0]['unit_code'] . "'<br>";
+                } else {
+                    echo "💡 <i>Tip: Try searching with the correct unit code like 'BMA1106' or 'BIT2026'</i><br>";
+                    echo "• Ask me to 'Show all first year units' to see available courses<br>";
+                    echo "• Check your registered courses by asking 'My courses'<br>";
+                }
             }
-            break;
+        }
+        break;
 
     case 'view_all':
         $target_year = $GLOBALS['target_year'] ?? null;
@@ -929,11 +1017,12 @@ switch ($intent) {
             $current_semester = '1';
             $current_year = date('Y');
             
-            $query = "SELECT t.unit_code, t.course_title, t.time_from, t.time_to, t.venue, t.lecturer 
+            // Modified query to include day_of_week
+            $query = "SELECT t.unit_code, t.course_title, t.day_of_week, t.time_from, t.time_to, t.venue, t.lecturer 
                      FROM timetable t 
                      INNER JOIN registered_courses rc ON t.unit_code = rc.unit_code 
                      WHERE rc.student_reg_no = ? AND t.semester = ? AND t.academic_year = ?
-                     ORDER BY t.time_from";
+                     ORDER BY FIELD(t.day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'), t.time_from";
             $stmt = $conn->prepare($query);
             $stmt->bind_param("sss", $student_reg, $current_semester, $current_year);
             $stmt->execute();
@@ -944,9 +1033,17 @@ switch ($intent) {
                 $counter = 1;
                 while ($row = $result->fetch_assoc()) {
                     echo "<b>{$counter}. {$row['unit_code']} - {$row['course_title']}</b><br>";
-                    echo "   ⏰ Time: {$row['time_from']} - {$row['time_to']}<br>";
-                    echo "   📍 Venue: {$row['venue']}<br>";
-                    echo "   👨‍🏫 Lecturer: {$row['lecturer']}<br><br>";
+                    
+                    // Show the day prominently
+                    if (!empty($row['day_of_week']) && $row['day_of_week'] != '0000-00-00') {
+                        echo "   📆 <b>Day:</b> {$row['day_of_week']}<br>";
+                    } else {
+                        echo "   📆 <b>Day:</b> To be confirmed<br>";
+                    }
+                    
+                    echo "   ⏰ <b>Time:</b> {$row['time_from']} - {$row['time_to']}<br>";
+                    echo "   📍 <b>Venue:</b> {$row['venue']}<br>";
+                    echo "   👨‍🏫 <b>Lecturer:</b> {$row['lecturer']}<br><br>";
                     $counter++;
                 }
                 echo "🎓 <i>Don't forget to check for any updates! Classes might be subject to change.</i>";
@@ -1277,7 +1374,8 @@ switch ($intent) {
               ✅ Show units by year level (e.g., 'Show me second year units')<br>
               ✅ Search for specific units by code or name<br>
               ✅ Get detailed unit information (e.g., 'Tell me about BMA1106')<br>
-              ✅ Display your timetable (login required)<br>
+              ✅ Display your timetable with days and times (login required)<br>
+              ✅ Find out when a specific unit is taught (e.g., 'When is BIT3208 taught?')<br>
               ✅ Show your exam schedule (login required)<br>
               ✅ List your registered courses (login required)<br>
               ✅ Show all available units (login required)<br>

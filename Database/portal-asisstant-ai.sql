@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Mar 26, 2026 at 01:02 PM
+-- Generation Time: Mar 31, 2026 at 10:34 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -347,7 +347,13 @@ INSERT INTO `chat_messages` (`id`, `conversation_id`, `sender_type`, `message`, 
 (224, 'rssmginhuvq7t7k27vakdi0ucg', 'student', 'hello', '2026-03-25 18:36:44'),
 (225, 'rssmginhuvq7t7k27vakdi0ucg', 'bot', 'hello', '2026-03-25 18:36:44'),
 (226, 'rssmginhuvq7t7k27vakdi0ucg', 'student', 'first year', '2026-03-25 18:37:12'),
-(227, 'rssmginhuvq7t7k27vakdi0ucg', 'bot', 'yes', '2026-03-25 18:37:12');
+(227, 'rssmginhuvq7t7k27vakdi0ucg', 'bot', 'yes', '2026-03-25 18:37:12'),
+(228, 's47hpo3anjao8jgbok8hqi55d2', 'student', 'hello', '2026-03-26 17:36:16'),
+(229, 's47hpo3anjao8jgbok8hqi55d2', 'bot', 'hello', '2026-03-26 17:36:16'),
+(230, 'urdavpuq9g7lu8530ijq790ddm', 'student', 'hello', '2026-03-28 06:50:01'),
+(231, 'urdavpuq9g7lu8530ijq790ddm', 'bot', 'hello', '2026-03-28 06:50:01'),
+(232, 'urdavpuq9g7lu8530ijq790ddm', 'student', 'exams', '2026-03-28 07:19:35'),
+(233, 'urdavpuq9g7lu8530ijq790ddm', 'bot', '13th april', '2026-03-28 07:19:35');
 
 -- --------------------------------------------------------
 
@@ -359,6 +365,7 @@ CREATE TABLE `registered_courses` (
   `id` int(11) NOT NULL,
   `student_reg_no` varchar(30) NOT NULL,
   `unit_code` varchar(20) NOT NULL,
+  `department` varchar(100) DEFAULT NULL,
   `exam_type` varchar(30) NOT NULL,
   `class_group` varchar(20) NOT NULL,
   `semester` varchar(20) NOT NULL,
@@ -371,22 +378,13 @@ CREATE TABLE `registered_courses` (
 -- Dumping data for table `registered_courses`
 --
 
-INSERT INTO `registered_courses` (`id`, `student_reg_no`, `unit_code`, `exam_type`, `class_group`, `semester`, `academic_year`, `status`, `registered_at`) VALUES
-(13, 'BIT/2026/0001', 'BIT2026', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-02-02 09:29:33'),
-(14, 'BIT/2026/0003', 'BAF1101', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-02-02 09:30:29'),
-(16, 'BIS/2026/00001', 'BUCUOO7', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-24 08:25:49'),
-(17, 'BIS/2026/00001', 'BAF1101', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-24 08:26:10'),
-(18, 'BIS/2026/00001', 'BIT2026', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-24 08:26:34'),
-(19, 'BIS/2026/00001', 'BBM1101', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-24 08:26:58'),
-(20, 'BIT/2026/00002', 'BAF1101', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-24 11:16:40'),
-(22, 'BIT/2026/00002', 'BBM1101', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-25 04:50:58'),
-(29, 'BIS/2026/00001', 'BIT1101', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-25 05:37:50'),
-(32, 'BEC/2026/00003', 'BAF1101', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-25 06:05:43'),
-(33, 'BEC/2026/00003', 'BMA1106', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-25 06:15:54'),
-(34, 'BEC/2026/00003', 'BIT1101', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-25 07:08:23'),
-(35, 'BEC/2026/00003', 'BUCUOO7', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-25 07:13:09'),
-(36, 'BIT/2026/00002', 'BMA1106', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-25 12:41:48'),
-(37, 'BIT/2026/00002', 'BUCUOO7', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-25 12:42:19');
+INSERT INTO `registered_courses` (`id`, `student_reg_no`, `unit_code`, `department`, `exam_type`, `class_group`, `semester`, `academic_year`, `status`, `registered_at`) VALUES
+(1, 'BEC/2026/00003', 'BAF1101', 'Enterprise Computing', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-31 20:12:17'),
+(2, 'BEC/2026/00003', 'BBM1101', 'Enterprise Computing', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-31 20:12:17'),
+(3, 'BEC/2026/00003', 'BIT1201', 'Enterprise Computing', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-31 20:12:17'),
+(4, 'BEC/2026/00003', 'BIT3208', 'Enterprise Computing', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-31 20:12:17'),
+(5, 'BEC/2026/00003', 'BIT4203', 'Enterprise Computing', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-31 20:12:17'),
+(6, 'BEC/2026/00003', 'BIT3105', 'Enterprise Computing', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-03-31 20:12:17');
 
 -- --------------------------------------------------------
 
@@ -407,6 +405,13 @@ CREATE TABLE `survey_responses` (
   `submitted_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `survey_responses`
+--
+
+INSERT INTO `survey_responses` (`id`, `user_id`, `challenge_type`, `guidance_need`, `chatbot_help`, `ui_experience`, `academic_value`, `ease_rating`, `student_comments`, `submitted_at`) VALUES
+(10, 32, 'Prerequisite Info', NULL, 'Highly Accurate', 'Very Intuitive', 'Significant', 4, 'the system need some improvement', '2026-03-28 06:13:32');
+
 -- --------------------------------------------------------
 
 --
@@ -419,6 +424,7 @@ CREATE TABLE `timetable` (
   `course_title` varchar(100) DEFAULT NULL,
   `time_from` varchar(10) DEFAULT NULL,
   `time_to` varchar(10) DEFAULT NULL,
+  `day_of_week` enum('Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday') DEFAULT NULL,
   `venue` varchar(50) DEFAULT NULL,
   `unit_group` varchar(20) DEFAULT NULL,
   `lecturer` varchar(50) DEFAULT NULL,
@@ -432,13 +438,56 @@ CREATE TABLE `timetable` (
 -- Dumping data for table `timetable`
 --
 
-INSERT INTO `timetable` (`id`, `unit_code`, `course_title`, `time_from`, `time_to`, `venue`, `unit_group`, `lecturer`, `exam_date`, `semester`, `academic_year`, `created_at`) VALUES
-(4, 'BIT2026', 'Artificial Inteligence', '10:00', '13:00', 'MLT Hall B', 'Jan24', 'Muchiri', '0000-00-00', '', '2026', '2026-02-02 06:18:58'),
-(10, 'BAF1101', 'Financial Accounting I ', '07:00', '10:00', 'CC1', 'CLASS 1', 'Mrs. MATHENGE  ', '0000-00-00', '', '2026', '2026-02-02 06:47:46'),
-(14, 'BBM1101', 'Introduction To Business Studies', '13:00', '16:00', 'MLT Hall B', NULL, 'Mr Margaret ', NULL, '1', '2026', '2026-03-24 08:21:03'),
-(15, 'BUCUOO7 ', 'Communication Skills And Academic Writting', '07:01', '10:00', 'CT HALL', 'Jan24', 'Md Helena', NULL, '1', '2026', '2026-03-24 08:23:54'),
-(16, 'BIT1101', 'Computer Architecture', '10:10', '13:00', 'CC1', 'Jan24', 'Muchiri', NULL, '1', '2026', '2026-03-25 05:21:37'),
-(17, 'BMA1106', 'Foundation mathematics ', '07:00', '10:00', 'MLT Hall B', 'Jan24', 'Mrs Ochieng', NULL, '1', '2026', '2026-03-25 05:43:32');
+INSERT INTO `timetable` (`id`, `unit_code`, `course_title`, `time_from`, `time_to`, `day_of_week`, `venue`, `unit_group`, `lecturer`, `exam_date`, `semester`, `academic_year`, `created_at`) VALUES
+(92, 'BAF1101', 'Financial Accounting I', '07:00', '10:00', 'Monday', 'CT HALL', 'Class I', 'Mrs. MATHENGE', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(93, 'BBM1101', 'Introduction to business studies', '10:00', '13:00', 'Monday', 'CC1', 'Class I', 'Ms. KHAYALI', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(94, 'BBM1201', 'Principles of Management', '13:00', '16:00', 'Monday', 'FLT HALL A', 'Class I', 'Mrs. MWANGI', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(95, 'BBM1202', 'Principles of Marketing', '16:00', '22:00', 'Monday', 'BL 5', 'Class I', 'Mrs. MWAKI', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(96, 'BBM2103', 'Organization Behavior', '07:00', '10:00', 'Monday', 'CC5', 'Class I', 'Ms. KHAYALI', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(97, 'BBM3107', 'Human Resource Management', '10:00', '13:00', 'Monday', 'CT 8.3', 'Class I', 'Mrs. MWANGI', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(98, 'BEG2112', 'Digital Electronics and Devices', '13:00', '16:00', 'Monday', 'COMP LAB 1', 'Class I', 'Mr. KAMAU', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(99, 'BIT1101', 'Computer Architecture', '16:00', '22:00', 'Monday', 'CTA HALL', 'Class I', 'Mr. NYAGA', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(100, 'BIT1102', 'Introduction to programming and algorithms', '07:00', '10:00', 'Monday', 'COMP LAB 2', 'Class I', 'Mr. MURIUKI', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(101, 'BIT1106', 'Intro to Computer Application Packages', '10:00', '13:00', 'Monday', 'COMP LAB 3', 'Class I', 'Mr. MURIUKI', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(102, 'BIT1201', 'Database systems', '07:00', '10:00', 'Tuesday', 'CC2', 'Class I', 'Mr. OWINO', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(103, 'BIT2102', 'Fundamentals of Internet', '10:00', '13:00', 'Tuesday', 'CC8', 'Class I', 'Mr. MAGATI', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(104, 'BIT2205', 'Object oriented programming II', '13:00', '16:00', 'Tuesday', 'COMP LAB 4', 'Class I', 'Mr. MURIUKI', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(105, 'BIT2206', 'Systems analysis and design', '16:00', '22:00', 'Tuesday', 'CTA 6', 'Class I', 'Mr. MURIUKI', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(106, 'BIT3101', 'Software Engineering', '07:00', '10:00', 'Tuesday', 'CC3', 'Class I', 'Mr. MASITA', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(107, 'BIT3102', 'Event Driven Programming', '10:00', '13:00', 'Tuesday', 'COMP LAB 5', 'Class I', 'Mr. OWINO', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(108, 'BIT3201', 'Object Oriented Analysis and Design', '13:00', '16:00', 'Tuesday', 'CTA 7', 'Class I', 'Mr. MAGATI', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(109, 'BIT3204', 'Network Management', '16:00', '22:00', 'Tuesday', 'CC4', 'Class I', 'Ms. KIARIE', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(110, 'BIT3205', 'Business systems simulation and modeling', '07:00', '10:00', 'Tuesday', 'CC6', 'Class I', 'Mr. MASITA', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(111, 'BIT3206', 'ICT project management', '10:00', '13:00', 'Tuesday', 'FLT HALL B', 'Class I', 'Ms. KIARIE', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(112, 'BIT3208', 'Advanced Web Design, Dev and Mgmt', '07:00', '10:00', 'Wednesday', 'COMP LAB 1', 'Class I', 'Mrs. NYANSIABOKA', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(113, 'BIT4101', 'Business Data Mining and Warehousing', '10:00', '13:00', 'Wednesday', 'CC1', 'Class I', 'Mrs. MWINJI', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(114, 'BIT4102', 'Computer Graphics', '13:00', '16:00', 'Wednesday', 'COMP LAB 2', 'Class I', 'Mr. OWINO', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(115, 'BIT4103', 'Human Computer Interaction', '16:00', '22:00', 'Wednesday', 'CT 8.3', 'Class I', 'Mrs. MWINJI', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(116, 'BIT4104', 'Security and Cryptography', '07:00', '10:00', 'Wednesday', 'CTA 5', 'Class I', 'Mrs. MWINJI', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(117, 'BIT4105', 'Advanced Data Structures and Algorithms', '10:00', '13:00', 'Wednesday', 'COMP LAB 3', 'Class I', 'Mr. MAGATI', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(118, 'BIT4107', 'Mobile Applications Development', '13:00', '16:00', 'Wednesday', 'COMP LAB 4', 'Class I', 'Mr. OWINO', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(119, 'BIT4108', 'Information Systems Audit', '16:00', '22:00', 'Wednesday', 'CC7', 'Class I', 'Ms. MWAI', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(120, 'BIT4201', 'Mobile Computing I', '07:00', '10:00', 'Wednesday', 'CC8', 'Class I', 'Mr. OWINO', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(121, 'BIT4202', 'Artificial Intelligence', '10:00', '13:00', 'Wednesday', 'FLT HALL A', 'Class I', 'Mr. OKELLO', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(122, 'BIT4203', 'Distributed Multimedia Systems', '07:00', '10:00', 'Thursday', 'CTA HALL', 'Class I', 'Ms. MWAI', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(123, 'BIT4204', 'E - Commerce', '10:00', '13:00', 'Thursday', 'BL 5', 'Class I', 'Mr. WAMBUI', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(124, 'BIT4205', 'Network Programming', '13:00', '16:00', 'Thursday', 'COMP LAB 5', 'Class I', 'Mr. KODHEK', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(125, 'BIT4206', 'ICT In Business and Society', '16:00', '22:00', 'Thursday', 'CT HALL', 'Class I', 'Ms. MWAI', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(126, 'BIT4209', 'Distributed Systems', '07:00', '10:00', 'Thursday', 'CC5', 'Class I', 'Mr. NYAGA', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(127, 'BIT4217', 'Total Quality Management for IT', '10:00', '13:00', 'Thursday', 'CC2', 'Class I', 'Ms. MWAI', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(128, 'BMA1104', 'Probability and Statistics I', '13:00', '16:00', 'Thursday', 'CTA 6', 'Class I', 'Mr. KABUE', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(129, 'BMA1106', 'Foundation mathematics', '16:00', '22:00', 'Thursday', 'CC1', 'Class I', 'Ms. CHEROTICH', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(130, 'BMA1202', 'Discrete Mathematics', '07:00', '10:00', 'Thursday', 'CC3', 'Class I', 'Mr. KEITANY', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(131, 'BMA2102', 'Probability and statistics II', '10:00', '13:00', 'Thursday', 'CC4', 'Class I', 'Ms. CHEROTICH', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(132, 'BMA3102', 'Business statistics II', '07:00', '10:00', 'Friday', 'CC6', 'Class I', 'Mr. CHEGE', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(133, 'BMA3201', 'Operation research I', '10:00', '13:00', 'Friday', 'CC7', 'Class I', 'Mr. KEITANY', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(134, 'BUCU007', 'Communication Skills and Academic Writing', '13:00', '16:00', 'Friday', 'CTA HALL', 'Class I', 'Mrs. AREGE', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(135, 'BUCU009', 'Climate Change and Development', '16:00', '22:00', 'Friday', 'FLT HALL B', 'Class I', 'Mr. MUINDE', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(136, 'BUCU011', 'Health Literacy', '07:00', '10:00', 'Friday', 'CT HALL', 'Class I', 'Mr. OTIENO', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(137, 'BUCU008', 'Digital and Information Literacy Skills', '10:00', '13:00', 'Friday', 'COMP LAB 1', 'Class I', 'Mr. NYAGA', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(138, 'BIT3105', 'Management Information Systems', '13:00', '16:00', 'Friday', 'CC2', 'Class I', 'Mr. MITAKI', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(139, 'BIT3224', 'Computing Projects Dev Approaches', '16:00', '22:00', 'Friday', 'COMP LAB 2', 'Class I', 'Mr. NYAGA', NULL, '1', '2026', '2026-03-31 20:08:29'),
+(140, 'BUCU010', 'Entrepreneurial Mindset and Finance', '07:00', '10:00', 'Friday', 'BL 5', 'Class I', 'Ms. NDEGE', NULL, '1', '2026', '2026-03-31 20:08:29');
 
 -- --------------------------------------------------------
 
@@ -465,8 +514,8 @@ CREATE TABLE `users` (
 INSERT INTO `users` (`id`, `full_name`, `reg_number`, `email`, `password`, `role`, `department`, `created_at`, `survey_done`) VALUES
 (1, 'System Admin', 'ADMIN/001', 'admin@mku.ac.ke', '$2y$10$P.VKg4sPX1yHxleIOEwf1OKlHbYUWXlERdv.GC4clNTvCJWjwS5uG', 'admin', '', '2026-01-18 19:01:19', 1),
 (27, 'Vera Michael', 'BIS/2026/00001', 'veramichael678@gmail.com', '$2y$10$Dth685QYpVp9Vh2PJxp9AOnfxgTTg2TMI5NUl4zpJ77HVwW5T3yHK', 'student', 'Information Science', '2026-03-24 06:37:30', 1),
-(28, 'Noah Chepkonga', 'BIT/2026/00002', 'noahchep1@gmail.com', '$2y$10$Vd5OPSVMIbT8Dchwo.4LpOm6Zi7Y.9OcSJyo1/HVBG3043uOznE96', 'student', 'Information Technology', '2026-03-24 07:32:49', 1),
-(30, 'Chepkonga', 'BEC/2026/00003', 'novrah4g@gmail.com', '$2y$10$OVp3ZSt4QeD0m1diYkBmdeZJ4QuK8jN9Fh5n3hYBnl2ysoACZYFUS', 'student', 'Enterprise Computing', '2026-03-25 06:02:57', 1);
+(30, 'Chepkonga', 'BEC/2026/00003', 'novrah4g@gmail.com', '$2y$10$OVp3ZSt4QeD0m1diYkBmdeZJ4QuK8jN9Fh5n3hYBnl2ysoACZYFUS', 'student', 'Enterprise Computing', '2026-03-25 06:02:57', 1),
+(32, 'Noah chep', 'STU/2026/00004', 'noahchep1@gmail.com', '$2y$10$IKZ3.NCZ4Qw2g8dDsoJwE.0/e5ZDjKR2qKe80NomCQq3ykgqnaH2K', 'student', 'Nursing', '2026-03-28 05:47:21', 1);
 
 -- --------------------------------------------------------
 
@@ -634,31 +683,31 @@ ALTER TABLE `ai_knowledge_base`
 -- AUTO_INCREMENT for table `chat_messages`
 --
 ALTER TABLE `chat_messages`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=228;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=234;
 
 --
 -- AUTO_INCREMENT for table `registered_courses`
 --
 ALTER TABLE `registered_courses`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `survey_responses`
 --
 ALTER TABLE `survey_responses`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `timetable`
 --
 ALTER TABLE `timetable`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=141;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=31;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
 
 --
 -- AUTO_INCREMENT for table `vocabulary`
