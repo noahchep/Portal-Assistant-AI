@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Mar 31, 2026 at 10:34 PM
+-- Generation Time: Mar 31, 2026 at 11:38 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -33,7 +33,7 @@ CREATE TABLE `academic_workload` (
   `unit_name` varchar(100) DEFAULT NULL,
   `year_level` enum('First Year','Second Year','Third Year','Fourth Year') DEFAULT NULL,
   `semester_level` enum('1st Semester','2nd Semester') DEFAULT NULL,
-  `offering_time` enum('Every Semester','Once a Year') DEFAULT 'Every Semester'
+  `offering_time` varchar(100) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -41,14 +41,62 @@ CREATE TABLE `academic_workload` (
 --
 
 INSERT INTO `academic_workload` (`id`, `unit_code`, `unit_name`, `year_level`, `semester_level`, `offering_time`) VALUES
-(1, 'BIT4202', 'Artificial Intelligence', 'Fourth Year', '2nd Semester', 'Once a Year'),
-(6, 'BBM1101', 'Introduction To Business Studies', 'First Year', '1st Semester', 'Every Semester'),
-(7, 'BUCUOO7 ', 'Communication Skills And Academic Writting', 'First Year', '1st Semester', 'Every Semester'),
-(8, 'BIT1101', 'Computer Architecture', 'First Year', '1st Semester', 'Once a Year'),
-(9, 'BIT1106', 'Introduction to Computer Application Packages ', 'First Year', '1st Semester', 'Every Semester'),
-(10, 'BMA1106', 'Foundation mathematics ', 'First Year', '1st Semester', 'Once a Year'),
-(11, 'BIT1102 ', 'Introduction to programming and algorithms ', 'Second Year', '1st Semester', 'Once a Year'),
-(12, 'BBM1202', 'Principles of Marketing ', 'First Year', '1st Semester', 'Every Semester');
+(69, 'ABCU001', 'Research Methodology', 'First Year', '1st Semester', 'Every Semester'),
+(70, 'BAF1101', 'Financial Accounting I', 'First Year', '1st Semester', 'Every Semester'),
+(71, 'BBM1101', 'Introduction to Business Studies', 'First Year', '1st Semester', 'Every Semester'),
+(72, 'BIT1101', 'Computer Architecture', 'First Year', '1st Semester', 'Once in 3 Semesters'),
+(73, 'BIT1102', 'Introduction to Programming and Algorithms', 'First Year', '1st Semester', 'Every Semester'),
+(74, 'BIT1106', 'Introduction to Computer Application Packages', 'First Year', '1st Semester', 'Every Semester'),
+(75, 'BMA1104', 'Probability and Statistics I', 'First Year', '1st Semester', 'Every Semester'),
+(76, 'BMA1106', 'Foundation Mathematics', 'First Year', '1st Semester', 'Every Semester'),
+(77, 'BUCU007', 'Communication Skills and Academic Writing', 'First Year', '1st Semester', 'Every Semester'),
+(78, 'BUCU011', 'Health Literacy', 'First Year', '1st Semester', 'Every Semester'),
+(79, 'BBM1201', 'Principles of Management', 'First Year', '2nd Semester', 'Every Semester'),
+(80, 'BBM1202', 'Principles of Marketing', 'First Year', '2nd Semester', 'Every Semester'),
+(81, 'BIT1208', 'Structured Programming', 'First Year', '2nd Semester', 'Twice in 3 Semesters'),
+(82, 'BMA1202', 'Discrete Mathematics', 'First Year', '2nd Semester', 'Every Semester'),
+(83, 'BPY1101', 'Basic Electricity and Optics', 'First Year', '2nd Semester', 'Once in 3 Semesters'),
+(84, 'BBM2103', 'Organization Behavior', 'Second Year', '1st Semester', 'Every Semester'),
+(85, 'BEG2112', 'Digital Electronics and Devices', 'Second Year', '1st Semester', 'Once in 3 Semesters'),
+(86, 'BIT1201', 'Database Systems', 'Second Year', '1st Semester', 'Twice in 3 Semesters'),
+(87, 'BIT1202', 'Introduction to Web Design', 'Second Year', '1st Semester', 'Twice in 3 Semesters'),
+(88, 'BIT2102', 'Fundamentals of Internet', 'Second Year', '1st Semester', 'Every Semester'),
+(89, 'BIT2103', 'Hardware and Software Installation and Support', 'Second Year', '1st Semester', 'Once in 3 Semesters'),
+(90, 'BIT2104', 'Operating Systems', 'Second Year', '1st Semester', 'Twice in 3 Semesters'),
+(91, 'BMA2102', 'Probability and Statistics II', 'Second Year', '1st Semester', 'Every Semester'),
+(92, 'BIT2203', 'Data Structure and Algorithms', 'Second Year', '2nd Semester', 'Twice in 3 Semesters'),
+(93, 'BIT2204', 'Data Communication and Networks', 'Second Year', '2nd Semester', 'Twice in 3 Semesters'),
+(94, 'BIT2205', 'Object Oriented Programming II', 'Second Year', '2nd Semester', 'Once in 3 Semesters'),
+(95, 'BIT2206', 'Systems Analysis and Design', 'Second Year', '2nd Semester', 'Twice in 3 Semesters'),
+(96, 'BIT3101', 'Software Engineering', 'Third Year', '1st Semester', 'Twice in 3 Semesters'),
+(97, 'BIT3102', 'Event Driven Programming', 'Third Year', '1st Semester', 'Once in 3 Semesters'),
+(98, 'BIT3105', 'Management Information Systems', 'Third Year', '1st Semester', 'Every Semester'),
+(99, 'BIT3106', 'Object Oriented Programming', 'Third Year', '1st Semester', 'Twice in 3 Semesters'),
+(100, 'BIT3107', 'Database Systems II', 'Third Year', '1st Semester', 'Every Semester'),
+(101, 'BIT3201', 'Object Oriented Analysis and Design', 'Third Year', '2nd Semester', 'Twice in 3 Semesters'),
+(102, 'BIT3202', 'Internet Programming', 'Third Year', '2nd Semester', 'Every Semester'),
+(103, 'BIT3204', 'Network Management', 'Third Year', '2nd Semester', 'Once in 3 Semesters'),
+(104, 'BIT3206', 'ICT Project Management', 'Third Year', '2nd Semester', 'Every Semester'),
+(105, 'BIT3209', 'Design and Analysis of Algorithm', 'Third Year', '2nd Semester', 'Twice in 3 Semesters'),
+(106, 'BIT3221', 'Network Operating Systems', 'Third Year', '2nd Semester', 'Once in 3 Semesters'),
+(107, 'BMA3201', 'Operation Research I', 'Third Year', '2nd Semester', 'Every Semester'),
+(108, 'BUCU010', 'Entrepreneurial Mindset and Financial Literacy', 'Third Year', '2nd Semester', 'Every Semester'),
+(109, 'BIT3224', 'Computing Projects Development Approaches', 'Fourth Year', '1st Semester', 'Once in 3 Semesters'),
+(110, 'BIT4102', 'Computer Graphics', 'Fourth Year', '1st Semester', 'Once in 3 Semesters'),
+(111, 'BIT4103', 'Human Computer Interaction', 'Fourth Year', '1st Semester', 'Every Semester'),
+(112, 'BIT4104', 'Security and Cryptography', 'Fourth Year', '1st Semester', 'Once in 3 Semesters'),
+(113, 'BIT4105', 'Advanced Data Structures and Computer Algorithms', 'Fourth Year', '1st Semester', 'Once in 3 Semesters'),
+(114, 'BIT4107', 'Mobile Applications Development', 'Fourth Year', '1st Semester', 'Every Semester'),
+(115, 'BIT4108', 'Information Systems Audit', 'Fourth Year', '1st Semester', 'Once in 3 Semesters'),
+(116, 'BUCU009', 'Climate Change and Development', 'Fourth Year', '1st Semester', 'Every Semester'),
+(117, 'BIT4201', 'Mobile Computing I', 'Fourth Year', '2nd Semester', 'Once in 3 Semesters'),
+(118, 'BIT4202', 'Artificial Intelligence', 'Fourth Year', '2nd Semester', 'Once in 3 Semesters'),
+(119, 'BIT4203', 'Distributed Multimedia Systems', 'Fourth Year', '2nd Semester', 'Every Semester'),
+(120, 'BIT4204', 'E - Commerce', 'Fourth Year', '2nd Semester', 'Every Semester'),
+(121, 'BIT4205', 'Network Programming', 'Fourth Year', '2nd Semester', 'Once in 3 Semesters'),
+(122, 'BIT4206', 'ICT in Business and Society', 'Fourth Year', '2nd Semester', 'Every Semester'),
+(123, 'BIT4209', 'Distributed Systems', 'Fourth Year', '2nd Semester', 'Once in 3 Semesters'),
+(124, 'BIT4217', 'Total Quality Management For IT', 'Fourth Year', '2nd Semester', 'Every Semester');
 
 -- --------------------------------------------------------
 
@@ -580,7 +628,8 @@ CREATE TABLE `vocabulary_requests` (
 --
 
 INSERT INTO `vocabulary_requests` (`id`, `word`, `requested_by`, `requested_at`, `added_to_db`) VALUES
-(1, '?', 'Vera Michael', '2026-03-25 11:57:02', 0);
+(1, '?', 'Vera Michael', '2026-03-25 11:57:02', 0),
+(2, '?', 'Chepkonga', '2026-03-31 20:41:41', 0);
 
 --
 -- Indexes for dumped tables
@@ -665,7 +714,7 @@ ALTER TABLE `vocabulary_requests`
 -- AUTO_INCREMENT for table `academic_workload`
 --
 ALTER TABLE `academic_workload`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=125;
 
 --
 -- AUTO_INCREMENT for table `admin_referrals`
@@ -719,7 +768,7 @@ ALTER TABLE `vocabulary`
 -- AUTO_INCREMENT for table `vocabulary_requests`
 --
 ALTER TABLE `vocabulary_requests`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- Constraints for dumped tables

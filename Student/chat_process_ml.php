@@ -298,7 +298,8 @@ function fuzzyDetectIntent($input) {
         'student_info' => ['who am i', 'my details', 'my info', 'my profile', 'my registration number', 'my email', 'student details'],
         'search_unit' => ['search unit', 'find unit', 'look up', 'unit details', 'course details', 'about unit', 'tell me about'],
         'ai_check' => ['what can you do', 'help', 'capabilities', 'what do you do', 'features', 'how can you help', 'what you can do'],
-        'unit_day' => ['when is', 'what day', 'what time', 'schedule for', 'class for', 'taught on', 'day is', 'time is']
+        'unit_day' => ['when is', 'what day', 'what time', 'schedule for', 'class for', 'taught on', 'day is', 'time is'],
+        'course_advice' => ['what courses should i take', 'which units should i register', 'advice on courses', 'recommend units', 'suggest courses', 'what to register', 'courses to take', 'units to take', 'registration advice', 'course recommendation', 'what units should i do', 'which units to choose', 'help me choose units']
     ];
     
     $input_lower = strtolower(trim($input));
@@ -481,6 +482,8 @@ function detectIntent($input) {
                 return ['intent' => 'gratitude'];
             case 'how_are_you':
                 return ['intent' => 'how_are_you'];
+            case 'course_advice':
+                return ['intent' => 'course_advice'];
             case 'unit_day':
                 // Extract unit code from query
                 if (preg_match('/([A-Z]{3,4}[0-9]{4})/i', $input, $matches)) {
@@ -516,6 +519,14 @@ function detectIntent($input) {
     // Check for unit details/prerequisites
     if (preg_match('/(details?|about|tell me about|info|prerequisites?|requirements?)/i', $input) && preg_match('/[A-Z]{3,4}[0-9]{4}/i', $input, $matches)) {
         return ['intent' => 'unit_details', 'unit_code' => strtoupper($matches[0])];
+    }
+    
+    // Check for course advice/recommendation queries
+    $advice_keywords = ['what courses should i take', 'which units should i register', 'advice on courses', 'recommend units', 'suggest courses', 'what to register', 'courses to take', 'units to take', 'registration advice', 'course recommendation', 'what units should i do', 'which units to choose', 'help me choose units'];
+    foreach ($advice_keywords as $keyword) {
+        if (strpos($input, $keyword) !== false || fuzzyMatch($input, $keyword, 70)) {
+            return ['intent' => 'course_advice'];
+        }
     }
     
     // Check for registration help FIRST (priority over view_all)
@@ -736,6 +747,233 @@ switch ($intent) {
     
     case 'farewell':
         echo getRandomResponse($social_responses['farewell']);
+        break;
+    
+    case 'course_advice':
+        $student_reg = $_SESSION['reg_number'] ?? null;
+        $student_name = $_SESSION['user_name'] ?? 'Student';
+        
+        if (!$student_reg) {
+            echo "<b>🎓 Course Registration Advice</b><br><br>";
+            echo "Hi there! To give you personalized course recommendations, please log in first.<br><br>";
+            echo "Once logged in, I can:<br>";
+            echo "• Analyze your current registered courses<br>";
+            echo "• Recommend units for your current semester<br>";
+            echo "• Suggest units to prepare for next semester<br>";
+            echo "• Show you the complete curriculum structure<br><br>";
+            echo "🔐 <i>Please log in to get personalized course advice!</i>";
+            break;
+        }
+        
+        // Determine current semester and year
+        $current_month = date('n');
+        $current_year = date('Y');
+        
+        // Determine current semester (1st Semester: Jan-June, 2nd Semester: July-Dec)
+        if ($current_month >= 1 && $current_month <= 6) {
+            $current_semester = '1st Semester';
+            $next_semester = '2nd Semester';
+            $current_semester_num = 1;
+            $next_semester_num = 2;
+        } else {
+            $current_semester = '2nd Semester';
+            $next_semester = '1st Semester';
+            $current_semester_num = 2;
+            $next_semester_num = 1;
+        }
+        
+        // Get student's current year level based on registered courses
+        $year_query = "SELECT DISTINCT aw.year_level 
+                      FROM registered_courses rc 
+                      JOIN academic_workload aw ON rc.unit_code = aw.unit_code 
+                      WHERE rc.student_reg_no = ? 
+                      LIMIT 1";
+        $year_stmt = $conn->prepare($year_query);
+        $year_stmt->bind_param("s", $student_reg);
+        $year_stmt->execute();
+        $year_result = $year_stmt->get_result();
+        
+        $current_year_level = 'First Year'; // Default
+        if ($year_result->num_rows > 0) {
+            $current_year_level = $year_result->fetch_assoc()['year_level'];
+        }
+        
+        // Get already registered units
+        $registered_query = "SELECT unit_code FROM registered_courses WHERE student_reg_no = ?";
+        $registered_stmt = $conn->prepare($registered_query);
+        $registered_stmt->bind_param("s", $student_reg);
+        $registered_stmt->execute();
+        $registered_result = $registered_stmt->get_result();
+        $registered_units = [];
+        while ($row = $registered_result->fetch_assoc()) {
+            $registered_units[] = $row['unit_code'];
+        }
+        
+        echo "<b>🎓 Academic Course Advisor</b><br><br>";
+        echo "Hi $student_name! Let me help you plan your academic journey. 📚<br><br>";
+        
+        // ========== CURRENT SEMESTER ADVICE ==========
+        echo "<b>📌 Current Semester: {$current_semester} ({$current_year})</b><br><br>";
+        
+        // Get units available for current semester in current year level
+        $current_units_query = "SELECT unit_code, unit_name, semester_level, offering_time 
+                               FROM academic_workload 
+                               WHERE year_level = ? AND semester_level = ? 
+                               ORDER BY unit_code";
+        $current_stmt = $conn->prepare($current_units_query);
+        $current_stmt->bind_param("ss", $current_year_level, $current_semester);
+        $current_stmt->execute();
+        $current_units_result = $current_stmt->get_result();
+        
+        $available_current = [];
+        $already_taken_current = [];
+        
+        if ($current_units_result->num_rows > 0) {
+            while ($row = $current_units_result->fetch_assoc()) {
+                if (in_array($row['unit_code'], $registered_units)) {
+                    $already_taken_current[] = $row;
+                } else {
+                    $available_current[] = $row;
+                }
+            }
+            
+            if (!empty($already_taken_current)) {
+                echo "✅ <b>Units you're already registered for this semester:</b><br>";
+                foreach ($already_taken_current as $unit) {
+                    echo "  • <b>{$unit['unit_code']}</b> - {$unit['unit_name']}<br>";
+                }
+                echo "<br>";
+            }
+            
+            if (!empty($available_current)) {
+                echo "📚 <b>Recommended units to register for this semester:</b><br>";
+                foreach ($available_current as $unit) {
+                    echo "  • <b>{$unit['unit_code']}</b> - {$unit['unit_name']}<br>";
+                    echo "    <span style='font-size:0.85em; color:#666;'>Offered: {$unit['offering_time']}</span><br>";
+                }
+                echo "<br>";
+                
+                if (count($available_current) > 0) {
+                    echo "💡 <i>You should register for these units to stay on track with your curriculum.</i><br><br>";
+                }
+            } else {
+                echo "✅ Great! You're already registered for all required units this semester!<br><br>";
+            }
+        } else {
+            echo "⚠️ No units found for {$current_year_level} in {$current_semester}.<br><br>";
+        }
+        
+        // ========== NEXT SEMESTER ADVICE ==========
+        // Determine next year level (if next semester is 1st semester, year increases)
+        $next_year_level = $current_year_level;
+        if ($next_semester == '1st Semester') {
+            // Moving to next year
+            $year_mapping = [
+                'First Year' => 'Second Year',
+                'Second Year' => 'Third Year',
+                'Third Year' => 'Fourth Year',
+                'Fourth Year' => 'Fourth Year'
+            ];
+            $next_year_level = $year_mapping[$current_year_level] ?? $current_year_level;
+        }
+        
+        echo "<b>🔮 Next Semester: {$next_semester} ({$current_year})</b><br><br>";
+        
+        // Get units for next semester
+        $next_units_query = "SELECT unit_code, unit_name, semester_level, offering_time 
+                            FROM academic_workload 
+                            WHERE year_level = ? AND semester_level = ? 
+                            ORDER BY unit_code";
+        $next_stmt = $conn->prepare($next_units_query);
+        $next_stmt->bind_param("ss", $next_year_level, $next_semester);
+        $next_stmt->execute();
+        $next_units_result = $next_stmt->get_result();
+        
+        if ($next_units_result->num_rows > 0) {
+            echo "📚 <b>Units that will be offered next semester:</b><br>";
+            while ($row = $next_units_result->fetch_assoc()) {
+                echo "  • <b>{$row['unit_code']}</b> - {$row['unit_name']}<br>";
+                echo "    <span style='font-size:0.85em; color:#666;'>Offered: {$row['offering_time']}</span><br>";
+            }
+            echo "<br>";
+            echo "💡 <i>Prepare to register for these units when the registration period opens!</i><br><br>";
+        } else {
+            echo "⚠️ Next semester's units for {$next_year_level} are not yet available.<br><br>";
+        }
+        
+        // ========== COMPLETE CURRICULUM OVERVIEW ==========
+        echo "<b>📖 Complete {$current_year_level} Curriculum Overview</b><br><br>";
+        
+        $all_units_query = "SELECT unit_code, unit_name, semester_level, offering_time 
+                           FROM academic_workload 
+                           WHERE year_level = ? 
+                           ORDER BY semester_level, unit_code";
+        $all_stmt = $conn->prepare($all_units_query);
+        $all_stmt->bind_param("s", $current_year_level);
+        $all_stmt->execute();
+        $all_units_result = $all_stmt->get_result();
+        
+        if ($all_units_result->num_rows > 0) {
+            $units_by_semester = [];
+            while ($row = $all_units_result->fetch_assoc()) {
+                $semester = $row['semester_level'];
+                if (!isset($units_by_semester[$semester])) {
+                    $units_by_semester[$semester] = [];
+                }
+                $units_by_semester[$semester][] = $row;
+            }
+            
+            foreach ($units_by_semester as $semester => $units) {
+                echo "<b>📌 {$semester}:</b><br>";
+                foreach ($units as $unit) {
+                    $status = in_array($unit['unit_code'], $registered_units) ? "✅ Registered" : "⚪ Pending";
+                    echo "  • <b>{$unit['unit_code']}</b> - {$unit['unit_name']}<br>";
+                    echo "    <span style='font-size:0.85em; color:#666;'>Status: {$status} • Offered: {$unit['offering_time']}</span><br>";
+                }
+                echo "<br>";
+            }
+        }
+        
+        // ========== PROGRESS SUMMARY ==========
+        $total_units_for_year = $all_units_result->num_rows;
+        $registered_count = count(array_intersect($registered_units, array_column($units_by_semester[$current_semester] ?? [], 'unit_code')));
+        
+        echo "<b>📊 Your Progress Summary</b><br>";
+        echo "• Total units for {$current_year_level}: {$total_units_for_year}<br>";
+        echo "• Units registered this semester: {$registered_count}/" . (count($units_by_semester[$current_semester] ?? [])) . "<br>";
+        
+        $completion_percentage = ($total_units_for_year > 0) ? round(($registered_count / $total_units_for_year) * 100) : 0;
+        echo "• Overall completion for this year: {$completion_percentage}%<br><br>";
+        
+        if ($completion_percentage < 50 && count($available_current) > 0) {
+            echo "⚠️ <b>Action Required:</b> You still need to register for " . count($available_current) . " unit(s) this semester. Don't miss the registration deadline!<br><br>";
+        } elseif ($completion_percentage >= 50 && $completion_percentage < 100) {
+            echo "👍 <b>Good progress!</b> You're on track. Remember to register for the remaining units before the deadline.<br><br>";
+        } elseif ($completion_percentage == 100 && $total_units_for_year > 0) {
+            echo "🎉 <b>Excellent!</b> You've completed all units for {$current_year_level}! You're ready to move to the next year level.<br><br>";
+        }
+        
+        // ========== RECOMMENDATIONS ==========
+        echo "<b>💡 Personalized Recommendations:</b><br>";
+        
+        if (count($available_current) > 0) {
+            echo "• <b>Priority:</b> Register for the " . count($available_current) . " unit(s) listed above for this semester<br>";
+        }
+        
+        if ($next_units_result->num_rows > 0) {
+            echo "• <b>Plan ahead:</b> Next semester, you'll need to take " . $next_units_result->num_rows . " unit(s). Start preparing now!<br>";
+        }
+        
+        echo "• <b>Stay organized:</b> Keep track of registration deadlines and exam dates<br>";
+        echo "• <b>Need help?</b> Ask me about any specific unit or check your timetable<br><br>";
+        
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br><br>";
+        echo "❓ <b>What would you like to do next?</b><br>";
+        echo "• Ask about a specific unit (e.g., 'Tell me about BIT3208')<br>";
+        echo "• View your timetable ('Show my timetable')<br>";
+        echo "• Check exam dates ('When are my exams?')<br>";
+        echo "• Get registration help ('How to register?')<br>";
+        
         break;
     
     case 'unit_day':
@@ -1371,6 +1609,7 @@ switch ($intent) {
 
     case 'ai_check':
         echo "🤖 I'm your friendly AI academic assistant! Here's what I can do:<br><br>
+              ✅ <b>Course Advisor</b> - Get personalized course recommendations (e.g., 'What courses should I take?')<br>
               ✅ Show units by year level (e.g., 'Show me second year units')<br>
               ✅ Search for specific units by code or name<br>
               ✅ Get detailed unit information (e.g., 'Tell me about BMA1106')<br>
@@ -1382,6 +1621,7 @@ switch ($intent) {
               ✅ Guide you through course registration (e.g., 'how to register')<br>
               ✅ Define words and build vocabulary (e.g., 'What does algorithm mean?')<br><br>
               💬 And I love small talk too! Ask me how I'm doing! 😊<br><br>
+              🎓 <b>Try asking:</b> 'What courses should I take?' for personalized registration advice!<br><br>
               What would you like to know?";
         break;
 

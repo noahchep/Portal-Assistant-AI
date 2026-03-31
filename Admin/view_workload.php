@@ -16,10 +16,9 @@ if (isset($_POST['save_to_timetable'])) {
     $time_to = mysqli_real_escape_string($conn, $_POST['time_to']);
     $venue = mysqli_real_escape_string($conn, $_POST['venue']);
     $lecturer = mysqli_real_escape_string($conn, $_POST['lecturer']);
-    $u_group = mysqli_real_escape_string($conn, $_POST['unit_group']); // New Group field
+    $u_group = mysqli_real_escape_string($conn, $_POST['unit_group']); 
     $academic_year = date("Y");
 
-    // Insert into the 'timetable' table including unit_group
     $insert_sql = "INSERT INTO timetable (unit_code, course_title, time_from, time_to, venue, unit_group, lecturer, semester, academic_year) 
                    VALUES ('$u_code', '$u_title', '$time_from', '$time_to', '$venue', '$u_group', '$lecturer', '$u_sem', '$academic_year')";
     
@@ -47,7 +46,7 @@ if (!empty($search)) {
 
 $query .= " ORDER BY year_level ASC, semester_level ASC";
 $result = mysqli_query($conn, $query);
-$count = mysqli_num_rows($result); // Fixed Undefined variable error
+$count = mysqli_num_rows($result); 
 ?>
 
 <form class="search-container" method="GET" action="Admin-index.php" style="background: white; padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 25px; display: flex; gap: 15px; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
@@ -76,27 +75,44 @@ $count = mysqli_num_rows($result); // Fixed Undefined variable error
         <table style="width: 100%; border-collapse: collapse;">
             <thead>
                 <tr style="background: #f8fafc; text-align: left;">
+                    <th style="padding: 12px; width: 40px;">#</th>
                     <th style="padding: 12px;">Unit Code</th>
                     <th style="padding: 12px;">Unit Name</th>
                     <th style="padding: 12px;">Year Level</th>
                     <th style="padding: 12px;">Semester</th>
-                    <th style="padding: 12px;">Offering Time</th>
+                    <th style="padding: 12px; width: 160px; white-space: nowrap;">Offering Time</th>
                     <th style="padding: 12px; text-align: center;">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 <?php 
                 if ($count > 0) {
+                    $i = 1; 
                     while($row = mysqli_fetch_assoc($result)) {
-                        $badgeStyle = ($row['offering_time'] == 'Once a Year') ? "background: #fee2e2; color: #991b1b;" : "background: #dcfce7; color: #166534;";
+                        $offering = $row['offering_time'];
+                        
+                        // New Color Logic: Green (Every), Orange (Twice), Red (Once)
+                        if ($offering == 'Every Semester') {
+                            $badgeStyle = "background: #dcfce7; color: #166534;"; // Green
+                        } elseif ($offering == 'Twice in 3 Semesters') {
+                            $badgeStyle = "background: #ffedd5; color: #9a3412;"; // Orange/Peach
+                        } else {
+                            $badgeStyle = "background: #fee2e2; color: #991b1b;"; // Red
+                        }
+
                         $semVal = ($row['semester_level'] == '1st Semester') ? '1' : (($row['semester_level'] == '2nd Semester') ? '2' : '3');
                         
                         echo "<tr style='border-bottom: 1px solid #f1f5f9;'>
+                                <td style='padding: 12px; color: var(--text-light);'>$i</td>
                                 <td style='padding: 12px;'><span style='background: var(--accent); color: var(--primary-dark); padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 0.8rem;'>{$row['unit_code']}</span></td>
                                 <td style='padding: 12px;'>{$row['unit_name']}</td>
                                 <td style='padding: 12px;'>{$row['year_level']}</td>
                                 <td style='padding: 12px;'>{$row['semester_level']}</td>
-                                <td style='padding: 12px;'><span style='padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; $badgeStyle'>{$row['offering_time']}</span></td>
+                                <td style='padding: 12px; white-space: nowrap;'>
+                                    <span style='padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; display: inline-block; $badgeStyle'>
+                                        $offering
+                                    </span>
+                                </td>
                                 <td style='padding: 12px; text-align: center;'>
                                     <button onclick=\"openScheduleModal('{$row['unit_code']}', '" . addslashes($row['unit_name']) . "', '$semVal')\" 
                                             style='background: #4f46e5; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: bold;'>
@@ -104,9 +120,10 @@ $count = mysqli_num_rows($result); // Fixed Undefined variable error
                                     </button>
                                 </td>
                               </tr>";
+                        $i++; 
                     }
                 } else {
-                    echo "<tr><td colspan='6' style='text-align:center; padding: 40px;'>No units found matching your criteria.</td></tr>";
+                    echo "<tr><td colspan='7' style='text-align:center; padding: 40px;'>No units found matching your criteria.</td></tr>";
                 }
                 ?>
             </tbody>
@@ -117,22 +134,18 @@ $count = mysqli_num_rows($result); // Fixed Undefined variable error
 <div id="scheduleModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center;">
     <div style="background:white; padding:30px; border-radius:15px; width:480px; box-shadow:0 20px 40px rgba(0,0,0,0.2);">
         <h3 id="modalTitle" style="margin-top:0; color:#4f46e5; font-size: 1.2rem;">Schedule Semester Unit</h3>
-        
         <form method="POST">
             <input type="hidden" name="unit_code" id="form_unit_code">
             <input type="hidden" name="course_title" id="form_course_title">
             <input type="hidden" name="semester" id="form_semester">
-
             <div style="margin-bottom:15px;">
                 <label style="display:block; font-size:0.75rem; font-weight:bold; color: #475569; text-transform: uppercase; margin-bottom:5px;">Lecturer Name</label>
                 <input type="text" name="lecturer" placeholder="e.g. Mrs. MATHENGE" required style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px;">
             </div>
-
             <div style="margin-bottom:15px;">
                 <label style="display:block; font-size:0.75rem; font-weight:bold; color: #475569; text-transform: uppercase; margin-bottom:5px;">Student Group / Class</label>
                 <input type="text" name="unit_group" placeholder="e.g. Class 1 or Jan24" required style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px;">
             </div>
-
             <div style="display:flex; gap:15px; margin-bottom:15px;">
                 <div style="flex:1;">
                     <label style="display:block; font-size:0.75rem; font-weight:bold; color: #475569; text-transform: uppercase; margin-bottom:5px;">Time From</label>
@@ -143,12 +156,10 @@ $count = mysqli_num_rows($result); // Fixed Undefined variable error
                     <input type="time" name="time_to" required style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px;">
                 </div>
             </div>
-
             <div style="margin-bottom:25px;">
                 <label style="display:block; font-size:0.75rem; font-weight:bold; color: #475569; text-transform: uppercase; margin-bottom:5px;">Venue / Room</label>
                 <input type="text" name="venue" placeholder="e.g. CC1 or MLT Hall B" required style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px;">
             </div>
-
             <div style="display:flex; justify-content:flex-end; gap:12px;">
                 <button type="button" onclick="closeModal()" style="background:#f1f5f9; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; color: #475569; font-weight: 600;">Cancel</button>
                 <button type="submit" name="save_to_timetable" style="background:#4f46e5; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold;">Push to Timetable</button>
