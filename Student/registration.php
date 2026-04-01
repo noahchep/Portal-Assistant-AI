@@ -35,8 +35,30 @@ $academic_year = "2026";
     CORE LOGIC: REGISTRATION
 ================================ */
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['register_btn'])) {
+    
+    // Check current total (Confirmed + Provisional)
+    $check_count_sql = "SELECT COUNT(*) as total FROM registered_courses WHERE student_reg_no = '$student_reg_no'";
+    $count_res = mysqli_query($conn, $check_count_sql);
+    $current_count_row = mysqli_fetch_assoc($count_res);
+    $current_total = $current_count_row['total'];
+
+    $max_allowed = 8;
+
+    if ($current_total >= $max_allowed) {
+        echo "<script>alert('Error: You have already registered the maximum limit of $max_allowed units.'); window.location='registration.php';</script>";
+        exit();
+    }
+
+    $added_this_session = 0;
+
     for ($i = 1; $i <= 8; $i++) {
         if (!empty($_POST["courseCode$i"])) {
+            
+            // Check if limit is reached during the loop
+            if (($current_total + $added_this_session) >= $max_allowed) {
+                break; 
+            }
+
             $unit_code   = mysqli_real_escape_string($conn, trim($_POST["courseCode$i"]));
             $exam_type   = mysqli_real_escape_string($conn, $_POST["examType$i"]);
             $class_group = mysqli_real_escape_string($conn, $_POST["classCode$i"]);
@@ -44,15 +66,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['register_btn'])) {
             // Check if the unit exists in the master timetable
             $check = mysqli_query($conn, "SELECT 1 FROM timetable WHERE unit_code='$unit_code' LIMIT 1");
             if (mysqli_num_rows($check) > 0) {
-                // MODIFIED: Added 'department' to the columns and '$student_dept' to the values
-                mysqli_query($conn, "INSERT IGNORE INTO registered_courses 
+                $insert = mysqli_query($conn, "INSERT IGNORE INTO registered_courses 
                     (student_reg_no, unit_code, exam_type, class_group, semester, academic_year, status, department)
                     VALUES ('$student_reg_no','$unit_code','$exam_type','$class_group','$semester','$academic_year', 'Provisional', '$student_dept')");
+                
+                if ($insert && mysqli_affected_rows($conn) > 0) {
+                    $added_this_session++;
+                }
             }
         }
     }
 
-    header("Location: registration.php?added=1");
+    header("Location: registration.php?added=$added_this_session");
     exit();
 }
 
@@ -88,6 +113,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['selected_units'])) {
 ================================ */
 $confirmed = mysqli_query($conn, "SELECT rc.*, t.course_title FROM registered_courses rc JOIN timetable t ON rc.unit_code = t.unit_code WHERE rc.student_reg_no = '$student_reg_no' AND (rc.status = 'Confirmed' OR rc.status = 'Approved')");
 $provisional = mysqli_query($conn, "SELECT rc.*, t.course_title FROM registered_courses rc JOIN timetable t ON rc.unit_code = t.unit_code WHERE rc.student_reg_no = '$student_reg_no' AND (rc.status = 'Provisional' OR rc.status IS NULL OR rc.status = '')");
+
+// Fetch counts for the restriction display
+$ui_count_res = mysqli_query($conn, "SELECT COUNT(*) as total FROM registered_courses WHERE student_reg_no = '$student_reg_no'");
+$ui_row = mysqli_fetch_assoc($ui_count_res);
+$slots_used = $ui_row['total'];
+$remaining = 8 - $slots_used;
 
 if (!$confirmed || !$provisional) {
     die("Query Error: " . mysqli_error($conn));
@@ -241,7 +272,12 @@ if (!$confirmed || !$provisional) {
     </form>
 
     <div class="card">
-        <div class="card-title">➕ Register New Courses</div>
+        <div class="card-title">
+            ➕ Register New Courses 
+            <span style="margin-left: auto; font-size: 0.8rem; color: <?php echo ($remaining <= 0) ? '#ef4444' : 'var(--text-light)'; ?>;">
+                Units: <?php echo $slots_used; ?>/8 (<?php echo $remaining; ?> left)
+            </span>
+        </div>
         <form action="" method="POST">
             <input type="hidden" name="register_btn" value="1">
             <table>
@@ -252,14 +288,14 @@ if (!$confirmed || !$provisional) {
                     <?php for($k=1; $k<=6; $k++): ?>
                         <tr>
                             <td align="center"><?php echo $k; ?></td>
-                            <td><input type="text" name="courseCode<?php echo $k; ?>" placeholder="e.g. BBT 1102"></td>
+                            <td><input type="text" name="courseCode<?php echo $k; ?>" placeholder="e.g. BBT 1102" <?php if($remaining <= 0) echo 'disabled'; ?>></td>
                             <td>
-                                <select name="examType<?php echo $k; ?>">
+                                <select name="examType<?php echo $k; ?>" <?php if($remaining <= 0) echo 'disabled'; ?>>
                                     <option>Regular</option><option>Retake</option>
                                 </select>
                             </td>
                             <td>
-                                <select name="classCode<?php echo $k; ?>">
+                                <select name="classCode<?php echo $k; ?>" <?php if($remaining <= 0) echo 'disabled'; ?>>
                                     <option>Day</option><option>Evening</option>
                                 </select>
                             </td>
@@ -268,7 +304,9 @@ if (!$confirmed || !$provisional) {
                 </tbody>
             </table>
             <div style="text-align: center; margin-top: 25px;">
-                <button type="submit" class="btn btn-primary" style="padding: 12px 40px;">Submit Registration</button>
+                <button type="submit" class="btn btn-primary" style="padding: 12px 40px;" <?php if($remaining <= 0) echo 'disabled style="background:#94a3b8; cursor:not-allowed;"'; ?>>
+                    <?php echo ($remaining <= 0) ? 'Limit Reached' : 'Submit Registration'; ?>
+                </button>
             </div>
         </form>
     </div>

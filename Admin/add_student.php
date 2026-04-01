@@ -42,11 +42,47 @@ if (isset($_POST['add_student'])) {
     } else {
         // 2. Generate Registration Number: [DEPT]/[YEAR]/[5-DIGIT-ID]
         $dept_codes = [
+            // Computing & Informatics
             "Information Technology" => "BIT",
-            "Computer Science"       => "BCS",
-            "Enterprise Computing"   => "BEC",
-            "Information Science"    => "BIS"
+            "Information Science"    => "BIS",
+            
+            // Business & Economics
+            "Management"             => "BBM",
+            "Economics"              => "BEC",
+            "Accounting and Finance" => "BAF",
+
+            // Health Sciences & Medicine
+            "Community Health"       => "BCH",
+            "Environmental Health"   => "BEH",
+            "Nursing"                => "BSN",
+            "Pharmacy"               => "BPH",
+            "Medical School"         => "MBB",
+            "Clinical Medicine"      => "BCM",
+
+            // Education
+            "Educational Management"  => "BED",
+            "Educational Psychology"  => "BEP",
+            "Special Needs Education" => "BSN",
+
+            // Engineering & Built Environment
+            "Energy Engineering"      => "BEE",
+            "Electrical Engineering"  => "BEL",
+
+            // Pure & Applied Sciences
+            "Natural Sciences"        => "BNS",
+            "Animal Health"           => "BAH",
+
+            // Social Sciences & Humanities
+            "Psychology"              => "BPS",
+            "Law"                     => "LLB",
+            "Security Studies"        => "BSS",
+            "Journalism"              => "BJM",
+
+            // Hospitality & Tourism
+            "Hospitality Management"  => "BHM",
+            "Travel and Tourism"      => "BTT"
         ];
+
         $prefix = isset($dept_codes[$dept]) ? $dept_codes[$dept] : "STU";
         $year = date("Y");
 

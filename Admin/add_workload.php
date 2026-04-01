@@ -22,16 +22,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_workload'])) {
     // Sanitize inputs
     $code = mysqli_real_escape_string($conn, $_POST['unit_code']);
     $name = mysqli_real_escape_string($conn, $_POST['unit_name']);
+    $dept = mysqli_real_escape_string($conn, $_POST['department']); // New Field
     $year = mysqli_real_escape_string($conn, $_POST['year_level']);
     $sem  = mysqli_real_escape_string($conn, $_POST['semester_level']);
     $time = mysqli_real_escape_string($conn, $_POST['offering_time']);
 
-    // Insert into the table
-    $sql = "INSERT INTO academic_workload (unit_code, unit_name, year_level, semester_level, offering_time) 
-            VALUES ('$code', '$name', '$year', '$sem', '$time')";
+    // Insert into the table (Added department column)
+    $sql = "INSERT INTO academic_workload (unit_code, unit_name, department, year_level, semester_level, offering_time) 
+            VALUES ('$code', '$name', '$dept', '$year', '$sem', '$time')";
     
     if(mysqli_query($conn, $sql)) {
-        $message = "success|Workload added to Master Plan successfully!";
+        $message = "success|Workload for $dept added to Master Plan successfully!";
     } else {
         $message = "error|Database Error: " . mysqli_error($conn);
     }
@@ -65,6 +66,61 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_workload'])) {
             <label style="display:block; font-weight:700; margin-bottom:5px; color: var(--text-main);">Unit Name</label>
             <input type="text" name="unit_name" required placeholder="e.g. Data Structures" 
                    style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; box-sizing: border-box;">
+        </div>
+
+        <div class="form-group" style="grid-column: span 2;">
+            <label style="display:block; font-weight:700; margin-bottom:5px; color: var(--text-main);">Department</label>
+            <select name="department" required style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; background: #fff; cursor: pointer;">
+                <option value="">-- Choose Department --</option>
+
+                <optgroup label="Computing & Informatics">
+                    <option value="Information Technology">Information Technology</option>
+                    <option value="Information Science">Information Science & Knowledge Management</option>
+                </optgroup>
+
+                <optgroup label="Business & Economics">
+                    <option value="Management">Management</option>
+                    <option value="Economics">Economics</option>
+                    <option value="Accounting and Finance">Accounting and Finance</option>
+                </optgroup>
+
+                <optgroup label="Health Sciences & Medicine">
+                    <option value="Community Health">Community Health, Epidemiology & Biostatistics</option>
+                    <option value="Environmental Health">Environmental Health & Health Systems Management</option>
+                    <option value="Nursing">Nursing</option>
+                    <option value="Pharmacy">Pharmacy</option>
+                    <option value="Medical School">Medical School</option>
+                    <option value="Clinical Medicine">Clinical Medicine</option>
+                </optgroup>
+
+                <optgroup label="Education">
+                    <option value="Educational Management">Educational Management & Curriculum Studies</option>
+                    <option value="Educational Psychology">Educational Psychology & Technology (EPT)</option>
+                    <option value="Special Needs Education">Special Needs Education & Early Childhood</option>
+                </optgroup>
+
+                <optgroup label="Engineering & Built Environment">
+                    <option value="Energy Engineering">Energy & Environmental Engineering</option>
+                    <option value="Electrical Engineering">Electrical & Electronic Engineering</option>
+                </optgroup>
+
+                <optgroup label="Pure & Applied Sciences">
+                    <option value="Natural Sciences">Natural Sciences</option>
+                    <option value="Animal Health">Animal Health and Production</option>
+                </optgroup>
+
+                <optgroup label="Social Sciences & Humanities">
+                    <option value="Psychology">Psychology, Humanities & Languages</option>
+                    <option value="Law">Law</option>
+                    <option value="Security Studies">Security Studies, Justice and Ethics</option>
+                    <option value="Journalism">Journalism & Mass Communication</option>
+                </optgroup>
+
+                <optgroup label="Hospitality & Tourism">
+                    <option value="Hospitality Management">Hospitality Management</option>
+                    <option value="Travel and Tourism">Travel and Tourism Management</option>
+                </optgroup>
+            </select>
         </div>
 
         <div class="form-group">

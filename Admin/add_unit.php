@@ -15,10 +15,11 @@ $message = "";
 ========================== */
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_unit'])) {
 
-    // 1. Collect and Sanitize (Added day_of_week)
+    // 1. Collect and Sanitize (Added department)
     $unit_code      = mysqli_real_escape_string($conn, trim($_POST['unit_code']));
     $course_title   = mysqli_real_escape_string($conn, $_POST['course_title']);
-    $day_of_week    = mysqli_real_escape_string($conn, $_POST['day_of_week']); // New Field
+    $dept           = mysqli_real_escape_string($conn, $_POST['department']); // New Field
+    $day_of_week    = mysqli_real_escape_string($conn, $_POST['day_of_week']); 
     $time_from      = mysqli_real_escape_string($conn, $_POST['time_from']);
     $time_to        = mysqli_real_escape_string($conn, $_POST['time_to']);
     $venue          = mysqli_real_escape_string($conn, $_POST['venue']);
@@ -28,17 +29,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_unit'])) {
     $semester       = mysqli_real_escape_string($conn, $_POST['semester']);
     $academic_year  = mysqli_real_escape_string($conn, $_POST['academic_year']);
 
-    // 2. Updated SQL Statement
+    // 2. Updated SQL Statement (Added department)
     $sql = "INSERT INTO timetable 
-            (unit_code, course_title, day_of_week, time_from, time_to, venue, unit_group, 
+            (unit_code, course_title, department, day_of_week, time_from, time_to, venue, unit_group, 
              lecturer, exam_date, semester, academic_year) 
             VALUES 
-            ('$unit_code','$course_title','$day_of_week','$time_from','$time_to','$venue',
+            ('$unit_code','$course_title','$dept','$day_of_week','$time_from','$time_to','$venue',
              '$unit_group','$lecturer','$exam_date','$semester','$academic_year')";
 
     // 3. Execution & Error Handling
     if (mysqli_query($conn, $sql)) {
-        $message = "success|Unit added successfully.";
+        $message = "success|Unit added to $dept timetable successfully.";
     } else {
         if (mysqli_errno($conn) == 1062) {
             $message = "error|Unit code '$unit_code' already exists for this semester.";
@@ -86,6 +87,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_unit'])) {
             <input type="text" name="course_title" required>
         </div>
 
+        <div class="form-group full-width">
+            <label>Department Access</label>
+            <select name="department" required>
+                <option value="">-- Choose Department --</option>
+                <optgroup label="Computing & Informatics">
+                    <option value="Information Technology">Information Technology</option>
+                    <option value="Information Science">Information Science & Knowledge Management</option>
+                </optgroup>
+                <optgroup label="Business & Economics">
+                    <option value="Management">Management</option>
+                    <option value="Economics">Economics</option>
+                    <option value="Accounting and Finance">Accounting and Finance</option>
+                </optgroup>
+                <optgroup label="Health Sciences & Medicine">
+                    <option value="Community Health">Community Health</option>
+                    <option value="Nursing">Nursing</option>
+                    <option value="Pharmacy">Pharmacy</option>
+                </optgroup>
+                </select>
+        </div>
+
         <div class="form-group">
             <label>Day of Week</label>
             <select name="day_of_week" required>
@@ -95,8 +117,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_unit'])) {
                 <option value="Wednesday">Wednesday</option>
                 <option value="Thursday">Thursday</option>
                 <option value="Friday">Friday</option>
-                <option value="Saturday">Saturday</option>
-                <option value="Sunday">Sunday</option>
             </select>
         </div>
 

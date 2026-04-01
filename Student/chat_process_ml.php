@@ -299,7 +299,8 @@ function fuzzyDetectIntent($input) {
         'search_unit' => ['search unit', 'find unit', 'look up', 'unit details', 'course details', 'about unit', 'tell me about'],
         'ai_check' => ['what can you do', 'help', 'capabilities', 'what do you do', 'features', 'how can you help', 'what you can do'],
         'unit_day' => ['when is', 'what day', 'what time', 'schedule for', 'class for', 'taught on', 'day is', 'time is'],
-        'course_advice' => ['what courses should i take', 'which units should i register', 'advice on courses', 'recommend units', 'suggest courses', 'what to register', 'courses to take', 'units to take', 'registration advice', 'course recommendation', 'what units should i do', 'which units to choose', 'help me choose units']
+        'course_advice' => ['what courses should i take', 'which units should i register', 'advice on courses', 'recommend units', 'suggest courses', 'what to register', 'courses to take', 'units to take', 'registration advice', 'course recommendation', 'what units should i do', 'which units to choose', 'help me choose units'],
+        'unit_registration_count' => ['how many students', 'how many registered', 'enrollment count', 'class size', 'registered for', 'how many people', 'student count', 'enrollment numbers', 'how many took', 'how many are taking', 'class population', 'enrollment statistics']
     ];
     
     $input_lower = strtolower(trim($input));
@@ -484,6 +485,12 @@ function detectIntent($input) {
                 return ['intent' => 'how_are_you'];
             case 'course_advice':
                 return ['intent' => 'course_advice'];
+            case 'unit_registration_count':
+                // Extract unit code from query
+                if (preg_match('/([A-Z]{3,4}[0-9]{4})/i', $input, $matches)) {
+                    return ['intent' => 'unit_registration_count', 'unit_code' => strtoupper($matches[1])];
+                }
+                return ['intent' => 'unit_registration_count'];
             case 'unit_day':
                 // Extract unit code from query
                 if (preg_match('/([A-Z]{3,4}[0-9]{4})/i', $input, $matches)) {
@@ -508,6 +515,18 @@ function detectIntent($input) {
                     }
                 }
                 return ['intent' => 'view_all'];
+        }
+    }
+    
+    // Check for unit registration count queries
+    $count_keywords = ['how many students', 'how many registered', 'enrollment count', 'class size', 'registered for', 'how many people', 'student count', 'enrollment numbers', 'how many took', 'how many are taking', 'class population', 'enrollment statistics'];
+    foreach ($count_keywords as $keyword) {
+        if (strpos($input, $keyword) !== false || fuzzyMatch($input, $keyword, 70)) {
+            // Extract unit code from the query
+            if (preg_match('/([A-Z]{3,4}[0-9]{4})/i', $input, $matches)) {
+                return ['intent' => 'unit_registration_count', 'unit_code' => strtoupper($matches[1])];
+            }
+            return ['intent' => 'unit_registration_count'];
         }
     }
     
@@ -747,6 +766,128 @@ switch ($intent) {
     
     case 'farewell':
         echo getRandomResponse($social_responses['farewell']);
+        break;
+    
+    case 'unit_registration_count':
+        $unit_code = $GLOBALS['target_unit'] ?? '';
+        
+        // If no unit code was captured, try to extract it from input
+        if (!$unit_code && preg_match('/([A-Z]{3,4}[0-9]{4})/i', $user_input, $matches)) {
+            $unit_code = strtoupper($matches[1]);
+        }
+        
+        if ($unit_code) {
+            // Get unit details first
+            $unit_query = "SELECT unit_name, year_level, semester_level FROM academic_workload WHERE unit_code = ?";
+            $unit_stmt = $conn->prepare($unit_query);
+            $unit_stmt->bind_param("s", $unit_code);
+            $unit_stmt->execute();
+            $unit_result = $unit_stmt->get_result();
+            
+            if ($unit_result->num_rows > 0) {
+                $unit = $unit_result->fetch_assoc();
+                
+                // Count ALL registered students for this unit (no status filter)
+                $count_query = "SELECT COUNT(*) as student_count FROM registered_courses WHERE unit_code = ?";
+                $count_stmt = $conn->prepare($count_query);
+                $count_stmt->bind_param("s", $unit_code);
+                $count_stmt->execute();
+                $count_result = $count_stmt->get_result();
+                $count_row = $count_result->fetch_assoc();
+                $student_count = $count_row['student_count'];
+                
+                echo "<b>📊 Enrollment Statistics for {$unit_code}</b><br><br>";
+                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
+                echo "📚 <b>Unit:</b> {$unit_code} - {$unit['unit_name']}<br>";
+                echo "🎓 <b>Year Level:</b> {$unit['year_level']}<br>";
+                echo "📅 <b>Semester:</b> {$unit['semester_level']}<br>";
+                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br><br>";
+                
+                echo "<b>👥 Current Enrollment:</b><br>";
+                echo "• <b style='font-size: 1.2em; color: #4CAF50;'>{$student_count}</b> student(s) registered<br><br>";
+                
+                // Get breakdown by registration status if available
+                $status_query = "SELECT status, COUNT(*) as count FROM registered_courses WHERE unit_code = ? GROUP BY status";
+                $status_stmt = $conn->prepare($status_query);
+                $status_stmt->bind_param("s", $unit_code);
+                $status_stmt->execute();
+                $status_result = $status_stmt->get_result();
+                
+                if ($status_result->num_rows > 0) {
+                    echo "<b>📊 Registration Breakdown:</b><br>";
+                    while ($status_row = $status_result->fetch_assoc()) {
+                        $status_label = !empty($status_row['status']) ? ucfirst($status_row['status']) : 'Registered';
+                        echo "• {$status_label}: {$status_row['count']} student(s)<br>";
+                    }
+                    echo "<br>";
+                }
+                
+                // Check if current user is registered
+                $student_reg = $_SESSION['reg_number'] ?? null;
+                if ($student_reg) {
+                    $check_reg_query = "SELECT status FROM registered_courses WHERE student_reg_no = ? AND unit_code = ?";
+                    $check_reg_stmt = $conn->prepare($check_reg_query);
+                    $check_reg_stmt->bind_param("ss", $student_reg, $unit_code);
+                    $check_reg_stmt->execute();
+                    $check_reg_result = $check_reg_stmt->get_result();
+                    
+                    if ($check_reg_result->num_rows > 0) {
+                        $user_status = $check_reg_result->fetch_assoc();
+                        $user_status_label = !empty($user_status['status']) ? $user_status['status'] : 'registered';
+                        echo "✅ <b>Your Status:</b> You are {$user_status_label} for this unit.<br><br>";
+                    } else {
+                        echo "⚠️ <b>Your Status:</b> You are not registered for this unit.<br><br>";
+                    }
+                    $check_reg_stmt->close();
+                }
+                
+                // Add some context
+                if ($student_count == 0) {
+                    echo "💡 <i>No students are currently registered for this unit. Registration might be closed or this is a new unit.</i><br><br>";
+                } elseif ($student_count < 10) {
+                    echo "💡 <i>This is a small class size, which means more personalized attention from the lecturer!</i><br><br>";
+                } elseif ($student_count < 30) {
+                    echo "💡 <i>This class has a moderate enrollment. Good opportunity for interactive learning!</i><br><br>";
+                } elseif ($student_count < 60) {
+                    echo "💡 <i>This is a popular unit with good enrollment numbers!</i><br><br>";
+                } else {
+                    echo "💡 <i>This is a very popular unit with high enrollment! Make sure to attend lectures early!</i><br><br>";
+                }
+                
+                echo "❓ <b>Would you like to know:</b><br>";
+                echo "• Details about this unit? (e.g., 'Tell me about {$unit_code}')<br>";
+                echo "• When this unit is taught? (e.g., 'When is {$unit_code} taught?')<br>";
+                echo "• Enrollment for another unit?<br>";
+                
+                $status_stmt->close();
+                $count_stmt->close();
+                
+            } else {
+                echo "❌ I couldn't find unit '{$unit_code}' in our system.<br><br>";
+                
+                // Try fuzzy search to suggest similar units
+                $fuzzy_matches = fuzzySearchUnits($unit_code, $conn, 3);
+                if (!empty($fuzzy_matches)) {
+                    echo "<b>💡 Did you mean one of these?</b><br><br>";
+                    foreach ($fuzzy_matches as $match) {
+                        echo "• <b>{$match['unit_code']}</b> - {$match['unit_name']}<br>";
+                    }
+                    echo "<br>Try asking about one of these units instead!";
+                } else {
+                    echo "💡 <i>Tip: Make sure you're using the correct unit code format like 'BAF1101' or 'BIT1201'.</i><br>";
+                    echo "• Ask me to 'Show all first year units' to see available courses<br>";
+                    echo "• Check your registered courses by asking 'My courses'<br>";
+                }
+            }
+            $unit_stmt->close();
+        } else {
+            echo "❓ Please specify which unit you want to check enrollment for.<br><br>";
+            echo "For example:<br>";
+            echo "• 'How many students registered for BAF1101?'<br>";
+            echo "• 'Enrollment count for BIT1201'<br>";
+            echo "• 'How many people are taking BIT3208?'<br><br>";
+            echo "Or you can ask about your own registered courses by saying 'My courses'!";
+        }
         break;
     
     case 'course_advice':
@@ -1610,6 +1751,7 @@ switch ($intent) {
     case 'ai_check':
         echo "🤖 I'm your friendly AI academic assistant! Here's what I can do:<br><br>
               ✅ <b>Course Advisor</b> - Get personalized course recommendations (e.g., 'What courses should I take?')<br>
+              ✅ <b>Enrollment Statistics</b> - Check how many students are registered for a unit (e.g., 'How many students registered for BAF1101?')<br>
               ✅ Show units by year level (e.g., 'Show me second year units')<br>
               ✅ Search for specific units by code or name<br>
               ✅ Get detailed unit information (e.g., 'Tell me about BMA1106')<br>
@@ -1621,7 +1763,9 @@ switch ($intent) {
               ✅ Guide you through course registration (e.g., 'how to register')<br>
               ✅ Define words and build vocabulary (e.g., 'What does algorithm mean?')<br><br>
               💬 And I love small talk too! Ask me how I'm doing! 😊<br><br>
-              🎓 <b>Try asking:</b> 'What courses should I take?' for personalized registration advice!<br><br>
+              🎓 <b>Try asking:</b><br>
+              • 'What courses should I take?' for personalized registration advice!<br>
+              • 'How many students registered for BAF1101?' for enrollment statistics!<br><br>
               What would you like to know?";
         break;
 
