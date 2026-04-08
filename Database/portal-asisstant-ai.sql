@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 01, 2026 at 01:49 PM
+-- Generation Time: Apr 08, 2026 at 05:13 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -465,7 +465,9 @@ INSERT INTO `chat_messages` (`id`, `conversation_id`, `sender_type`, `message`, 
 (253, '5uvfjoi60sv9s7douepnhtrfas', 'bot', '<br><br>💡 <i>Need details about any specific unit? 🔍 I can tell you all about it!</i>', '2026-04-01 10:43:52', 'view_all'),
 (254, '5uvfjoi60sv9s7douepnhtrfas', 'bot', '<b>📚 Definition of \"systems\":</b><br><br><b>noun:</b><br>  1. A collection of organized things; a whole composed of relationships among its members.<br>     <i>Example: \"There are eight planets in the solar system.\"</i><br>  2. A method or way of organizing or planning.<br>     <i>Example: \"Followers should have a system to follow that works in their interests, not against them.\"</i><br><br><b>Synonyms:</b> arrangement, complex, composition, organization, set up<br>', '2026-04-01 10:58:34', NULL),
 (255, '5uvfjoi60sv9s7douepnhtrfas', 'bot', '<b>📚 Definition of \"algorithm\":</b><br><br><b>noun:</b> A step-by-step procedure for solving a problem or accomplishing a task, especially by a computer.<br><i>Example: \"The sorting algorithm efficiently organized the data in ascending order.\"</i><br>', '2026-04-01 10:58:54', NULL),
-(256, '5uvfjoi60sv9s7douepnhtrfas', 'bot', '<b>📚 Definition of \"school\":</b><br><br><b>noun:</b><br>  1. (collective) A group of fish or a group of marine mammals such as porpoises, dolphins, or whales.<br>     <i>Example: \"The divers encountered a huge school of mackerel.\"</i><br>  2. A multitude.<br><br><b>verb:</b><br>  1. (of fish) To form into, or travel in a school.<br><br><b>Synonyms:</b> shoal<br>', '2026-04-01 10:59:17', NULL);
+(256, '5uvfjoi60sv9s7douepnhtrfas', 'bot', '<b>📚 Definition of \"school\":</b><br><br><b>noun:</b><br>  1. (collective) A group of fish or a group of marine mammals such as porpoises, dolphins, or whales.<br>     <i>Example: \"The divers encountered a huge school of mackerel.\"</i><br>  2. A multitude.<br><br><b>verb:</b><br>  1. (of fish) To form into, or travel in a school.<br><br><b>Synonyms:</b> shoal<br>', '2026-04-01 10:59:17', NULL),
+(257, 'vd996gsujt2v62agu3m1ln9ri6', 'student', 'hello', '2026-04-08 14:50:44', NULL),
+(258, 'vd996gsujt2v62agu3m1ln9ri6', 'bot', 'hello', '2026-04-08 14:50:44', NULL);
 
 -- --------------------------------------------------------
 
@@ -547,6 +549,7 @@ CREATE TABLE `timetable` (
   `lecturer` varchar(50) DEFAULT NULL,
   `exam_date` date DEFAULT NULL,
   `semester` enum('1','2','3') NOT NULL,
+  `year_level` enum('First Year','Second Year','Third Year','Fourth Year') NOT NULL,
   `academic_year` year(4) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -555,56 +558,56 @@ CREATE TABLE `timetable` (
 -- Dumping data for table `timetable`
 --
 
-INSERT INTO `timetable` (`id`, `unit_code`, `course_title`, `department`, `time_from`, `time_to`, `day_of_week`, `venue`, `unit_group`, `lecturer`, `exam_date`, `semester`, `academic_year`, `created_at`) VALUES
-(92, 'BAF1101', 'Financial Accounting I', NULL, '07:00', '10:00', 'Monday', 'CT HALL', 'Class I', 'Mrs. MATHENGE', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(93, 'BBM1101', 'Introduction to business studies', NULL, '10:00', '13:00', 'Monday', 'CC1', 'Class I', 'Ms. KHAYALI', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(94, 'BBM1201', 'Principles of Management', NULL, '13:00', '16:00', 'Monday', 'FLT HALL A', 'Class I', 'Mrs. MWANGI', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(95, 'BBM1202', 'Principles of Marketing', NULL, '16:00', '22:00', 'Monday', 'BL 5', 'Class I', 'Mrs. MWAKI', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(96, 'BBM2103', 'Organization Behavior', NULL, '07:00', '10:00', 'Monday', 'CC5', 'Class I', 'Ms. KHAYALI', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(97, 'BBM3107', 'Human Resource Management', NULL, '10:00', '13:00', 'Monday', 'CT 8.3', 'Class I', 'Mrs. MWANGI', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(98, 'BEG2112', 'Digital Electronics and Devices', NULL, '13:00', '16:00', 'Monday', 'COMP LAB 1', 'Class I', 'Mr. KAMAU', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(99, 'BIT1101', 'Computer Architecture', NULL, '16:00', '22:00', 'Monday', 'CTA HALL', 'Class I', 'Mr. NYAGA', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(100, 'BIT1102', 'Introduction to programming and algorithms', NULL, '07:00', '10:00', 'Monday', 'COMP LAB 2', 'Class I', 'Mr. MURIUKI', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(101, 'BIT1106', 'Intro to Computer Application Packages', NULL, '10:00', '13:00', 'Monday', 'COMP LAB 3', 'Class I', 'Mr. MURIUKI', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(102, 'BIT1201', 'Database systems', NULL, '07:00', '10:00', 'Tuesday', 'CC2', 'Class I', 'Mr. OWINO', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(103, 'BIT2102', 'Fundamentals of Internet', NULL, '10:00', '13:00', 'Tuesday', 'CC8', 'Class I', 'Mr. MAGATI', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(104, 'BIT2205', 'Object oriented programming II', NULL, '13:00', '16:00', 'Tuesday', 'COMP LAB 4', 'Class I', 'Mr. MURIUKI', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(105, 'BIT2206', 'Systems analysis and design', NULL, '16:00', '22:00', 'Tuesday', 'CTA 6', 'Class I', 'Mr. MURIUKI', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(106, 'BIT3101', 'Software Engineering', NULL, '07:00', '10:00', 'Tuesday', 'CC3', 'Class I', 'Mr. MASITA', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(107, 'BIT3102', 'Event Driven Programming', NULL, '10:00', '13:00', 'Tuesday', 'COMP LAB 5', 'Class I', 'Mr. OWINO', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(108, 'BIT3201', 'Object Oriented Analysis and Design', NULL, '13:00', '16:00', 'Tuesday', 'CTA 7', 'Class I', 'Mr. MAGATI', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(109, 'BIT3204', 'Network Management', NULL, '16:00', '22:00', 'Tuesday', 'CC4', 'Class I', 'Ms. KIARIE', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(110, 'BIT3205', 'Business systems simulation and modeling', NULL, '07:00', '10:00', 'Tuesday', 'CC6', 'Class I', 'Mr. MASITA', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(111, 'BIT3206', 'ICT project management', NULL, '10:00', '13:00', 'Tuesday', 'FLT HALL B', 'Class I', 'Ms. KIARIE', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(112, 'BIT3208', 'Advanced Web Design, Dev and Mgmt', NULL, '07:00', '10:00', 'Wednesday', 'COMP LAB 1', 'Class I', 'Mrs. NYANSIABOKA', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(113, 'BIT4101', 'Business Data Mining and Warehousing', NULL, '10:00', '13:00', 'Wednesday', 'CC1', 'Class I', 'Mrs. MWINJI', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(114, 'BIT4102', 'Computer Graphics', NULL, '13:00', '16:00', 'Wednesday', 'COMP LAB 2', 'Class I', 'Mr. OWINO', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(115, 'BIT4103', 'Human Computer Interaction', NULL, '16:00', '22:00', 'Wednesday', 'CT 8.3', 'Class I', 'Mrs. MWINJI', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(116, 'BIT4104', 'Security and Cryptography', NULL, '07:00', '10:00', 'Wednesday', 'CTA 5', 'Class I', 'Mrs. MWINJI', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(117, 'BIT4105', 'Advanced Data Structures and Algorithms', NULL, '10:00', '13:00', 'Wednesday', 'COMP LAB 3', 'Class I', 'Mr. MAGATI', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(118, 'BIT4107', 'Mobile Applications Development', NULL, '13:00', '16:00', 'Wednesday', 'COMP LAB 4', 'Class I', 'Mr. OWINO', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(119, 'BIT4108', 'Information Systems Audit', NULL, '16:00', '22:00', 'Wednesday', 'CC7', 'Class I', 'Ms. MWAI', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(120, 'BIT4201', 'Mobile Computing I', NULL, '07:00', '10:00', 'Wednesday', 'CC8', 'Class I', 'Mr. OWINO', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(121, 'BIT4202', 'Artificial Intelligence', NULL, '10:00', '13:00', 'Wednesday', 'FLT HALL A', 'Class I', 'Mr. OKELLO', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(122, 'BIT4203', 'Distributed Multimedia Systems', NULL, '07:00', '10:00', 'Thursday', 'CTA HALL', 'Class I', 'Ms. MWAI', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(123, 'BIT4204', 'E - Commerce', NULL, '10:00', '13:00', 'Thursday', 'BL 5', 'Class I', 'Mr. WAMBUI', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(124, 'BIT4205', 'Network Programming', NULL, '13:00', '16:00', 'Thursday', 'COMP LAB 5', 'Class I', 'Mr. KODHEK', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(125, 'BIT4206', 'ICT In Business and Society', NULL, '16:00', '22:00', 'Thursday', 'CT HALL', 'Class I', 'Ms. MWAI', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(126, 'BIT4209', 'Distributed Systems', NULL, '07:00', '10:00', 'Thursday', 'CC5', 'Class I', 'Mr. NYAGA', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(127, 'BIT4217', 'Total Quality Management for IT', NULL, '10:00', '13:00', 'Thursday', 'CC2', 'Class I', 'Ms. MWAI', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(128, 'BMA1104', 'Probability and Statistics I', NULL, '13:00', '16:00', 'Thursday', 'CTA 6', 'Class I', 'Mr. KABUE', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(129, 'BMA1106', 'Foundation mathematics', NULL, '16:00', '22:00', 'Thursday', 'CC1', 'Class I', 'Ms. CHEROTICH', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(130, 'BMA1202', 'Discrete Mathematics', NULL, '07:00', '10:00', 'Thursday', 'CC3', 'Class I', 'Mr. KEITANY', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(131, 'BMA2102', 'Probability and statistics II', NULL, '10:00', '13:00', 'Thursday', 'CC4', 'Class I', 'Ms. CHEROTICH', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(132, 'BMA3102', 'Business statistics II', NULL, '07:00', '10:00', 'Friday', 'CC6', 'Class I', 'Mr. CHEGE', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(133, 'BMA3201', 'Operation research I', NULL, '10:00', '13:00', 'Friday', 'CC7', 'Class I', 'Mr. KEITANY', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(134, 'BUCU007', 'Communication Skills and Academic Writing', NULL, '13:00', '16:00', 'Friday', 'CTA HALL', 'Class I', 'Mrs. AREGE', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(135, 'BUCU009', 'Climate Change and Development', NULL, '16:00', '22:00', 'Friday', 'FLT HALL B', 'Class I', 'Mr. MUINDE', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(136, 'BUCU011', 'Health Literacy', NULL, '07:00', '10:00', 'Friday', 'CT HALL', 'Class I', 'Mr. OTIENO', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(137, 'BUCU008', 'Digital and Information Literacy Skills', NULL, '10:00', '13:00', 'Friday', 'COMP LAB 1', 'Class I', 'Mr. NYAGA', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(138, 'BIT3105', 'Management Information Systems', NULL, '13:00', '16:00', 'Friday', 'CC2', 'Class I', 'Mr. MITAKI', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(139, 'BIT3224', 'Computing Projects Dev Approaches', NULL, '16:00', '22:00', 'Friday', 'COMP LAB 2', 'Class I', 'Mr. NYAGA', NULL, '1', '2026', '2026-03-31 20:08:29'),
-(140, 'BUCU010', 'Entrepreneurial Mindset and Finance', NULL, '07:00', '10:00', 'Friday', 'BL 5', 'Class I', 'Ms. NDEGE', NULL, '1', '2026', '2026-03-31 20:08:29');
+INSERT INTO `timetable` (`id`, `unit_code`, `course_title`, `department`, `time_from`, `time_to`, `day_of_week`, `venue`, `unit_group`, `lecturer`, `exam_date`, `semester`, `year_level`, `academic_year`, `created_at`) VALUES
+(92, 'BAF1101', 'Financial Accounting I', NULL, '07:00', '10:00', 'Monday', 'CT HALL', 'Class I', 'Mrs. MATHENGE', NULL, '1', 'First Year', '2026', '2026-03-31 20:08:29'),
+(93, 'BBM1101', 'Introduction to business studies', NULL, '10:00', '13:00', 'Monday', 'CC1', 'Class I', 'Ms. KHAYALI', NULL, '1', 'First Year', '2026', '2026-03-31 20:08:29'),
+(94, 'BBM1201', 'Principles of Management', NULL, '13:00', '16:00', 'Monday', 'FLT HALL A', 'Class I', 'Mrs. MWANGI', NULL, '2', 'First Year', '2026', '2026-03-31 20:08:29'),
+(95, 'BBM1202', 'Principles of Marketing', NULL, '16:00', '22:00', 'Monday', 'BL 5', 'Class I', 'Mrs. MWAKI', NULL, '1', 'Second Year', '2026', '2026-03-31 20:08:29'),
+(96, 'BBM2103', 'Organization Behavior', NULL, '07:00', '10:00', 'Monday', 'CC5', 'Class I', 'Ms. KHAYALI', NULL, '1', 'Second Year', '2026', '2026-03-31 20:08:29'),
+(97, 'BBM3107', 'Human Resource Management', NULL, '10:00', '13:00', 'Monday', 'CT 8.3', 'Class I', 'Mrs. MWANGI', NULL, '2', 'Fourth Year', '2026', '2026-03-31 20:08:29'),
+(98, 'BEG2112', 'Digital Electronics and Devices', NULL, '13:00', '16:00', 'Monday', 'COMP LAB 1', 'Class I', 'Mr. KAMAU', NULL, '1', 'Second Year', '2026', '2026-03-31 20:08:29'),
+(99, 'BIT1101', 'Computer Architecture', NULL, '16:00', '22:00', 'Monday', 'CTA HALL', 'Class I', 'Mr. NYAGA', NULL, '2', 'First Year', '2026', '2026-03-31 20:08:29'),
+(100, 'BIT1102', 'Introduction to programming and algorithms', NULL, '07:00', '10:00', 'Monday', 'COMP LAB 2', 'Class I', 'Mr. MURIUKI', NULL, '1', 'First Year', '2026', '2026-03-31 20:08:29'),
+(101, 'BIT1106', 'Intro to Computer Application Packages', NULL, '10:00', '13:00', 'Monday', 'COMP LAB 3', 'Class I', 'Mr. MURIUKI', NULL, '1', 'First Year', '2026', '2026-03-31 20:08:29'),
+(102, 'BIT1201', 'Database systems', NULL, '07:00', '10:00', 'Tuesday', 'CC2', 'Class I', 'Mr. OWINO', NULL, '2', 'First Year', '2026', '2026-03-31 20:08:29'),
+(103, 'BIT2102', 'Fundamentals of Internet', NULL, '10:00', '13:00', 'Tuesday', 'CC8', 'Class I', 'Mr. MAGATI', NULL, '2', 'First Year', '2026', '2026-03-31 20:08:29'),
+(104, 'BIT2205', 'Object oriented programming II', NULL, '13:00', '16:00', 'Tuesday', 'COMP LAB 4', 'Class I', 'Mr. MURIUKI', NULL, '1', 'Second Year', '2026', '2026-03-31 20:08:29'),
+(105, 'BIT2206', 'Systems analysis and design', NULL, '16:00', '22:00', 'Tuesday', 'CTA 6', 'Class I', 'Mr. MURIUKI', NULL, '2', 'Second Year', '2026', '2026-03-31 20:08:29'),
+(106, 'BIT3101', 'Software Engineering', NULL, '07:00', '10:00', 'Tuesday', 'CC3', 'Class I', 'Mr. MASITA', NULL, '2', 'Second Year', '2026', '2026-03-31 20:08:29'),
+(107, 'BIT3102', 'Event Driven Programming', NULL, '10:00', '13:00', 'Tuesday', 'COMP LAB 5', 'Class I', 'Mr. OWINO', NULL, '2', 'Second Year', '2026', '2026-03-31 20:08:29'),
+(108, 'BIT3201', 'Object Oriented Analysis and Design', NULL, '13:00', '16:00', 'Tuesday', 'CTA 7', 'Class I', 'Mr. MAGATI', NULL, '1', 'Third Year', '2026', '2026-03-31 20:08:29'),
+(109, 'BIT3204', 'Network Management', NULL, '16:00', '22:00', 'Tuesday', 'CC4', 'Class I', 'Ms. KIARIE', NULL, '1', 'Third Year', '2026', '2026-03-31 20:08:29'),
+(110, 'BIT3205', 'Business systems simulation and modeling', NULL, '07:00', '10:00', 'Tuesday', 'CC6', 'Class I', 'Mr. MASITA', NULL, '1', 'Third Year', '2026', '2026-03-31 20:08:29'),
+(111, 'BIT3206', 'ICT project management', NULL, '10:00', '13:00', 'Tuesday', 'FLT HALL B', 'Class I', 'Ms. KIARIE', NULL, '1', 'Third Year', '2026', '2026-03-31 20:08:29'),
+(112, 'BIT3208', 'Advanced Web Design, Dev and Mgmt', NULL, '07:00', '10:00', 'Wednesday', 'COMP LAB 1', 'Class I', 'Mrs. NYANSIABOKA', NULL, '1', 'Third Year', '2026', '2026-03-31 20:08:29'),
+(113, 'BIT4101', 'Business Data Mining and Warehousing', NULL, '10:00', '13:00', 'Wednesday', 'CC1', 'Class I', 'Mrs. MWINJI', NULL, '2', 'Third Year', '2026', '2026-03-31 20:08:29'),
+(114, 'BIT4102', 'Computer Graphics', NULL, '13:00', '16:00', 'Wednesday', 'COMP LAB 2', 'Class I', 'Mr. OWINO', NULL, '2', 'Third Year', '2026', '2026-03-31 20:08:29'),
+(115, 'BIT4103', 'Human Computer Interaction', NULL, '16:00', '22:00', 'Wednesday', 'CT 8.3', 'Class I', 'Mrs. MWINJI', NULL, '2', 'Fourth Year', '2026', '2026-03-31 20:08:29'),
+(116, 'BIT4104', 'Security and Cryptography', NULL, '07:00', '10:00', 'Wednesday', 'CTA 5', 'Class I', 'Mrs. MWINJI', NULL, '2', 'Third Year', '2026', '2026-03-31 20:08:29'),
+(117, 'BIT4105', 'Advanced Data Structures and Algorithms', NULL, '10:00', '13:00', 'Wednesday', 'COMP LAB 3', 'Class I', 'Mr. MAGATI', NULL, '2', 'Third Year', '2026', '2026-03-31 20:08:29'),
+(118, 'BIT4107', 'Mobile Applications Development', NULL, '13:00', '16:00', 'Wednesday', 'COMP LAB 4', 'Class I', 'Mr. OWINO', NULL, '2', 'Fourth Year', '2026', '2026-03-31 20:08:29'),
+(119, 'BIT4108', 'Information Systems Audit', NULL, '16:00', '22:00', 'Wednesday', 'CC7', 'Class I', 'Ms. MWAI', NULL, '2', 'Fourth Year', '2026', '2026-03-31 20:08:29'),
+(120, 'BIT4201', 'Mobile Computing I', NULL, '07:00', '10:00', 'Wednesday', 'CC8', 'Class I', 'Mr. OWINO', NULL, '1', 'Fourth Year', '2026', '2026-03-31 20:08:29'),
+(121, 'BIT4202', 'Artificial Intelligence', NULL, '10:00', '13:00', 'Wednesday', 'FLT HALL A', 'Class I', 'Mr. OKELLO', NULL, '2', 'Third Year', '2026', '2026-03-31 20:08:29'),
+(122, 'BIT4203', 'Distributed Multimedia Systems', NULL, '07:00', '10:00', 'Thursday', 'CTA HALL', 'Class I', 'Ms. MWAI', NULL, '1', 'Fourth Year', '2026', '2026-03-31 20:08:29'),
+(123, 'BIT4204', 'E - Commerce', NULL, '10:00', '13:00', 'Thursday', 'BL 5', 'Class I', 'Mr. WAMBUI', NULL, '1', 'Fourth Year', '2026', '2026-03-31 20:08:29'),
+(124, 'BIT4205', 'Network Programming', NULL, '13:00', '16:00', 'Thursday', 'COMP LAB 5', 'Class I', 'Mr. KODHEK', NULL, '1', 'Fourth Year', '2026', '2026-03-31 20:08:29'),
+(125, 'BIT4206', 'ICT In Business and Society', NULL, '16:00', '22:00', 'Thursday', 'CT HALL', 'Class I', 'Ms. MWAI', NULL, '1', 'Fourth Year', '2026', '2026-03-31 20:08:29'),
+(126, 'BIT4209', 'Distributed Systems', NULL, '07:00', '10:00', 'Thursday', 'CC5', 'Class I', 'Mr. NYAGA', NULL, '2', 'Fourth Year', '2026', '2026-03-31 20:08:29'),
+(127, 'BIT4217', 'Total Quality Management for IT', NULL, '10:00', '13:00', 'Thursday', 'CC2', 'Class I', 'Ms. MWAI', NULL, '1', 'Fourth Year', '2026', '2026-03-31 20:08:29'),
+(128, 'BMA1104', 'Probability and Statistics I', NULL, '13:00', '16:00', 'Thursday', 'CTA 6', 'Class I', 'Mr. KABUE', NULL, '2', 'First Year', '2026', '2026-03-31 20:08:29'),
+(129, 'BMA1106', 'Foundation mathematics', NULL, '16:00', '22:00', 'Thursday', 'CC1', 'Class I', 'Ms. CHEROTICH', NULL, '1', 'First Year', '2026', '2026-03-31 20:08:29'),
+(130, 'BMA1202', 'Discrete Mathematics', NULL, '07:00', '10:00', 'Thursday', 'CC3', 'Class I', 'Mr. KEITANY', NULL, '1', 'Second Year', '2026', '2026-03-31 20:08:29'),
+(131, 'BMA2102', 'Probability and statistics II', NULL, '10:00', '13:00', 'Thursday', 'CC4', 'Class I', 'Ms. CHEROTICH', NULL, '1', 'Second Year', '2026', '2026-03-31 20:08:29'),
+(132, 'BMA3102', 'Business statistics II', NULL, '07:00', '10:00', 'Friday', 'CC6', 'Class I', 'Mr. CHEGE', NULL, '2', 'Second Year', '2026', '2026-03-31 20:08:29'),
+(133, 'BMA3201', 'Operation research I', NULL, '10:00', '13:00', 'Friday', 'CC7', 'Class I', 'Mr. KEITANY', NULL, '1', 'Third Year', '2026', '2026-03-31 20:08:29'),
+(134, 'BUCU007', 'Communication Skills and Academic Writing', NULL, '13:00', '16:00', 'Friday', 'CTA HALL', 'Class I', 'Mrs. AREGE', NULL, '1', 'First Year', '2026', '2026-03-31 20:08:29'),
+(135, 'BUCU009', 'Climate Change and Development', NULL, '16:00', '22:00', 'Friday', 'FLT HALL B', 'Class I', 'Mr. MUINDE', NULL, '2', 'Second Year', '2026', '2026-03-31 20:08:29'),
+(136, 'BUCU011', 'Health Literacy', NULL, '07:00', '10:00', 'Friday', 'CT HALL', 'Class I', 'Mr. OTIENO', NULL, '2', 'First Year', '2026', '2026-03-31 20:08:29'),
+(137, 'BUCU008', 'Digital and Information Literacy Skills', NULL, '10:00', '13:00', 'Friday', 'COMP LAB 1', 'Class I', 'Mr. NYAGA', NULL, '2', 'First Year', '2026', '2026-03-31 20:08:29'),
+(138, 'BIT3105', 'Management Information Systems', NULL, '13:00', '16:00', 'Friday', 'CC2', 'Class I', 'Mr. MITAKI', NULL, '2', 'Second Year', '2026', '2026-03-31 20:08:29'),
+(139, 'BIT3224', 'Computing Projects Dev Approaches', NULL, '16:00', '22:00', 'Friday', 'COMP LAB 2', 'Class I', 'Mr. NYAGA', NULL, '2', 'Third Year', '2026', '2026-03-31 20:08:29'),
+(140, 'BUCU010', 'Entrepreneurial Mindset and Finance', NULL, '07:00', '10:00', 'Friday', 'BL 5', 'Class I', 'Ms. NDEGE', NULL, '1', 'Second Year', '2026', '2026-03-31 20:08:29');
 
 -- --------------------------------------------------------
 
@@ -630,9 +633,8 @@ CREATE TABLE `users` (
 
 INSERT INTO `users` (`id`, `full_name`, `reg_number`, `email`, `password`, `role`, `department`, `created_at`, `survey_done`) VALUES
 (1, 'System Admin', 'ADMIN/001', 'admin@mku.ac.ke', '$2y$10$P.VKg4sPX1yHxleIOEwf1OKlHbYUWXlERdv.GC4clNTvCJWjwS5uG', 'admin', '', '2026-01-18 19:01:19', 1),
-(30, 'Chepkonga', 'BEC/2026/00003', 'novrah4g@gmail.com', '$2y$10$OVp3ZSt4QeD0m1diYkBmdeZJ4QuK8jN9Fh5n3hYBnl2ysoACZYFUS', 'student', 'Enterprise Computing', '2026-03-25 06:02:57', 1),
 (33, 'Chepchieng Noah', 'BIT/2026/00005', 'veramichael678@gmail.com', '$2y$10$HDIZVtQDe3GxqEoAoNRiIOiAH95HbECQgCB2JEPBNnnLaKbpCwjgq', 'student', 'Information Technology', '2026-04-01 07:10:08', 1),
-(35, 'Noah chep', 'BBM/2026/00006', 'noahchep1@gmail.com', '$2y$10$ApEYH3mh0fcxImyA0ZdttO/KfIIakBPchD99T5Sl/zzuxtzZS5sTq', 'student', 'Management', '2026-04-01 11:42:43', 0);
+(37, 'Noah chep', 'BIT/2026/00006', 'noahchep1@gmail.com', '$2y$10$xNhD5sTgnZ3W9SaTLD3qruqWV7XTXZ8htAkRBd4ZtNjSRCW1QhMTe', 'student', 'Information Technology', '2026-04-08 12:58:55', 0);
 
 -- --------------------------------------------------------
 
@@ -803,7 +805,7 @@ ALTER TABLE `ai_knowledge_base`
 -- AUTO_INCREMENT for table `chat_messages`
 --
 ALTER TABLE `chat_messages`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=257;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=259;
 
 --
 -- AUTO_INCREMENT for table `registered_courses`
@@ -827,7 +829,7 @@ ALTER TABLE `timetable`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=36;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
 
 --
 -- AUTO_INCREMENT for table `vocabulary`
