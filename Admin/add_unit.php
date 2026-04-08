@@ -2,171 +2,174 @@
 /* ==========================
    DATABASE CONNECTION
 ========================== */
-include_once('db_connect.php');
+header('Content-Type: application/json');
 
+$conn = mysqli_connect("localhost", "root", "", "Portal-Asisstant-AI");
 if (!$conn) {
-    $conn = mysqli_connect("localhost", "root", "", "Portal-Asisstant-AI");
+    echo json_encode(['error' => 'Database connection failed']);
+    exit;
 }
 
-$message = "";
+// Get POST data
+$data = json_decode(file_get_contents('php://input'), true);
 
-/* ==========================
-   INSERT UNIT LOGIC
-========================== */
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['save_unit'])) {
+$day_of_week = $data['day_of_week'] ?? '';
+$time_from = $data['time_from'] ?? '';
+$time_to = $data['time_to'] ?? '';
+$venue = $data['venue'] ?? '';
+$lecturer = $data['lecturer'] ?? '';
+$semester = $data['semester'] ?? '';
+$academic_year = $data['academic_year'] ?? '';
+$exclude_unit = $data['unit_code'] ?? '';
 
-    // 1. Collect and Sanitize (Added department)
-    $unit_code      = mysqli_real_escape_string($conn, trim($_POST['unit_code']));
-    $course_title   = mysqli_real_escape_string($conn, $_POST['course_title']);
-    $dept           = mysqli_real_escape_string($conn, $_POST['department']); // New Field
-    $day_of_week    = mysqli_real_escape_string($conn, $_POST['day_of_week']); 
-    $time_from      = mysqli_real_escape_string($conn, $_POST['time_from']);
-    $time_to        = mysqli_real_escape_string($conn, $_POST['time_to']);
-    $venue          = mysqli_real_escape_string($conn, $_POST['venue']);
-    $unit_group     = mysqli_real_escape_string($conn, $_POST['unit_group']);
-    $lecturer       = mysqli_real_escape_string($conn, $_POST['lecturer']);
-    $exam_date      = mysqli_real_escape_string($conn, $_POST['exam_date']);
-    $semester       = mysqli_real_escape_string($conn, $_POST['semester']);
-    $academic_year  = mysqli_real_escape_string($conn, $_POST['academic_year']);
+// ========== VALIDATE REQUIRED FIELDS ==========
+if (empty($day_of_week)) {
+    echo json_encode([
+        'has_conflicts' => false,
+        'conflicts' => [],
+        'message' => 'Please select a day of the week.'
+    ]);
+    exit;
+}
 
-    // 2. Updated SQL Statement (Added department)
-    $sql = "INSERT INTO timetable 
-            (unit_code, course_title, department, day_of_week, time_from, time_to, venue, unit_group, 
-             lecturer, exam_date, semester, academic_year) 
-            VALUES 
-            ('$unit_code','$course_title','$dept','$day_of_week','$time_from','$time_to','$venue',
-             '$unit_group','$lecturer','$exam_date','$semester','$academic_year')";
+if (empty($time_from) || empty($time_to)) {
+    echo json_encode([
+        'has_conflicts' => false,
+        'conflicts' => [],
+        'message' => 'Please select both start and end times.'
+    ]);
+    exit;
+}
 
-    // 3. Execution & Error Handling
-    if (mysqli_query($conn, $sql)) {
-        $message = "success|Unit added to $dept timetable successfully.";
-    } else {
-        if (mysqli_errno($conn) == 1062) {
-            $message = "error|Unit code '$unit_code' already exists for this semester.";
-        } else {
-            $message = "error|Database Error: " . mysqli_error($conn);
+// ========== VALIDATE TIME ORDER ==========
+function convertTimeToMinutes($time) {
+    if (empty($time)) return 0;
+    $parts = explode(':', $time);
+    return (intval($parts[0]) * 60) + intval($parts[1]);
+}
+
+function timeOverlaps($start1, $end1, $start2, $end2) {
+    $start1_min = convertTimeToMinutes($start1);
+    $end1_min = convertTimeToMinutes($end1);
+    $start2_min = convertTimeToMinutes($start2);
+    $end2_min = convertTimeToMinutes($end2);
+    return ($start1_min < $end2_min && $start2_min < $end1_min);
+}
+
+// Check if end time is after start time
+if (convertTimeToMinutes($time_from) >= convertTimeToMinutes($time_to)) {
+    echo json_encode([
+        'has_conflicts' => true,
+        'conflicts' => [['type' => 'time', 'message' => 'End time must be after start time.']],
+        'message' => '<strong>⚠️ Invalid Time:</strong><br>• End time must be after start time.<br><br>Please correct the time.'
+    ]);
+    exit;
+}
+
+$conflicts = [];
+
+// ========== CHECK VENUE CONFLICTS ==========
+if (!empty($venue)) {
+    $query = "SELECT unit_code, course_title, time_from, time_to 
+              FROM timetable 
+              WHERE venue = ? 
+              AND day_of_week = ? 
+              AND semester = ? 
+              AND academic_year = ?";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("ssss", $venue, $day_of_week, $semester, $academic_year);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    while ($row = $result->fetch_assoc()) {
+        if ($row['unit_code'] != $exclude_unit && timeOverlaps($time_from, $time_to, $row['time_from'], $row['time_to'])) {
+            $conflicts[] = [
+                'type' => 'venue',
+                'item' => $venue,
+                'day' => $day_of_week,
+                'conflicting_unit' => $row['unit_code'],
+                'conflicting_title' => $row['course_title'],
+                'conflicting_time' => $row['time_from'] . ' - ' . $row['time_to'],
+                'message' => "Venue already booked for {$row['unit_code']} on {$day_of_week} at {$row['time_from']} - {$row['time_to']}"
+            ];
         }
     }
+    $stmt->close();
 }
+
+// ========== CHECK LECTURER CONFLICTS ==========
+if (!empty($lecturer)) {
+    $query = "SELECT unit_code, course_title, time_from, time_to 
+              FROM timetable 
+              WHERE lecturer = ? 
+              AND day_of_week = ? 
+              AND semester = ? 
+              AND academic_year = ?";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("ssss", $lecturer, $day_of_week, $semester, $academic_year);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    while ($row = $result->fetch_assoc()) {
+        if ($row['unit_code'] != $exclude_unit && timeOverlaps($time_from, $time_to, $row['time_from'], $row['time_to'])) {
+            $conflicts[] = [
+                'type' => 'lecturer',
+                'item' => $lecturer,
+                'day' => $day_of_week,
+                'conflicting_unit' => $row['unit_code'],
+                'conflicting_title' => $row['course_title'],
+                'conflicting_time' => $row['time_from'] . ' - ' . $row['time_to'],
+                'message' => "Lecturer already teaching {$row['unit_code']} on {$day_of_week} at {$row['time_from']} - {$row['time_to']}"
+            ];
+        }
+    }
+    $stmt->close();
+}
+
+// ========== BUILD RESPONSE MESSAGE ==========
+$message = '';
+if (!empty($conflicts)) {
+    $message = '<strong>⚠️ Conflicts Detected on ' . htmlspecialchars($day_of_week) . ':</strong><br><br>';
+    foreach ($conflicts as $conflict) {
+        if ($conflict['type'] == 'venue') {
+            $message .= "📍 <strong>Venue Conflict:</strong> '{$conflict['item']}'<br>";
+            $message .= "   └─ {$conflict['message']}<br><br>";
+        } elseif ($conflict['type'] == 'lecturer') {
+            $message .= "👨‍🏫 <strong>Lecturer Conflict:</strong> '{$conflict['item']}'<br>";
+            $message .= "   └─ {$conflict['message']}<br><br>";
+        } elseif ($conflict['type'] == 'time') {
+            $message .= "⏰ <strong>Time Error:</strong> {$conflict['message']}<br><br>";
+        }
+    }
+    $message .= '💡 <strong>Suggestions:</strong><br>';
+    $message .= '• Try a different time slot on the same day<br>';
+    $message .= '• Try a different day of the week<br>';
+    $message .= '• Choose a different venue or lecturer<br>';
+} else {
+    // No conflicts - show success message
+    $message = '<strong>✅ No Conflicts Detected!</strong><br><br>';
+    $message .= '✓ Venue <strong>' . htmlspecialchars($venue) . '</strong> is available on ' . htmlspecialchars($day_of_week) . ' at this time<br>';
+    if (!empty($lecturer)) {
+        $message .= '✓ Lecturer <strong>' . htmlspecialchars($lecturer) . '</strong> is available on ' . htmlspecialchars($day_of_week) . ' at this time<br>';
+    }
+    $message .= '<br>You can safely schedule this unit.';
+}
+
+// ========== RETURN RESPONSE ==========
+echo json_encode([
+    'has_conflicts' => !empty($conflicts),
+    'conflicts' => $conflicts,
+    'message' => $message,
+    'debug' => [
+        'day_of_week' => $day_of_week,
+        'time_from' => $time_from,
+        'time_to' => $time_to,
+        'venue' => $venue,
+        'lecturer' => $lecturer,
+        'semester' => $semester,
+        'academic_year' => $academic_year
+    ]
+]);
+
+$conn->close();
 ?>
-
-<style>
-    .form-container { background: #fff; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; font-family: sans-serif; }
-    .msg-box { padding: 12px; margin-bottom: 20px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; }
-    .msg-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
-    .msg-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
-    .grid-form { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-    .full-width { grid-column: span 2; }
-    .form-group label { display: block; font-weight: bold; margin-bottom: 5px; color: #475569; font-size: 0.85rem; }
-    .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
-    .btn-save { background: #4f46e5; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
-    .btn-save:hover { background: #3730a3; }
-</style>
-
-<div class="form-container">
-    <h2 style="margin-top:0; color: #1e293b; font-size: 1.25rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">
-        Add Unit to Current Timetable
-    </h2>
-
-    <?php if ($message): 
-        $parts = explode('|', $message); ?>
-        <div class="msg-box msg-<?php echo $parts[0]; ?>">
-            <?php echo $parts[1]; ?>
-        </div>
-    <?php endif; ?>
-
-    <form method="post" action="Admin-index.php?section=add_unit" class="grid-form">
-        
-        <div class="form-group">
-            <label>Unit Code</label>
-            <input type="text" name="unit_code" required placeholder="e.g. BIT 2203">
-        </div>
-
-        <div class="form-group">
-            <label>Course Title</label>
-            <input type="text" name="course_title" required>
-        </div>
-
-        <div class="form-group full-width">
-            <label>Department Access</label>
-            <select name="department" required>
-                <option value="">-- Choose Department --</option>
-                <optgroup label="Computing & Informatics">
-                    <option value="Information Technology">Information Technology</option>
-                    <option value="Information Science">Information Science & Knowledge Management</option>
-                </optgroup>
-                <optgroup label="Business & Economics">
-                    <option value="Management">Management</option>
-                    <option value="Economics">Economics</option>
-                    <option value="Accounting and Finance">Accounting and Finance</option>
-                </optgroup>
-                <optgroup label="Health Sciences & Medicine">
-                    <option value="Community Health">Community Health</option>
-                    <option value="Nursing">Nursing</option>
-                    <option value="Pharmacy">Pharmacy</option>
-                </optgroup>
-                </select>
-        </div>
-
-        <div class="form-group">
-            <label>Day of Week</label>
-            <select name="day_of_week" required>
-                <option value="">-- Select Day --</option>
-                <option value="Monday">Monday</option>
-                <option value="Tuesday">Tuesday</option>
-                <option value="Wednesday">Wednesday</option>
-                <option value="Thursday">Thursday</option>
-                <option value="Friday">Friday</option>
-            </select>
-        </div>
-
-        <div class="form-group">
-            <label>Venue</label>
-            <input type="text" name="venue" placeholder="e.g. CC1">
-        </div>
-
-        <div class="form-group">
-            <label>Time From</label>
-            <input type="time" name="time_from" required>
-        </div>
-
-        <div class="form-group">
-            <label>Time To</label>
-            <input type="time" name="time_to" required>
-        </div>
-
-        <div class="form-group">
-            <label>Unit Group</label>
-            <input type="text" name="unit_group" placeholder="e.g. Group A">
-        </div>
-
-        <div class="form-group">
-            <label>Lecturer</label>
-            <input type="text" name="lecturer">
-        </div>
-
-        <div class="form-group">
-            <label>Exam Date</label>
-            <input type="date" name="exam_date">
-        </div>
-
-        <div class="form-group">
-            <label>Semester</label>
-            <select name="semester" required>
-                <option value="">-- Select --</option>
-                <option value="1">Jan – Apr</option>
-                <option value="2">May – Aug</option>
-                <option value="3">Sep – Dec</option>
-            </select>
-        </div>
-
-        <div class="form-group">
-            <label>Academic Year</label>
-            <input type="text" name="academic_year" required placeholder="2026">
-        </div>
-
-        <div class="full-width">
-            <button type="submit" name="save_unit" class="btn-save">Save Unit to Timetable</button>
-        </div>
-    </form>
-</div>
