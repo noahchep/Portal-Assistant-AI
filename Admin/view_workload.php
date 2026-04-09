@@ -113,7 +113,7 @@ $count = mysqli_num_rows($result);
 
         <optgroup label="Hospitality & Tourism">
             <option value="Hospitality Management" <?php if($dept_filter == 'Hospitality Management') echo 'selected'; ?>>Hospitality Management</option>
-            <option value="Travel and Tourism" <?php if($dept_filter == 'Travel and Tourism') echo 'selected'; ?>>Travel and Tourism Management</option>
+            <option value="Travel and Tourism Management" <?php if($dept_filter == 'Travel and Tourism Management') echo 'selected'; ?>>Travel and Tourism Management</option>
         </optgroup>
     </select>
 
