@@ -95,11 +95,11 @@ header('Content-Disposition: attachment; filename="timetable_' . $student['reg_n
         .header {
             text-align: center;
             margin-bottom: 30px;
-            border-bottom: 2px solid #4CAF50;
+            border-bottom: 2px solid #4f46e5;
             padding-bottom: 20px;
         }
         .header h1 {
-            color: #4CAF50;
+            color: #4f46e5;
             margin: 0;
         }
         .header p {
@@ -112,7 +112,7 @@ header('Content-Disposition: attachment; filename="timetable_' . $student['reg_n
             margin-top: 20px;
         }
         .timetable th {
-            background-color: #4CAF50;
+            background-color: #4f46e5;
             color: white;
             padding: 12px;
             text-align: left;
