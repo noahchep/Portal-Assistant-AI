@@ -29,24 +29,50 @@ $user = mysqli_fetch_assoc($user_q);
 
 $reg_number = $user['reg_number'];
 $full_name  = $user['full_name'];
-$department = $user['department'];
+$student_department = $user['department'];  // This is the key!
 
 /* ==========================
-   FETCH TIMETABLE DATA
+   FETCH TIMETABLE DATA - FILTERED BY DEPARTMENT
 ========================== */
 $semester = "Jan-Apr";
 $academic_year = "2025/2026";
 
-// Orders logically by day of the week, then by time
+// IMPORTANT: Filter by student's department!
 $timetable_q = mysqli_query(
     $conn, 
     "SELECT * FROM timetable 
+     WHERE department = '$student_department'
      ORDER BY FIELD(day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'), 
      time_from ASC"
 );
 
 if (!$timetable_q) {
     die("Timetable query failed: " . mysqli_error($conn));
+}
+
+// Get the program name based on department
+$program_name = "";
+switch($student_department) {
+    case 'Information Technology':
+        $program_name = "Bachelor of Science in Information Technology";
+        break;
+    case 'Management':
+        $program_name = "Bachelor of Business Management";
+        break;
+    case 'Economics':
+        $program_name = "Bachelor of Economics";
+        break;
+    case 'Accounting and Finance':
+        $program_name = "Bachelor of Accounting and Finance";
+        break;
+    case 'Travel and Tourism Management':
+        $program_name = "Bachelor of Travel and Tourism Management";
+        break;
+    case 'Hospitality Management':
+        $program_name = "Bachelor of Hospitality Management";
+        break;
+    default:
+        $program_name = $student_department;
 }
 ?>
 
@@ -75,14 +101,14 @@ if (!$timetable_q) {
         .branding h1 { margin: 0; font-size: 1.4rem; color: var(--primary); font-weight: 800; }
         .branding small { color: var(--text-light); display: block; font-size: 0.85rem; }
 
-        nav { background: var(--primary); padding: 0 5%; display: flex; gap: 10px; }
+        nav { background: var(--primary); padding: 0 5%; display: flex; gap: 10px; flex-wrap: wrap; }
         nav a { color: rgba(255,255,255,0.8); text-decoration: none; padding: 14px 20px; font-size: 0.9rem; font-weight: 600; transition: 0.3s; border-bottom: 3px solid transparent; }
         nav a:hover { color: white; background: rgba(255,255,255,0.1); }
         nav a.active { color: white; border-bottom: 3px solid white; background: rgba(255,255,255,0.15); }
 
         .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
         
-        .student-strip { background: #e0e7ff; padding: 12px 20px; border-radius: 10px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; color: var(--primary-dark); font-weight: 700; font-size: 0.9rem; }
+        .student-strip { background: #e0e7ff; padding: 12px 20px; border-radius: 10px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; color: var(--primary-dark); font-weight: 700; font-size: 0.9rem; flex-wrap: wrap; gap: 10px; }
 
         .card { background: var(--white); border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); padding: 25px; border: 1px solid var(--border); overflow-x: auto; }
         .card-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 20px; color: var(--text-main); border-bottom: 1px solid var(--border); padding-bottom: 12px; text-align: center; }
@@ -94,6 +120,7 @@ if (!$timetable_q) {
         
         .unit-code { font-weight: 700; color: var(--primary); }
         .day-badge { background: #e0e7ff; color: #4338ca; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 0.75rem; }
+        .no-data { text-align: center; padding: 40px; color: var(--text-light); }
         
         footer { text-align: center; padding: 40px; color: var(--text-light); font-size: 0.85rem; }
     </style>
@@ -126,13 +153,13 @@ if (!$timetable_q) {
 <div class="container">
     <div class="student-strip">
         <span><?php echo "$reg_number | $full_name"; ?></span>
-        <span><?php echo $department; ?></span>
+        <span><?php echo $student_department; ?></span>
     </div>
 
     <div class="card">
         <div class="card-title">
             WEEKLY TEACHING SCHEDULE<br>
-            <span style="font-size: 0.8rem; font-weight: 400; color: var(--text-light);">Bachelor of Science in Information Technology (<?php echo $semester; ?>)</span>
+            <span style="font-size: 0.8rem; font-weight: 400; color: var(--text-light);"><?php echo $program_name; ?> (<?php echo $semester; ?>)</span>
         </div>
 
         <table>
@@ -143,7 +170,8 @@ if (!$timetable_q) {
                     <th>Course Title</th>
                     <th>Time From</th>
                     <th>Time To</th>
-                    <th>Day</th> <th>Venue</th>
+                    <th>Day</th>
+                    <th>Venue</th>
                     <th>Group</th>
                     <th>Lecturer</th>
                     <th>Exam Date</th>
@@ -160,7 +188,8 @@ if (!$timetable_q) {
                             <td style='text-align:left;'>{$row['course_title']}</td>
                             <td>" . date("H:i", strtotime($row['time_from'])) . "</td>
                             <td>" . date("H:i", strtotime($row['time_to'])) . "</td>
-                            <td><span class='day-badge'>{$row['day_of_week']}</span></td> <td><strong>{$row['venue']}</strong></td>
+                            <td><span class='day-badge'>{$row['day_of_week']}</span></td>
+                            <td><strong>{$row['venue']}</strong></td>
                             <td>{$row['unit_group']}</td>
                             <td>{$row['lecturer']}</td>
                             <td>" . ($row['exam_date'] ?: '<span style="color:#ccc;">TBD</span>') . "</td>
@@ -168,7 +197,11 @@ if (!$timetable_q) {
                         $counter++;
                     }
                 } else {
-                    echo "<tr><td colspan='10' style='padding:40px; color:var(--text-light);'>No timetable records found for this semester.</td></tr>";
+                    echo "<tr><td colspan='10' class='no-data'>
+                        <strong>⚠️ No timetable found for your department.</strong><br><br>
+                        Your department: <strong>{$student_department}</strong><br>
+                        Please contact the academic office or ask the admin to schedule units for your department.
+                    </td></tr>";
                 }
                 ?>
             </tbody>

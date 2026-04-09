@@ -24,12 +24,18 @@ $user_query = mysqli_query($conn, "SELECT full_name, department, survey_done FRO
 $user_data = mysqli_fetch_assoc($user_query);
 
 $student_name = $user_data['full_name'] ?? 'Unknown Student';
-// CAPTURING THE DEPARTMENT
 $student_dept = $user_data['department'] ?? 'General';
 $survey_done_status = $user_data['survey_done'] ?? 0;
 
 $semester = "Jan/Apr";
 $academic_year = "2026";
+
+// Get current semester from session or default to 1
+$current_semester_num = $_SESSION['current_semester'] ?? 1;
+$current_semester_name = ($current_semester_num == 1) ? '1st Semester' : '2nd Semester';
+
+// Get student's year level from session (set during login)
+$student_year_level = $_SESSION['student_year'] ?? 'First Year';
 
 /* ===============================
     CORE LOGIC: REGISTRATION
@@ -45,16 +51,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['register_btn'])) {
     $max_allowed = 8;
 
     if ($current_total >= $max_allowed) {
-        echo "<script>alert('Error: You have already registered the maximum limit of $max_allowed units.'); window.location='registration.php';</script>";
+        echo "<script>alert('Error: You have already registered the maximum limit of $max_allowed units.'); window.location='" . $_SERVER['PHP_SELF'] . "';</script>";
         exit();
     }
 
     $added_this_session = 0;
 
-    for ($i = 1; $i <= 8; $i++) {
+    for ($i = 1; $i <= 6; $i++) {
         if (!empty($_POST["courseCode$i"])) {
             
-            // Check if limit is reached during the loop
             if (($current_total + $added_this_session) >= $max_allowed) {
                 break; 
             }
@@ -63,8 +68,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['register_btn'])) {
             $exam_type   = mysqli_real_escape_string($conn, $_POST["examType$i"]);
             $class_group = mysqli_real_escape_string($conn, $_POST["classCode$i"]);
 
-            // Check if the unit exists in the master timetable
-            $check = mysqli_query($conn, "SELECT 1 FROM timetable WHERE unit_code='$unit_code' LIMIT 1");
+            // Check if the unit exists in the timetable AND belongs to student's department AND is for current semester
+            $check = mysqli_query($conn, "SELECT t.unit_code FROM timetable t 
+                                          INNER JOIN academic_workload aw ON t.unit_code = aw.unit_code 
+                                          WHERE t.unit_code='$unit_code' 
+                                          AND aw.department='$student_dept'
+                                          AND t.year_level='$student_year_level'
+                                          AND t.semester='$current_semester_num'
+                                          LIMIT 1");
+            
             if (mysqli_num_rows($check) > 0) {
                 $insert = mysqli_query($conn, "INSERT IGNORE INTO registered_courses 
                     (student_reg_no, unit_code, exam_type, class_group, semester, academic_year, status, department)
@@ -77,7 +89,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['register_btn'])) {
         }
     }
 
-    header("Location: registration.php?added=$added_this_session");
+    header("Location: " . $_SERVER['PHP_SELF'] . "?added=" . $added_this_session);
     exit();
 }
 
@@ -87,13 +99,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['register_btn'])) {
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['selected_units'])) {
     $units = $_POST['selected_units']; 
 
-    // 1. REDIRECT TO SURVEY: Only if they click Confirm and haven't done the survey
+    // REDIRECT TO SURVEY: Only if they click Confirm and haven't done the survey
     if (isset($_POST['btn_confirm_action']) && $survey_done_status == 0) {
         header("Location: survey.php");
         exit();
     }
 
-    // 2. PROCESS ACTION: Run if survey is done OR if they are dropping units
+    // PROCESS ACTION: Confirm or Drop
     foreach ($units as $u_code) {
         $u_code = mysqli_real_escape_string($conn, $u_code);
         
@@ -104,7 +116,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['selected_units'])) {
         }
     }
 
-    header("Location: registration.php?updated=1");
+    header("Location: " . $_SERVER['PHP_SELF'] . "?updated=1");
     exit();
 }
 
@@ -158,13 +170,13 @@ if (!$confirmed || !$provisional) {
         nav a.active { color: white; border-bottom: 3px solid white; background: rgba(255,255,255,0.15); }
 
         .container { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
-        .student-strip { background: #e0e7ff; padding: 12px 20px; border-radius: 10px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; color: var(--primary-dark); font-weight: 700; font-size: 0.9rem; }
+        .student-strip { background: #e0e7ff; padding: 12px 20px; border-radius: 10px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; color: var(--primary-dark); font-weight: 700; font-size: 0.9rem; flex-wrap: wrap; gap: 10px; }
 
         .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); padding: 25px; margin-bottom: 30px; border: 1px solid var(--border); }
         .card-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 20px; color: var(--text-main); display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
 
         table { width: 100%; border-collapse: collapse; }
-        th { text-align: left; background: #f1f5f9; padding: 12px; font-size: 0.75rem; text-transform: uppercase; color: var(--text-light); }
+        th { text-align: left; background: #f1f5f9; padding: 12px; font-size: 0.75rem; text-transform: uppercase; color: var(--text-light); border-bottom: 1px solid var(--border); }
         td { padding: 14px 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
 
         .btn { padding: 10px 22px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: 0.2s; display: inline-flex; align-items: center; }
@@ -217,6 +229,7 @@ if (!$confirmed || !$provisional) {
    <div class="student-strip">
     <span><?php echo htmlspecialchars($reg_number); ?> | <?php echo htmlspecialchars($student_name); ?></span>
     <span><?php echo htmlspecialchars($student_dept); ?></span>
+    <span><?php echo $student_year_level; ?> - <?php echo $current_semester_name; ?></span>
 </div>
 
     <?php if(isset($_GET['survey_complete'])): ?>
@@ -225,52 +238,99 @@ if (!$confirmed || !$provisional) {
         </div>
     <?php endif; ?>
 
+    <?php if(isset($_GET['added']) && $_GET['added'] > 0): ?>
+        <div class="card" style="background: #dcfce7; border-left: 5px solid #10b981; color: #166534; padding: 15px; margin-bottom: 20px;">
+            ✅ <strong>Success!</strong> <?php echo htmlspecialchars($_GET['added']); ?> unit(s) added to your provisional registration.
+        </div>
+    <?php endif; ?>
+
+    <?php if(isset($_GET['updated'])): ?>
+        <div class="card" style="background: #dcfce7; border-left: 5px solid #10b981; color: #166534; padding: 15px; margin-bottom: 20px;">
+            ✅ <strong>Success!</strong> Your registration has been updated.
+        </div>
+    <?php endif; ?>
+
+    <!-- Confirmed Units Card -->
     <div class="card">
         <div class="card-title">✅ Confirmed Units</div>
-        <table>
-            <thead>
-                <tr><th>#</th><th>Unit Code & Title</th><th>Exam Type</th><th>Group</th><th>Status</th></tr>
-            </thead>
-            <tbody>
-                <?php $i=1; while($row = mysqli_fetch_assoc($confirmed)): ?>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
                     <tr>
-                        <td><?php echo $i++; ?></td>
-                        <td><strong><?php echo $row['unit_code']; ?></strong> - <?php echo $row['course_title']; ?></td>
-                        <td><?php echo $row['exam_type']; ?></td>
-                        <td><?php echo $row['class_group']; ?></td>
-                        <td><span class="badge bg-success">Confirmed</span></td>
+                        <th>#</th>
+                        <th>Unit Code & Title</th>
+                        <th>Exam Type</th>
+                        <th>Group</th>
+                        <th>Status</th>
                     </tr>
-                <?php endwhile; ?>
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    <?php $i=1; while($row = mysqli_fetch_assoc($confirmed)): ?>
+                        <tr>
+                            <td><?php echo $i++; ?></td>
+                            <td><strong><?php echo htmlspecialchars($row['unit_code']); ?></strong> - <?php echo htmlspecialchars($row['course_title']); ?></td>
+                            <td><?php echo htmlspecialchars($row['exam_type']); ?></td>
+                            <td><?php echo htmlspecialchars($row['class_group']); ?></td>
+                            <td><span class="badge bg-success">Confirmed</span></td>
+                        </tr>
+                    <?php endwhile; ?>
+                    <?php if($i==1): ?>
+                        <tr>
+                            <td colspan="5" style="text-align:center; color:#666; padding: 30px;">No confirmed units yet.</td>
+                        </tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
     </div>
 
-    <form action="" method="POST">
+    <!-- Provisional Units Card - FIXED -->
+    <form method="POST">
     <div class="card">
         <div class="card-title" style="color: var(--warning);">⏳ Provisional Units</div>
-        <table>
-            <thead>
-                <tr><th width="40">Select</th><th>Unit Code & Title</th><th>Exam Type</th><th>Group</th><th>Action</th></tr>
-            </thead>
-            <tbody>
-                <?php while($row = mysqli_fetch_assoc($provisional)): ?>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
                     <tr>
-                        <td align="center"><input type="checkbox" name="selected_units[]" value="<?php echo $row['unit_code']; ?>"></td>
-                        <td><strong><?php echo $row['unit_code']; ?></strong> - <?php echo $row['course_title']; ?></td>
-                        <td><?php echo $row['exam_type']; ?></td>
-                        <td><?php echo $row['class_group']; ?></td>
-                        <td><span class="badge bg-warning">Pending</span></td>
+                        <th width="40">Select</th>
+                        <th>Unit Code & Title</th>
+                        <th width="100">Exam Type</th>
+                        <th width="80">Group</th>
+                        <th width="80">Status</th>
                     </tr>
-                <?php endwhile; ?>
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    <?php 
+                    $has_provisional = false;
+                    while($row = mysqli_fetch_assoc($provisional)): 
+                        $has_provisional = true;
+                    ?>
+                        <tr>
+                            <td align="center"><input type="checkbox" name="selected_units[]" value="<?php echo $row['unit_code']; ?>"></td>
+                            <td><strong><?php echo htmlspecialchars($row['unit_code']); ?></strong> - <?php echo htmlspecialchars($row['course_title']); ?></td>
+                            <td><?php echo htmlspecialchars($row['exam_type']); ?></td>
+                            <td><?php echo htmlspecialchars($row['class_group']); ?></td>
+                            <td><span class="badge bg-warning">Pending</span></td>
+                        </tr>
+                    <?php endwhile; ?>
+                    <?php if(!$has_provisional): ?>
+                        <tr>
+                            <td colspan="5" style="text-align:center; color:#666; padding: 30px;">No provisional units. Add units below.</td>
+                        </tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php if($has_provisional): ?>
         <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
             <button type="submit" name="btn_drop_action" class="btn btn-outline" style="color:red;">Drop Selected</button>
             <button type="submit" name="btn_confirm_action" class="btn btn-success">Confirm Units</button>
         </div>
+        <?php endif; ?>
     </div>
     </form>
 
+    <!-- Register New Courses Card -->
     <div class="card">
         <div class="card-title">
             ➕ Register New Courses 
@@ -278,37 +338,88 @@ if (!$confirmed || !$provisional) {
                 Units: <?php echo $slots_used; ?>/8 (<?php echo $remaining; ?> left)
             </span>
         </div>
-        <form action="" method="POST">
-            <input type="hidden" name="register_btn" value="1">
-            <table>
-                <thead>
-                    <tr><th width="50">#</th><th>Unit Code</th><th>Exam Type</th><th>Class Group</th></tr>
-                </thead>
-                <tbody>
-                    <?php for($k=1; $k<=6; $k++): ?>
-                        <tr>
-                            <td align="center"><?php echo $k; ?></td>
-                            <td><input type="text" name="courseCode<?php echo $k; ?>" placeholder="e.g. BBT 1102" <?php if($remaining <= 0) echo 'disabled'; ?>></td>
-                            <td>
-                                <select name="examType<?php echo $k; ?>" <?php if($remaining <= 0) echo 'disabled'; ?>>
-                                    <option>Regular</option><option>Retake</option>
-                                </select>
-                            </td>
-                            <td>
-                                <select name="classCode<?php echo $k; ?>" <?php if($remaining <= 0) echo 'disabled'; ?>>
-                                    <option>Day</option><option>Evening</option>
-                                </select>
-                            </td>
-                        </tr>
-                    <?php endfor; ?>
-                </tbody>
-            </table>
-            <div style="text-align: center; margin-top: 25px;">
-                <button type="submit" class="btn btn-primary" style="padding: 12px 40px;" <?php if($remaining <= 0) echo 'disabled style="background:#94a3b8; cursor:not-allowed;"'; ?>>
-                    <?php echo ($remaining <= 0) ? 'Limit Reached' : 'Submit Registration'; ?>
-                </button>
+        
+        <?php
+        // Fetch ONLY units for the student's current semester from timetable
+        $available_units_query = "SELECT DISTINCT t.unit_code, t.course_title 
+                                  FROM timetable t 
+                                  INNER JOIN academic_workload aw ON t.unit_code = aw.unit_code
+                                  WHERE aw.department = '$student_dept' 
+                                  AND t.year_level = '$student_year_level'
+                                  AND t.semester = '$current_semester_num'
+                                  ORDER BY t.unit_code";
+        
+        $available_units_result = mysqli_query($conn, $available_units_query);
+        $available_units_list = [];
+        while ($au = mysqli_fetch_assoc($available_units_result)) {
+            $available_units_list[] = $au;
+        }
+        ?>
+        
+        <?php if(empty($available_units_list)): ?>
+            <div class="card" style="background: #fef3c7; border-left: 5px solid #f59e0b; color: #92400e; padding: 15px; margin-bottom: 20px;">
+                ⚠️ <strong>No units available for registration!</strong><br>
+                There are no units scheduled for <?php echo $student_year_level; ?> - <?php echo $current_semester_name; ?> in your department (<?php echo $student_dept; ?>).<br>
+                Please contact the academic office.
             </div>
-        </form>
+        <?php else: ?>
+            <form method="POST">
+                <input type="hidden" name="register_btn" value="1">
+                <datalist id="unit-codes">
+                    <?php foreach($available_units_list as $au): ?>
+                        <option value="<?php echo $au['unit_code']; ?>"><?php echo $au['unit_code'] . ' - ' . $au['course_title']; ?></option>
+                    <?php endforeach; ?>
+                </datalist>
+                
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th width="50">#</th>
+                                <th>Unit Code</th>
+                                <th width="120">Exam Type</th>
+                                <th width="120">Class Group</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php for($k=1; $k<=6; $k++): ?>
+                                <tr>
+                                    <td align="center"><?php echo $k; ?></td>
+                                    <td>
+                                        <input type="text" name="courseCode<?php echo $k; ?>" 
+                                               placeholder="Select unit code" 
+                                               list="unit-codes"
+                                               autocomplete="off"
+                                               <?php if($remaining <= 0) echo 'disabled'; ?>>
+                                    </td>
+                                    <td>
+                                        <select name="examType<?php echo $k; ?>" <?php if($remaining <= 0) echo 'disabled'; ?>>
+                                            <option value="Regular">Regular</option>
+                                            <option value="Retake">Retake</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select name="classCode<?php echo $k; ?>" <?php if($remaining <= 0) echo 'disabled'; ?>>
+                                            <option value="Day">Day</option>
+                                            <option value="Evening">Evening</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                            <?php endfor; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <div style="text-align: center; margin-top: 25px;">
+                    <button type="submit" class="btn btn-primary" style="padding: 12px 40px;" <?php if($remaining <= 0 || empty($available_units_list)) echo 'disabled style="background:#94a3b8; cursor:not-allowed;"'; ?>>
+                        <?php 
+                        if($remaining <= 0) echo 'Limit Reached (8/8)';
+                        elseif(empty($available_units_list)) echo 'No Units Available';
+                        else echo 'Submit Registration';
+                        ?>
+                    </button>
+                </div>
+            </form>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -358,6 +469,12 @@ if (!$confirmed || !$provisional) {
             box.innerHTML += `<div class="msg msg-bot" style="color:red">Connection error.</div>`;
         }
     }
+    
+    document.getElementById('chat-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            sendChatMessage();
+        }
+    });
 </script>
 
 <footer>

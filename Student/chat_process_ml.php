@@ -17,6 +17,89 @@ $sess_id = session_id();
 $user_input = strtolower(trim($_POST['message'] ?? ''));
 if (empty($user_input)) { exit; }
 
+/* ============================================================
+    1.5. DEPARTMENT HELPER FUNCTIONS
+============================================================ */
+
+// Get student's department from session
+function getStudentDepartment() {
+    if (isset($_SESSION['student_department'])) {
+        return $_SESSION['student_department'];
+    }
+    if (isset($_SESSION['department'])) {
+        return $_SESSION['department'];
+    }
+    return null;
+}
+
+// Get student's year level from registration number
+function getStudentYearLevelFromReg($student_reg) {
+    if (preg_match('/\/(\d{4})\//', $student_reg, $matches)) {
+        $admission_year = intval($matches[1]);
+        $current_year = date('Y');
+        $year_diff = $current_year - $admission_year;
+        
+        if ($year_diff == 0) return 'First Year';
+        if ($year_diff == 1) return 'Second Year';
+        if ($year_diff == 2) return 'Third Year';
+        if ($year_diff >= 3) return 'Fourth Year';
+    }
+    return 'First Year';
+}
+
+// Get units filtered by student's department from academic_workload
+function getUnitsByStudentDepartment($conn, $department, $year_level, $semester_num) {
+    if (!$department) {
+        return [];
+    }
+    
+    $semester_name = ($semester_num == 1) ? '1st Semester' : '2nd Semester';
+    
+    $query = "SELECT unit_code, unit_name, year_level, semester_level, offering_time 
+              FROM academic_workload 
+              WHERE department = ? 
+              AND year_level = ? 
+              AND semester_level = ? 
+              ORDER BY unit_code";
+    
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("sss", $department, $year_level, $semester_name);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    $units = [];
+    while ($row = $result->fetch_assoc()) {
+        $units[] = $row;
+    }
+    return $units;
+}
+
+// Get timetable filtered by student's department
+function getStudentTimetableByDepartment($conn, $department, $year_level, $semester_num) {
+    if (!$department) {
+        return [];
+    }
+    
+    $query = "SELECT t.unit_code, t.course_title, t.day_of_week, t.time_from, t.time_to, t.venue, t.lecturer 
+              FROM timetable t 
+              INNER JOIN academic_workload aw ON t.unit_code = aw.unit_code
+              WHERE aw.department = ? 
+              AND t.year_level = ? 
+              AND t.semester = ? 
+              ORDER BY FIELD(t.day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'), t.time_from";
+    
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("sss", $department, $year_level, $semester_num);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    $timetable = [];
+    while ($row = $result->fetch_assoc()) {
+        $timetable[] = $row;
+    }
+    return $timetable;
+}
+
 /* ===============================
     2. DICTIONARY / VOCABULARY FUNCTIONS
 ================================ */
@@ -205,24 +288,8 @@ function fuzzySearchUnits($search_term, $conn, $limit = 5) {
 }
 
 /* ============================================================
-    4. UNIT FILTERING & REGISTRATION FUNCTIONS
+    4. UNIT FILTERING & REGISTRATION FUNCTIONS (DEPARTMENT BASED)
 ============================================================ */
-
-// Define the official units to register per year and semester (6 units per semester)
-function getUnitsToRegister($year_level, $semester_num) {
-    $unitsMapping = [
-        'First Year_1' => ['BAF1101', 'BIT1102', 'BBM1101', 'BIT1106', 'BMA1106', 'BUCU007'],
-        'First Year_2' => ['BBM1201', 'BIT1101', 'BIT1201', 'BIT2102', 'BMA1104', 'BUCU008'],
-        'Second Year_1' => ['BBM2103', 'BEG2112', 'BBM1202', 'BIT2205', 'BMA2102', 'BUCU010'],
-        'Second Year_2' => ['BIT2206', 'BIT3101', 'BIT3102', 'BMA3102', 'BUCU009', 'BIT3105'],
-        'Third Year_1' => ['BIT3205', 'BIT3206', 'BIT3201', 'BIT3204', 'BIT3208', 'BMA3201'],
-        'Third Year_2' => ['BIT3224', 'BIT4104', 'BIT4101', 'BIT4105', 'BIT4202', 'BIT4102'],
-        'Fourth Year_1' => ['BIT4201', 'BIT4203', 'BIT4204', 'BIT4205', 'BIT4206', 'BIT4217'],
-        'Fourth Year_2' => ['BIT4103', 'BIT4107', 'BIT4108', 'BIT4209', 'BBM3107']
-    ];
-    $key = $year_level . '_' . $semester_num;
-    return $unitsMapping[$key] ?? [];
-}
 
 // Get student's current year level based on registered courses
 function getStudentYearLevel($conn, $student_reg) {
@@ -240,7 +307,7 @@ function getStudentYearLevel($conn, $student_reg) {
         return $result->fetch_assoc()['year_level'];
     }
     
-    return 'First Year';
+    return getStudentYearLevelFromReg($student_reg);
 }
 
 // Get current semester based on month
@@ -291,12 +358,33 @@ function getUnitTitles($conn, $unit_codes) {
     return $titles;
 }
 
-// Check what units the student has already registered (WITH COURSE NAMES)
+// Check what units the student has already registered - DEPARTMENT BASED
 function getStudentRegisteredUnits($conn, $student_reg, $year_level, $semester_num) {
-    $required_units = getUnitsToRegister($year_level, $semester_num);
+    $student_department = getStudentDepartment();
+    
+    if (!$student_department) {
+        return ['error' => 'Department not found for this student'];
+    }
+    
+    $semester_name = ($semester_num == 1) ? '1st Semester' : '2nd Semester';
+    
+    // Get required units from academic_workload based on department
+    $required_query = "SELECT unit_code, unit_name FROM academic_workload 
+                       WHERE department = ? AND year_level = ? AND semester_level = ?";
+    $stmt = $conn->prepare($required_query);
+    $stmt->bind_param("sss", $student_department, $year_level, $semester_name);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    $required_units = [];
+    $unit_names = [];
+    while ($row = $result->fetch_assoc()) {
+        $required_units[] = $row['unit_code'];
+        $unit_names[$row['unit_code']] = $row['unit_name'];
+    }
     
     if (empty($required_units)) {
-        return ['error' => 'No required units found for this semester'];
+        return ['error' => 'No required units found for your department this semester'];
     }
     
     $placeholders = implode(',', array_fill(0, count($required_units), '?'));
@@ -317,16 +405,13 @@ function getStudentRegisteredUnits($conn, $student_reg, $year_level, $semester_n
     
     $not_registered = array_diff($required_units, $registered);
     
-    // Get course titles for all required units
-    $unit_titles = getUnitTitles($conn, $required_units);
-    
     // Build arrays with names
     $required_with_names = [];
     $registered_with_names = [];
     $not_registered_with_names = [];
     
     foreach ($required_units as $unit) {
-        $unit_name = $unit_titles[$unit] ?? 'Unit Name Not Found';
+        $unit_name = $unit_names[$unit] ?? 'Unit Name Not Found';
         $required_with_names[] = [
             'code' => $unit,
             'name' => $unit_name,
@@ -361,7 +446,7 @@ function getStudentRegisteredUnits($conn, $student_reg, $year_level, $semester_n
     ];
 }
 
-// Format timetable for display (UPDATED with download link)
+// Format timetable for display
 function displayTimetable($timetable, $year_level, $semester_name, $student_reg) {
     if (empty($timetable)) {
         return "<b>⚠️ No timetable found for {$year_level}, {$semester_name}</b><br><br>
@@ -382,7 +467,7 @@ function displayTimetable($timetable, $year_level, $semester_name, $student_reg)
     }
     
     $output .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
-    $output .= "✅ <i>These are the 6 required units for this semester.</i><br><br>";
+    $output .= "✅ <i>These are the required units for this semester.</i><br><br>";
     
     // Generate download link
     $download_token = base64_encode($student_reg . '_' . time());
@@ -397,7 +482,7 @@ function displayTimetable($timetable, $year_level, $semester_name, $student_reg)
 }
 
 /* ===============================
-    5. FUZZY INTENT DETECTION (UPDATED)
+    5. FUZZY INTENT DETECTION
 ================================ */
 function fuzzyDetectIntent($input) {
     $intent_patterns = [
@@ -555,7 +640,7 @@ function detectSocialIntent($input) {
 }
 
 /* ===============================
-    9. ACADEMIC INTENT DETECTION (UPDATED)
+    9. ACADEMIC INTENT DETECTION (UPDATED - FIXED FOR unit_details)
 ================================ */
 function detectIntent($input) {
     $fuzzy_intent = fuzzyDetectIntent($input);
@@ -596,6 +681,12 @@ function detectIntent($input) {
         }
     }
     
+    // CHECK FOR UNIT DETAILS FIRST (BEFORE search_unit)
+    // Pattern: "tell me about", "details about", "info about", "what is", "describe"
+    if (preg_match('/(tell me about|details about|info about|what is|describe|more about)/i', $input) && preg_match('/[A-Z]{3,4}[0-9]{4}/i', $input, $matches)) {
+        return ['intent' => 'unit_details', 'unit_code' => strtoupper($matches[0])];
+    }
+    
     $what_to_register_keywords = ['what to register', 'which units', 'units to register', 'required units', 'what units do i need', 'register this semester', 'what am i supposed to register', 'what units should i register'];
     foreach ($what_to_register_keywords as $keyword) {
         if (strpos($input, $keyword) !== false || fuzzyMatch($input, $keyword, 70)) {
@@ -617,7 +708,6 @@ function detectIntent($input) {
         }
     }
     
-    // Check for download timetable queries
     $download_keywords = ['download timetable', 'download my timetable', 'get timetable pdf', 'save timetable', 'export timetable', 'pdf timetable', 'download schedule'];
     foreach ($download_keywords as $keyword) {
         if (strpos($input, $keyword) !== false || fuzzyMatch($input, $keyword, 70)) {
@@ -712,7 +802,7 @@ $social_responses = [
 ];
 
 /* ===============================
-    12. MAIN ACTION LOGIC (UPDATED)
+    12. MAIN ACTION LOGIC
 ================================ */
 switch ($intent) {
     case 'greet':
@@ -737,10 +827,17 @@ switch ($intent) {
     ============================== */
     case 'what_to_register':
         $student_reg = $_SESSION['reg_number'] ?? null;
+        $student_department = getStudentDepartment();
         
         if (!$student_reg) {
             echo "🔐 Please log in first to see the units you need to register for this semester.<br><br>";
-            echo "💡 <i>Once logged in, I can tell you exactly which 6 units you should register for based on your year level!</i>";
+            echo "💡 <i>Once logged in, I can tell you exactly which units you should register for based on your department!</i>";
+            break;
+        }
+        
+        if (!$student_department) {
+            echo "⚠️ Your department information is missing. Please contact the administrator.<br><br>";
+            echo "💡 <i>Your department is required to show the correct units for your program.</i>";
             break;
         }
         
@@ -748,64 +845,57 @@ switch ($intent) {
         $current_semester_num = getCurrentSemester();
         $semester_name = getSemesterName($current_semester_num);
         
-        $timetable = getStudentTimetable($conn, $student_year, $current_semester_num);
+        $units = getUnitsByStudentDepartment($conn, $student_department, $student_year, $current_semester_num);
         
-        echo "<b>🎓 Units You Must Register For - {$student_year}, {$semester_name}</b><br><br>";
+        echo "<b>🎓 Your {$student_year} - {$semester_name} Units</b><br>";
+        echo "<b>📚 Department: {$student_department}</b><br><br>";
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
-        echo "📌 <b>You are required to register for exactly 6 units this semester.</b><br>";
+        echo "📌 <b>You are required to register for these units this semester.</b><br>";
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br><br>";
         
-        if (!empty($timetable)) {
+        if (!empty($units)) {
             $counter = 1;
-            foreach ($timetable as $unit) {
-                echo "<b>{$counter}. {$unit['unit_code']} - {$unit['course_title']}</b><br>";
-                echo "   📆 <b>Day:</b> " . ($unit['day_of_week'] ?? 'TBA') . "<br>";
-                echo "   ⏰ <b>Time:</b> " . ($unit['time_from'] ?? 'TBA') . " - " . ($unit['time_to'] ?? 'TBA') . "<br>";
-                echo "   📍 <b>Venue:</b> " . ($unit['venue'] ?? 'TBA') . "<br>";
-                echo "   👨‍🏫 <b>Lecturer:</b> " . ($unit['lecturer'] ?? 'TBA') . "<br><br>";
+            foreach ($units as $unit) {
+                echo "<b>{$counter}. {$unit['unit_code']} - {$unit['unit_name']}</b><br>";
+                echo "   📌 <i>Offered: {$unit['offering_time']}</i><br><br>";
                 $counter++;
             }
         } else {
-            $required_units = getUnitsToRegister($student_year, $current_semester_num);
-            $unit_titles = getUnitTitles($conn, $required_units);
-            foreach ($required_units as $index => $unit_code) {
-                $unit_name = $unit_titles[$unit_code] ?? 'Unit Name Not Found';
-                echo "<b>" . ($index + 1) . ". {$unit_code} - {$unit_name}</b><br><br>";
-            }
-        }
-        
-        $reg_status = getStudentRegisteredUnits($conn, $student_reg, $student_year, $current_semester_num);
-        if (!isset($reg_status['error'])) {
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
-            echo "<b>📊 Your Registration Status:</b><br>";
-            echo "✅ Registered: " . count($reg_status['registered']) . " / {$reg_status['total_required']}<br>";
-            
-            if (!empty($reg_status['not_registered_with_names'])) {
-                echo "❌ Missing: ";
-                $missing_codes = array_column($reg_status['not_registered_with_names'], 'code');
-                echo implode(', ', $missing_codes) . "<br><br>";
-                echo "<b>⚠️ Action Required:</b> Please register for the missing units immediately!<br><br>";
-            } else {
-                echo "🎉 Complete! You've registered for all required units!<br><br>";
-            }
+            echo "⚠️ No units found for your department this semester.<br>";
+            echo "💡 Please contact the academic office for assistance.";
         }
         break;
     
     /* ===============================
-        REGISTRATION STATUS (WITH NAMES)
+        REGISTRATION STATUS
     ============================== */
     case 'registration_status':
         $student_reg = $_SESSION['reg_number'] ?? null;
-        if (!$student_reg) { echo "🔐 Please log in to check your registration status."; break; }
+        $student_department = getStudentDepartment();
+        
+        if (!$student_reg) { 
+            echo "🔐 Please log in to check your registration status."; 
+            break; 
+        }
+        
+        if (!$student_department) {
+            echo "⚠️ Your department information is missing. Please contact the administrator.";
+            break;
+        }
         
         $student_year = getStudentYearLevel($conn, $student_reg);
         $current_semester_num = getCurrentSemester();
         $semester_name = getSemesterName($current_semester_num);
         $reg_status = getStudentRegisteredUnits($conn, $student_reg, $student_year, $current_semester_num);
         
-        if (isset($reg_status['error'])) { echo $reg_status['error']; break; }
+        if (isset($reg_status['error'])) { 
+            echo "<b>⚠️ {$reg_status['error']}</b><br><br>";
+            echo "💡 Please contact the academic office for assistance.";
+            break; 
+        }
         
-        echo "<b>🎓 Registration Status - {$student_year}, {$semester_name}</b><br><br>";
+        echo "<b>🎓 Registration Status - {$student_year}, {$semester_name}</b><br>";
+        echo "<b>📚 Department: {$student_department}</b><br><br>";
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br><br>";
         
         if ($reg_status['total_registered'] == $reg_status['total_required']) {
@@ -843,10 +933,11 @@ switch ($intent) {
         break;
     
     /* ===============================
-        TIMETABLE (UPDATED WITH DOWNLOAD LINK)
+        TIMETABLE
     ============================== */
     case 'timetable':
         $student_reg = $_SESSION['reg_number'] ?? null;
+        $student_department = getStudentDepartment();
         
         if (!$student_reg) {
             echo "🔐 Please log in to view your personal timetable.<br><br>";
@@ -854,45 +945,9 @@ switch ($intent) {
             break;
         }
         
-        $student_year = getStudentYearLevel($conn, $student_reg);
-        $current_semester_num = getCurrentSemester();
-        $semester_name = getSemesterName($current_semester_num);
-        
-        $timetable = getStudentTimetable($conn, $student_year, $current_semester_num);
-        
-        if (!empty($timetable)) {
-            echo displayTimetable($timetable, $student_year, $semester_name, $student_reg);
-        } else {
-            $required_units = getUnitsToRegister($student_year, $current_semester_num);
-            if (!empty($required_units)) {
-                $unit_titles = getUnitTitles($conn, $required_units);
-                echo "<b>📅 Your {$student_year} - {$semester_name} Timetable</b><br>";
-                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br><br>";
-                $counter = 1;
-                foreach ($required_units as $unit_code) {
-                    $unit_name = $unit_titles[$unit_code] ?? 'Unit Name Not Found';
-                    echo "<b>{$counter}. {$unit_code} - {$unit_name}</b><br>";
-                    echo "   ⚠️ <i>Schedule details coming soon...</i><br><br>";
-                    $counter++;
-                }
-                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
-                echo "💡 <i>Full timetable with days and times will be available soon.</i><br>";
-            } else {
-                echo "📭 No timetable found for {$student_year}, {$semester_name}.<br><br>";
-                echo "💡 <i>Please contact the academic office for your class schedule.</i>";
-            }
-        }
-        break;
-    
-    /* ===============================
-        DOWNLOAD TIMETABLE (NEW CASE)
-    ============================== */
-    case 'download_timetable':
-        $student_reg = $_SESSION['reg_number'] ?? null;
-        
-        if (!$student_reg) {
-            echo "🔐 Please log in to download your timetable.<br><br>";
-            echo "💡 <i>Once logged in, I can provide your downloadable timetable!</i>";
+        if (!$student_department) {
+            echo "⚠️ Your department information is missing. Please contact the administrator.<br><br>";
+            echo "💡 <i>Your department is required to show your class schedule.</i>";
             break;
         }
         
@@ -900,7 +955,58 @@ switch ($intent) {
         $current_semester_num = getCurrentSemester();
         $semester_name = getSemesterName($current_semester_num);
         
-        $timetable = getStudentTimetable($conn, $student_year, $current_semester_num);
+        $timetable = getStudentTimetableByDepartment($conn, $student_department, $student_year, $current_semester_num);
+        
+        if (!empty($timetable)) {
+            echo "<b>📅 Your {$student_year} - {$semester_name} Timetable</b><br>";
+            echo "<b>📚 Department: {$student_department}</b><br><br>";
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br><br>";
+            
+            $counter = 1;
+            foreach ($timetable as $unit) {
+                echo "<b>{$counter}. {$unit['unit_code']} - {$unit['course_title']}</b><br>";
+                echo "   📆 <b>Day:</b> " . ($unit['day_of_week'] ?? 'TBA') . "<br>";
+                echo "   ⏰ <b>Time:</b> " . ($unit['time_from'] ?? 'TBA') . " - " . ($unit['time_to'] ?? 'TBA') . "<br>";
+                echo "   📍 <b>Venue:</b> " . ($unit['venue'] ?? 'TBA') . "<br>";
+                echo "   👨‍🏫 <b>Lecturer:</b> " . ($unit['lecturer'] ?? 'TBA') . "<br><br>";
+                $counter++;
+            }
+            
+            $download_token = base64_encode($student_reg . '_' . time());
+            $download_url = "download_timetable.php?token=" . urlencode($download_token) . "&student=" . urlencode($student_reg);
+            
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
+            echo "📥 <a href='{$download_url}' target='_blank' style='background-color: #4CAF50; color: white; padding: 8px 16px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 10px;'>📄 Download Timetable (PDF/HTML)</a><br><br>";
+            echo "💡 <i>You can also say 'Download my timetable' to get the link again.</i><br>";
+        } else {
+            echo "📭 No timetable found for {$student_year}, {$semester_name}.<br><br>";
+            echo "💡 <i>Say 'What to register' to see the units you need for this semester!</i>";
+        }
+        break;
+    
+    /* ===============================
+        DOWNLOAD TIMETABLE
+    ============================== */
+    case 'download_timetable':
+        $student_reg = $_SESSION['reg_number'] ?? null;
+        $student_department = getStudentDepartment();
+        
+        if (!$student_reg) {
+            echo "🔐 Please log in to download your timetable.<br><br>";
+            echo "💡 <i>Once logged in, I can provide your downloadable timetable!</i>";
+            break;
+        }
+        
+        if (!$student_department) {
+            echo "⚠️ Your department information is missing. Please contact the administrator.";
+            break;
+        }
+        
+        $student_year = getStudentYearLevel($conn, $student_reg);
+        $current_semester_num = getCurrentSemester();
+        $semester_name = getSemesterName($current_semester_num);
+        
+        $timetable = getStudentTimetableByDepartment($conn, $student_department, $student_year, $current_semester_num);
         
         if (!empty($timetable)) {
             $download_token = base64_encode($student_reg . '_' . time());
@@ -918,40 +1024,48 @@ switch ($intent) {
         break;
     
     /* ===============================
-        MY COURSES (WITH NAMES)
+        MY COURSES
     ============================== */
     case 'my_courses':
         $student_reg = $_SESSION['reg_number'] ?? null;
+        $student_department = getStudentDepartment();
         
-        if ($student_reg) {
-            $student_year = getStudentYearLevel($conn, $student_reg);
-            $current_semester_num = getCurrentSemester();
-            $semester_name = getSemesterName($current_semester_num);
-            $reg_status = getStudentRegisteredUnits($conn, $student_reg, $student_year, $current_semester_num);
-            
-            echo "<b>🎓 Your Academic Standing - {$student_year}, {$semester_name}</b><br><br>";
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
-            echo "<b>📋 Required Units for This Semester (6 units):</b><br>";
-            
-            foreach ($reg_status['required_with_names'] as $unit) {
-                $checkmark = in_array($unit['code'], $reg_status['registered']) ? "✅" : "❌";
-                echo "  {$checkmark} <b>{$unit['code']}</b> - {$unit['name']}<br>";
-            }
-            
-            echo "<br><b>Progress:</b> " . round($reg_status['completion_percentage']) . "% complete<br>";
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br><br>";
-            
-            if (!empty($reg_status['not_registered_with_names'])) {
-                echo "<b>⚠️ You still need to register for these units:</b><br>";
-                foreach ($reg_status['not_registered_with_names'] as $unit) {
-                    echo "  • <b style='color:#ff6600;'>{$unit['code']}</b> - {$unit['name']}<br>";
-                }
-                echo "<br>💡 <i>Say 'What to register' to see the full timetable with days and times!</i><br><br>";
-            } else {
-                echo "🎉 <b>Congratulations!</b> You've registered for all required units this semester!<br><br>";
-            }
-        } else {
+        if (!$student_reg) {
             echo "🔐 Please log in to view your courses.";
+            break;
+        }
+        
+        if (!$student_department) {
+            echo "⚠️ Your department information is missing. Please contact the administrator.";
+            break;
+        }
+        
+        $student_year = getStudentYearLevel($conn, $student_reg);
+        $current_semester_num = getCurrentSemester();
+        $semester_name = getSemesterName($current_semester_num);
+        $reg_status = getStudentRegisteredUnits($conn, $student_reg, $student_year, $current_semester_num);
+        
+        echo "<b>🎓 Your Academic Standing - {$student_year}, {$semester_name}</b><br>";
+        echo "<b>📚 Department: {$student_department}</b><br><br>";
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
+        echo "<b>📋 Required Units for This Semester:</b><br>";
+        
+        foreach ($reg_status['required_with_names'] as $unit) {
+            $checkmark = in_array($unit['code'], $reg_status['registered']) ? "✅" : "❌";
+            echo "  {$checkmark} <b>{$unit['code']}</b> - {$unit['name']}<br>";
+        }
+        
+        echo "<br><b>Progress:</b> " . round($reg_status['completion_percentage']) . "% complete<br>";
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br><br>";
+        
+        if (!empty($reg_status['not_registered_with_names'])) {
+            echo "<b>⚠️ You still need to register for these units:</b><br>";
+            foreach ($reg_status['not_registered_with_names'] as $unit) {
+                echo "  • <b style='color:#ff6600;'>{$unit['code']}</b> - {$unit['name']}<br>";
+            }
+            echo "<br>💡 <i>Say 'What to register' to see the full timetable with days and times!</i><br><br>";
+        } else {
+            echo "🎉 <b>Congratulations!</b> You've registered for all required units this semester!<br><br>";
         }
         break;
     
@@ -973,7 +1087,7 @@ switch ($intent) {
                 echo "• Name: {$row['full_name']}<br>";
                 echo "• Registration Number: {$row['reg_number']}<br>";
                 echo "• Email: {$row['email']}<br>";
-                echo "• Department: {$row['department']}<br>";
+                echo "• Department: <b>{$row['department']}</b><br>";
                 echo "• Current Year Level: <b>{$student_year}</b><br>";
                 echo "<br>💡 <i>Say 'Show my timetable' to see your class schedule!</i>";
             } else {
@@ -989,15 +1103,21 @@ switch ($intent) {
     ============================== */
     case 'reg_help':
         $student_reg = $_SESSION['reg_number'] ?? null;
+        $student_department = getStudentDepartment();
+        
         if ($student_reg) {
             $student_year = getStudentYearLevel($conn, $student_reg);
             $current_semester_num = getCurrentSemester();
             $semester_name = getSemesterName($current_semester_num);
-            $required_units = getUnitsToRegister($student_year, $current_semester_num);
             $reg_status = getStudentRegisteredUnits($conn, $student_reg, $student_year, $current_semester_num);
             
-            echo "<b>🎓 Course Registration Guide - {$student_year}, {$semester_name}</b><br><br>";
-            echo "<b>📋 You must register for exactly 6 units this semester:</b><br>";
+            echo "<b>🎓 Course Registration Guide - {$student_year}, {$semester_name}</b><br>";
+            if ($student_department) {
+                echo "<b>📚 Department: {$student_department}</b><br><br>";
+            } else {
+                echo "<br>";
+            }
+            echo "<b>📋 You must register for these units this semester:</b><br>";
             foreach ($reg_status['required_with_names'] as $unit) {
                 $status = in_array($unit['code'], $reg_status['registered']) ? "✅ Registered" : "⚪ Not Registered";
                 echo "  • <b>{$unit['code']}</b> - {$unit['name']} ({$status})<br>";
@@ -1022,7 +1142,7 @@ switch ($intent) {
             echo "<b>🎓 Course Registration Guide</b><br><br>";
             echo "To register for units, please follow these steps:<br><br>";
             echo "1️⃣ <b>Log in to the portal</b> using your registration number and password<br>";
-            echo "2️⃣ <b>Say 'What to register'</b> to see the 6 units you need<br>";
+            echo "2️⃣ <b>Say 'What to register'</b> to see the units you need<br>";
             echo "3️⃣ <b>Register for those units</b> in the registration portal<br>";
             echo "4️⃣ <b>Confirm your registration</b> and check your status<br><br>";
             echo "🔐 <i>Please log in first so I can show you your personalized unit list!</i>";
@@ -1067,25 +1187,28 @@ switch ($intent) {
                 echo "<br>";
             }
             
-            $sem1_units = getUnitsToRegister($target_year, 1);
-            $sem2_units = getUnitsToRegister($target_year, 2);
-            $unit_titles = getUnitTitles($conn, array_merge($sem1_units, $sem2_units));
-            
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
-            echo "<b>🎯 Required Units (6 per semester):</b><br><br>";
-            if (!empty($sem1_units)) {
-                echo "<b>📌 1st Semester Required Units:</b><br>";
-                foreach ($sem1_units as $unit) {
-                    $unit_name = $unit_titles[$unit] ?? 'Unit Name Not Found';
-                    echo "  • {$unit} - {$unit_name}<br>";
-                }
-                echo "<br>";
-            }
-            if (!empty($sem2_units)) {
-                echo "<b>📌 2nd Semester Required Units:</b><br>";
-                foreach ($sem2_units as $unit) {
-                    $unit_name = $unit_titles[$unit] ?? 'Unit Name Not Found';
-                    echo "  • {$unit} - {$unit_name}<br>";
+            // Show department-specific required units
+            $student_department = getStudentDepartment();
+            if ($student_department) {
+                $sem1_units_from_dept = getUnitsByStudentDepartment($conn, $student_department, $target_year, 1);
+                $sem2_units_from_dept = getUnitsByStudentDepartment($conn, $student_department, $target_year, 2);
+                
+                if (!empty($sem1_units_from_dept) || !empty($sem2_units_from_dept)) {
+                    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
+                    echo "<b>🎯 Required Units for {$student_department} Department:</b><br><br>";
+                    if (!empty($sem1_units_from_dept)) {
+                        echo "<b>📌 1st Semester Required Units:</b><br>";
+                        foreach ($sem1_units_from_dept as $unit) {
+                            echo "  • {$unit['unit_code']} - {$unit['unit_name']}<br>";
+                        }
+                        echo "<br>";
+                    }
+                    if (!empty($sem2_units_from_dept)) {
+                        echo "<b>📌 2nd Semester Required Units:</b><br>";
+                        foreach ($sem2_units_from_dept as $unit) {
+                            echo "  • {$unit['unit_code']} - {$unit['unit_name']}<br>";
+                        }
+                    }
                 }
             }
         } else {
@@ -1094,30 +1217,205 @@ switch ($intent) {
         break;
     
     /* ===============================
-        AI CHECK (UPDATED)
+        UNIT DETAILS (FIXED - Now works properly!)
     ============================== */
-    case 'ai_check':
-        echo "🤖 I'm your friendly AI academic assistant! Here's what I can do:<br><br>
-              ✅ <b>Show my timetable</b> - Displays your class schedule with days, times, and venues<br>
-              ✅ <b>Download my timetable</b> - Get a downloadable link for your timetable<br>
-              ✅ <b>What to Register</b> - Shows the exact 6 units you need for your current semester<br>
-              ✅ <b>Registration Status</b> - Check which required units you've registered for<br>
-              ✅ <b>My Courses</b> - View your academic standing and progress<br>
-              ✅ <b>Student Info</b> - View your profile information<br>
-              ✅ <b>Course Advisor</b> - Get personalized course recommendations<br>
-              ✅ <b>Registration Help</b> - Guide you through the registration process<br>
-              ✅ <b>View Units by Year</b> - See all units for any year level<br><br>
-              🎓 <b>Try asking:</b><br>
-              • 'Show my timetable' - See your complete class schedule!<br>
-              • 'Download my timetable' - Get a link to download your timetable!<br>
-              • 'What to register' - See your 6 required units for this semester!<br>
-              • 'Registration status' - Check your registration progress!<br><br>
-              What would you like to know?";
+    case 'unit_details':
+        $unit_code = $GLOBALS['target_unit'] ?? '';
+        
+        if (empty($unit_code)) {
+            // Try to extract from input
+            if (preg_match('/([A-Z]{3,4}[0-9]{4})/i', $user_input, $matches)) {
+                $unit_code = strtoupper($matches[1]);
+            } else {
+                echo "❓ Please specify which unit you want to know about. Example: 'Tell me about BSN1106'";
+                break;
+            }
+        }
+        
+        // Get unit details from academic_workload
+        $unit_query = "SELECT * FROM academic_workload WHERE unit_code = ?";
+        $unit_stmt = $conn->prepare($unit_query);
+        $unit_stmt->bind_param("s", $unit_code);
+        $unit_stmt->execute();
+        $unit_result = $unit_stmt->get_result();
+        
+        if ($unit_result->num_rows > 0) {
+            $unit = $unit_result->fetch_assoc();
+            
+            echo "<b>📖 Unit Details: {$unit['unit_code']} - {$unit['unit_name']}</b><br><br>";
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
+            echo "📚 <b>Department:</b> {$unit['department']}<br>";
+            echo "🎓 <b>Year Level:</b> {$unit['year_level']}<br>";
+            echo "📅 <b>Semester:</b> {$unit['semester_level']}<br>";
+            echo "🕒 <b>Offering Time:</b> {$unit['offering_time']}<br>";
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br><br>";
+            
+            // Get timetable info (day, time, venue, lecturer)
+            $current_semester_num = getCurrentSemester();
+            $current_year = date('Y');
+            $timetable_query = "SELECT day_of_week, time_from, time_to, venue, lecturer 
+                               FROM timetable 
+                               WHERE unit_code = ? AND semester = ? AND academic_year = ? 
+                               LIMIT 1";
+            $timetable_stmt = $conn->prepare($timetable_query);
+            $timetable_stmt->bind_param("sss", $unit_code, $current_semester_num, $current_year);
+            $timetable_stmt->execute();
+            $timetable_result = $timetable_stmt->get_result();
+            
+            if ($timetable_result->num_rows > 0) {
+                $schedule = $timetable_result->fetch_assoc();
+                echo "<b>📅 Class Schedule:</b><br>";
+                echo "   📆 <b>Day:</b> " . ($schedule['day_of_week'] ?? 'TBA') . "<br>";
+                echo "   ⏰ <b>Time:</b> " . ($schedule['time_from'] ?? 'TBA') . " - " . ($schedule['time_to'] ?? 'TBA') . "<br>";
+                echo "   📍 <b>Venue:</b> " . ($schedule['venue'] ?? 'TBA') . "<br>";
+                if (!empty($schedule['lecturer'])) {
+                    echo "   👨‍🏫 <b>Lecturer:</b> {$schedule['lecturer']}<br>";
+                }
+                echo "<br>";
+            } else {
+                echo "<b>📅 Class Schedule:</b> Not yet scheduled<br><br>";
+            }
+            
+            // Check if student is registered for this unit
+            $student_reg = $_SESSION['reg_number'] ?? null;
+            if ($student_reg) {
+                $check_reg_query = "SELECT status FROM registered_courses WHERE student_reg_no = ? AND unit_code = ?";
+                $check_reg_stmt = $conn->prepare($check_reg_query);
+                $check_reg_stmt->bind_param("ss", $student_reg, $unit_code);
+                $check_reg_stmt->execute();
+                $check_reg_result = $check_reg_stmt->get_result();
+                
+                if ($check_reg_result->num_rows > 0) {
+                    $reg_status = $check_reg_result->fetch_assoc();
+                    $status_icon = ($reg_status['status'] == 'Confirmed') ? '✅' : '⏳';
+                    echo "<b>📌 Your Registration Status:</b> {$status_icon} {$reg_status['status']}<br><br>";
+                } else {
+                    // Check if this unit is required for the student
+                    $student_year = getStudentYearLevel($conn, $student_reg);
+                    $student_department = getStudentDepartment();
+                    $current_semester_num = getCurrentSemester();
+                    $required_units = getUnitsByStudentDepartment($conn, $student_department, $student_year, $current_semester_num);
+                    $required_codes = array_column($required_units, 'unit_code');
+                    
+                    if (in_array($unit_code, $required_codes)) {
+                        echo "⚠️ <b>You are not registered for this unit yet.</b> This unit is REQUIRED for your program.<br><br>";
+                    } else {
+                        echo "ℹ️ <b>You are not registered for this unit.</b><br><br>";
+                    }
+                }
+                $check_reg_stmt->close();
+            }
+            
+            echo "<b>💡 What would you like to do?</b><br>";
+            echo "• 'Add {$unit_code}' - Register for this unit<br>";
+            echo "• 'When is {$unit_code}?' - Check schedule again<br>";
+            echo "• 'What to register' - See all required units<br>";
+            
+        } else {
+            echo "❌ I couldn't find unit '{$unit_code}' in our system.<br><br>";
+            
+            // Try fuzzy search to suggest similar units
+            $fuzzy_matches = fuzzySearchUnits($unit_code, $conn, 3);
+            if (!empty($fuzzy_matches)) {
+                echo "<b>💡 Did you mean one of these?</b><br><br>";
+                foreach ($fuzzy_matches as $match) {
+                    echo "• <b>{$match['unit_code']}</b> - {$match['unit_name']}<br>";
+                }
+                echo "<br>Try asking: 'Tell me about " . $fuzzy_matches[0]['unit_code'] . "'";
+            } else {
+                echo "💡 <i>Tip: Make sure you're using the correct unit code format like 'BSN1106' or 'BAF1101'.</i><br>";
+                echo "• Ask me to 'Show all first year units' to see available courses<br>";
+                echo "• Say 'What to register' to see your required units";
+            }
+        }
         break;
     
+    /* ===============================
+        SEARCH UNIT (MODIFIED to avoid conflict)
+    ============================== */
     case 'search_unit':
+        preg_match('/[A-Z]{3,4}[0-9]{4}/i', $user_input, $matches);
+        $search_term = isset($matches[0]) ? $matches[0] : $user_input;
+        
+        // First try exact match
+        $search_pattern = "%$search_term%";
+        $stmt = $conn->prepare("SELECT unit_code, unit_name, year_level, semester_level, offering_time 
+                                FROM academic_workload 
+                                WHERE unit_code LIKE ? OR unit_name LIKE ? 
+                                LIMIT 5");
+        $stmt->bind_param("ss", $search_pattern, $search_pattern);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result->num_rows > 0) {
+            echo "<b>🔍 Found matching units:</b><br><br>";
+            while ($row = $result->fetch_assoc()) {
+                echo "• <b>{$row['unit_code']}</b> - {$row['unit_name']}<br>";
+                echo "  📚 {$row['year_level']}, {$row['semester_level']}<br>";
+                echo "  🕒 Offered: {$row['offering_time']}<br><br>";
+            }
+            echo "💡 <i>For more details about a specific unit, say 'Tell me about " . $row['unit_code'] . "'</i><br>";
+        } else {
+            // Try fuzzy search
+            $fuzzy_matches = fuzzySearchUnits($search_term, $conn);
+            if (!empty($fuzzy_matches)) {
+                echo "<b>🔍 Did you mean one of these?</b><br><br>";
+                foreach ($fuzzy_matches as $match) {
+                    echo "• <b>{$match['unit_code']}</b> - {$match['unit_name']}<br>";
+                }
+                echo "<br>💡 <i>Say 'Tell me about " . $fuzzy_matches[0]['unit_code'] . "' for details!</i><br>";
+            } else {
+                echo "🔍 Hmm, I couldn't find '$search_term' in our system.<br><br>";
+                echo "💡 <i>Say 'What to register' to see all required units for your department!</i><br>";
+            }
+        }
+        break;
+    
+    /* ===============================
+        UNIT DAY
+    ============================== */
     case 'unit_day':
-    case 'unit_details':
+        $unit_code = $GLOBALS['target_unit'] ?? '';
+        
+        if (empty($unit_code)) {
+            if (preg_match('/([A-Z]{3,4}[0-9]{4})/i', $user_input, $matches)) {
+                $unit_code = strtoupper($matches[1]);
+            } else {
+                echo "❓ Please specify which unit you want to know about. Example: 'When is BSN1106?'";
+                break;
+            }
+        }
+        
+        $current_semester_num = getCurrentSemester();
+        $current_year = date('Y');
+        
+        $query = "SELECT day_of_week, time_from, time_to, venue, lecturer, course_title 
+                 FROM timetable 
+                 WHERE unit_code = ? AND semester = ? AND academic_year = ? 
+                 LIMIT 1";
+        $stmt = $conn->prepare($query);
+        $stmt->bind_param("sss", $unit_code, $current_semester_num, $current_year);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result->num_rows > 0) {
+            $row = $result->fetch_assoc();
+            echo "<b>📚 {$unit_code} - {$row['course_title']}</b><br><br>";
+            if (!empty($row['day_of_week']) && $row['day_of_week'] != '0000-00-00') {
+                echo "📆 <b>Day:</b> {$row['day_of_week']}<br>";
+                echo "⏰ <b>Time:</b> {$row['time_from']} - {$row['time_to']}<br>";
+                echo "📍 <b>Venue:</b> {$row['venue']}<br>";
+                echo "👨‍🏫 <b>Lecturer:</b> {$row['lecturer']}<br><br>";
+                echo "💡 <i>Would you like to know about any other unit's schedule?</i>";
+            } else {
+                echo "❌ The schedule for {$unit_code} hasn't been released yet.<br><br>";
+            }
+        } else {
+            echo "❌ I couldn't find the schedule for {$unit_code}.<br><br>";
+            echo "💡 Try asking: 'Tell me about {$unit_code}' for more details, or 'What to register' to see all required units.";
+        }
+        break;
+    
     case 'unit_registration_count':
     case 'course_advice':
     case 'exam_info':
@@ -1126,8 +1424,31 @@ switch ($intent) {
               • <b>'Show my timetable'</b> - See your class schedule<br>
               • <b>'Download my timetable'</b> - Get a downloadable link<br>
               • <b>'What to register'</b> - See your required units<br>
-              • <b>'Registration status'</b> - Check your progress<br><br>
+              • <b>'Registration status'</b> - Check your progress<br>
+              • <b>'Tell me about BSN1106'</b> - Get unit details<br><br>
               What would you like to do?";
+        break;
+    
+    case 'ai_check':
+        echo "🤖 I'm your friendly AI academic assistant! Here's what I can do:<br><br>
+              ✅ <b>Show my timetable</b> - Displays your class schedule with days, times, and venues<br>
+              ✅ <b>Download my timetable</b> - Get a downloadable link for your timetable<br>
+              ✅ <b>What to Register</b> - Shows the exact units you need for your current semester<br>
+              ✅ <b>Registration Status</b> - Check which required units you've registered for<br>
+              ✅ <b>My Courses</b> - View your academic standing and progress<br>
+              ✅ <b>Student Info</b> - View your profile information including department<br>
+              ✅ <b>Course Advisor</b> - Get personalized course recommendations<br>
+              ✅ <b>Registration Help</b> - Guide you through the registration process<br>
+              ✅ <b>View Units by Year</b> - See all units for any year level<br>
+              ✅ <b>Unit Details</b> - Get detailed info about any unit (e.g., 'Tell me about BSN1106')<br>
+              ✅ <b>Unit Schedule</b> - Find out when a unit is taught (e.g., 'When is BSN1106?')<br><br>
+              🎓 <b>Try asking:</b><br>
+              • 'Show my timetable' - See your complete class schedule!<br>
+              • 'Download my timetable' - Get a link to download your timetable!<br>
+              • 'What to register' - See your required units for this semester!<br>
+              • 'Registration status' - Check your registration progress!<br>
+              • 'Tell me about BSN1106' - Get detailed unit information!<br><br>
+              What would you like to know?";
         break;
     
     case 'fallback':
@@ -1137,9 +1458,9 @@ switch ($intent) {
         $stmt_msg->execute();
         
         $friendly_fallbacks = [
-            "Hmm, I'm not quite sure about that yet. 🤔 Try asking 'Show my timetable' to see your class schedule!",
-            "That's a good question! Try saying 'Show my timetable' or 'Download my timetable'! 😊",
-            "I can help with your class schedule! Try 'Show my timetable' to see your 6 required units with days and times! 💪"
+            "Hmm, I'm not quite sure about that yet. 🤔 Try asking 'Show my timetable' to see your class schedule, or 'Tell me about BSN1106' for unit details!",
+            "That's a good question! Try saying 'Show my timetable', 'What to register', or 'Tell me about BSN1106'! 😊",
+            "I can help with your class schedule and unit information! Try 'Show my timetable' or 'Tell me about BSN1106'! 💪"
         ];
         $bot_msg = getRandomResponse($friendly_fallbacks);
         echo $bot_msg;

@@ -29,29 +29,63 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['signin'])) {
         $row = mysqli_fetch_assoc($result);
 
         if (password_verify($password, $row['password'])) {
-            // FIX: We must clear any old session data first
+            // Clear any old session data first
             session_regenerate_id(true);
-
-            // SET SESSIONS
-            $_SESSION['user_id']    = $row['id'];
-            $_SESSION['user_name']  = $row['full_name'];
-            $_SESSION['role']       = $row['role'];
             
-            // CRITICAL ADDITION: This allows registration.php to see ONLY this student's units
-            $_SESSION['reg_number'] = $row['reg_number']; 
+            // Destroy any existing session variables
+            $_SESSION = array();
 
+            // ========== COMMON SESSION VARIABLES (Both Student & Admin) ==========
+            $_SESSION['user_id']       = $row['id'];
+            $_SESSION['user_name']     = $row['full_name'];
+            $_SESSION['reg_number']    = $row['reg_number'];
+            $_SESSION['role']          = $row['role'];
+            $_SESSION['email']         = $row['email'];
+            $_SESSION['department']    = $row['department']; // ← ADDED: Store department
+            $_SESSION['login_time']    = time();
+            $_SESSION['login_ip']      = $_SERVER['REMOTE_ADDR'];
+
+            // ========== REDIRECT BASED ON ROLE ==========
             if ($row['role'] == 'admin') {
+                // Admin specific session variables
+                $_SESSION['is_admin'] = true;
+                $_SESSION['admin_name'] = $row['full_name'];
+                
                 header("Location: Admin/Admin-index.php");
-            } else {
+                exit();
+            } 
+            else {
+                // Student specific session variables
+                $_SESSION['is_student'] = true;
+                $_SESSION['student_name'] = $row['full_name'];
+                $_SESSION['student_department'] = $row['department']; // Explicit student department
+                $_SESSION['student_year'] = determineStudentYear($conn, $row['reg_number']); // Optional: determine year
+                
                 header("Location: Student/home.php");
+                exit();
             }
-            exit();
         } else {
             $error = "Invalid Registration Number or Password!";
         }
     } else {
         $error = "Invalid Registration Number or Password!";
     }
+}
+
+// Optional function to determine student's current year based on registration date
+function determineStudentYear($conn, $reg_number) {
+    // Get admission year from registration number (e.g., BIT/2024/43255)
+    if (preg_match('/\/(\d{4})\//', $reg_number, $matches)) {
+        $admission_year = intval($matches[1]);
+        $current_year = date('Y');
+        $year_diff = $current_year - $admission_year;
+        
+        if ($year_diff == 0) return 'First Year';
+        if ($year_diff == 1) return 'Second Year';
+        if ($year_diff == 2) return 'Third Year';
+        if ($year_diff >= 3) return 'Fourth Year';
+    }
+    return 'First Year'; // Default
 }
 ?>
 <!DOCTYPE html>
@@ -197,6 +231,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['signin'])) {
             font-weight: bold;
             border: 1px solid #fabeb6;
         }
+        
+        /* Admin indicator (optional) */
+        .demo-credentials {
+            margin-top: 20px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-size: 11px;
+            text-align: center;
+            border: 1px dashed #ccc;
+        }
+        .demo-credentials strong {
+            color: #003366;
+        }
     </style>
 </head>
 <body>
@@ -238,6 +286,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['signin'])) {
                 🔔 <strong>Notice:</strong> Unit registration for Jan/Apr 2026 semester is now open. Portal Assistant AI is available to guide you.
             </marquee>
         </form>
+        
     </div>
 </div>
 
