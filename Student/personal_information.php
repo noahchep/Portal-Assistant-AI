@@ -68,7 +68,7 @@ $lname = $name_parts[2] ?? '';
         .branding small { color: var(--text-light); display: block; font-size: 0.85rem; }
 
         /* NAVIGATION */
-        nav { background: var(--primary); padding: 0 5%; display: flex; gap: 10px; }
+        nav { background: var(--primary); padding: 0 5%; display: flex; gap: 10px; flex-wrap: wrap; }
         nav a { color: rgba(255,255,255,0.8); text-decoration: none; padding: 14px 20px; font-size: 0.9rem; font-weight: 600; transition: 0.3s; border-bottom: 3px solid transparent; }
         nav a:hover { color: white; background: rgba(255,255,255,0.1); }
         nav a.active { color: white; border-bottom: 3px solid white; background: rgba(255,255,255,0.15); }
@@ -118,12 +118,14 @@ $lname = $name_parts[2] ?? '';
 </header>
 
 <nav>
-    <a href="Home.php">Home</a>
-    <a href="#" class="active">Information Update</a>
-    <a href="#">Fees</a>
-    <a href="teaching_timetable.php">Timetables</a>
-    <a href="registration.php">Course Registration</a>
-    <a href="../logout.php">Sign Out</a>
+    <a href="home.php?page=dashboard">Dashboard</a>
+    <a href="home.php?page=materials">📚 Course Materials</a>
+    <a href="home.php?page=assignments">📝 Assignments</a>
+    <a href="home.php?page=my_submissions">📋 My Submissions</a>
+    <a href="personal_information.php" class="active">👤 Information Update</a>
+    <a href="teaching_timetable.php">📅 Timetables</a>
+    <a href="registration.php">📖 Course Registration</a>        
+    <a href="../logout.php">🚪 Sign Out</a>
 </nav>
 
 <div class="container">

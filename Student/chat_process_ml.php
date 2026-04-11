@@ -482,7 +482,7 @@ function displayTimetable($timetable, $year_level, $semester_name, $student_reg)
 }
 
 /* ===============================
-    5. FUZZY INTENT DETECTION
+    5. FUZZY INTENT DETECTION (FIXED - Added better year detection)
 ================================ */
 function fuzzyDetectIntent($input) {
     $intent_patterns = [
@@ -494,7 +494,7 @@ function fuzzyDetectIntent($input) {
         'reg_help' => ['how to register', 'register for units', 'registration process', 'how do i register', 'enroll', 'add units'],
         'timetable' => ['timetable', 'schedule', 'class schedule', 'my classes', 'lecture schedule', 'time table', 'show me my timetable', 'my timetable', 'my class schedule', 'show timetable', 'show schedule', 'my schedule', 'class timetable'],
         'download_timetable' => ['download timetable', 'download my timetable', 'get timetable pdf', 'save timetable', 'export timetable', 'pdf timetable', 'download schedule'],
-        'view_all' => ['show me', 'view units', 'list units', 'units for', 'courses for', 'first year', 'second year', 'third year', 'fourth year'],
+        'view_all' => ['show me', 'view units', 'list units', 'units for', 'courses for', 'first year', 'second year', 'third year', 'fourth year', '1st year', '2nd year', '3rd year', '4th year', 'year 1', 'year 2', 'year 3', 'year 4', 'freshman', 'sophomore', 'junior', 'senior'],
         'exam_info' => ['exam', 'test', 'assessment', 'exam schedule', 'exam date', 'when is exam'],
         'student_info' => ['who am i', 'my details', 'my info', 'my profile', 'my registration number'],
         'search_unit' => ['search unit', 'find unit', 'look up', 'unit details', 'course details', 'tell me about'],
@@ -640,7 +640,7 @@ function detectSocialIntent($input) {
 }
 
 /* ===============================
-    9. ACADEMIC INTENT DETECTION (UPDATED - FIXED FOR unit_details)
+    9. ACADEMIC INTENT DETECTION (UPDATED - FIXED YEAR DETECTION)
 ================================ */
 function detectIntent($input) {
     $fuzzy_intent = fuzzyDetectIntent($input);
@@ -671,7 +671,13 @@ function detectIntent($input) {
                 }
                 return ['intent' => 'unit_day'];
             case 'view_all':
-                $year_patterns = ['first' => 'First Year', 'second' => 'Second Year', 'third' => 'Third Year', 'fourth' => 'Fourth Year', '1st' => 'First Year', '2nd' => 'Second Year', '3rd' => 'Third Year', '4th' => 'Fourth Year'];
+                // FIXED: Better year detection with multiple patterns
+                $year_patterns = [
+                    'first' => 'First Year', '1st' => 'First Year', 'freshman' => 'First Year', 'year 1' => 'First Year',
+                    'second' => 'Second Year', '2nd' => 'Second Year', 'sophomore' => 'Second Year', 'year 2' => 'Second Year',
+                    'third' => 'Third Year', '3rd' => 'Third Year', 'junior' => 'Third Year', 'year 3' => 'Third Year',
+                    'fourth' => 'Fourth Year', '4th' => 'Fourth Year', 'senior' => 'Fourth Year', 'year 4' => 'Fourth Year'
+                ];
                 foreach ($year_patterns as $pattern => $year) {
                     if (strpos($input, $pattern) !== false) {
                         return ['intent' => 'view_all', 'year' => $year];
@@ -729,11 +735,12 @@ function detectIntent($input) {
         }
     }
     
+    // FIXED: Enhanced year detection patterns
     $year_patterns = [
-        '/first\s*year|1st\s*year|year\s*1|freshman/i' => 'First Year',
-        '/second\s*year|2nd\s*year|year\s*2|sophomore/i' => 'Second Year',
-        '/third\s*year|3rd\s*year|year\s*3|junior/i' => 'Third Year',
-        '/fourth\s*year|4th\s*year|year\s*4|senior/i' => 'Fourth Year'
+        '/first\s*year|1st\s*year|year\s*1|freshman|^first$|^1st$/' => 'First Year',
+        '/second\s*year|2nd\s*year|year\s*2|sophomore|^second$|^2nd$/' => 'Second Year',
+        '/third\s*year|3rd\s*year|year\s*3|junior|^third$|^3rd$/' => 'Third Year',
+        '/fourth\s*year|4th\s*year|year\s*4|senior|^fourth$|^4th$/' => 'Fourth Year'
     ];
     foreach ($year_patterns as $pattern => $year) {
         if (preg_match($pattern, strtolower($input))) {
@@ -1150,10 +1157,12 @@ switch ($intent) {
         break;
     
     /* ===============================
-        VIEW ALL UNITS
+        VIEW ALL UNITS (FIXED - Now filters by department!)
     ============================== */
     case 'view_all':
         $target_year = $GLOBALS['target_year'] ?? null;
+        $student_department = getStudentDepartment();
+        
         if (!$target_year) {
             $all_units = mysqli_query($conn, "SELECT year_level, COUNT(*) as count FROM timetable GROUP BY year_level");
             $summary = [];
@@ -1165,65 +1174,76 @@ switch ($intent) {
             break;
         }
         
-        $stmt = $conn->prepare("SELECT unit_code, course_title, semester, day_of_week, time_from, time_to, venue 
-                                FROM timetable 
-                                WHERE year_level = ? 
-                                ORDER BY semester, day_of_week, time_from");
-        $stmt->bind_param("s", $target_year);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        if ($result->num_rows > 0) {
-            echo "<b>📖 {$target_year} Curriculum:</b><br><br>";
-            $units_by_semester = [];
-            while ($row = $result->fetch_assoc()) {
-                $semester = ($row['semester'] == 1) ? '1st Semester' : '2nd Semester';
-                if (!isset($units_by_semester[$semester])) { $units_by_semester[$semester] = []; }
-                $units_by_semester[$semester][] = $row['unit_code'] . " - " . $row['course_title'];
-            }
-            foreach ($units_by_semester as $semester => $units) {
-                echo "<b>📌 {$semester}:</b><br>";
-                foreach ($units as $unit) { echo "  • {$unit}<br>"; }
-                echo "<br>";
-            }
+        // FIXED: Now filter by department if student is logged in
+        if ($student_department) {
+            // Show only department-specific units for that year
+            $sem1_units = getUnitsByStudentDepartment($conn, $student_department, $target_year, 1);
+            $sem2_units = getUnitsByStudentDepartment($conn, $student_department, $target_year, 2);
             
-            // Show department-specific required units
-            $student_department = getStudentDepartment();
-            if ($student_department) {
-                $sem1_units_from_dept = getUnitsByStudentDepartment($conn, $student_department, $target_year, 1);
-                $sem2_units_from_dept = getUnitsByStudentDepartment($conn, $student_department, $target_year, 2);
+            if (!empty($sem1_units) || !empty($sem2_units)) {
+                echo "<b>📖 {$target_year} Curriculum - {$student_department} Department</b><br><br>";
                 
-                if (!empty($sem1_units_from_dept) || !empty($sem2_units_from_dept)) {
-                    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
-                    echo "<b>🎯 Required Units for {$student_department} Department:</b><br><br>";
-                    if (!empty($sem1_units_from_dept)) {
-                        echo "<b>📌 1st Semester Required Units:</b><br>";
-                        foreach ($sem1_units_from_dept as $unit) {
-                            echo "  • {$unit['unit_code']} - {$unit['unit_name']}<br>";
-                        }
-                        echo "<br>";
+                if (!empty($sem1_units)) {
+                    echo "<b>📌 1st Semester Required Units:</b><br>";
+                    foreach ($sem1_units as $unit) {
+                        echo "  • <b>{$unit['unit_code']}</b> - {$unit['unit_name']}<br>";
                     }
-                    if (!empty($sem2_units_from_dept)) {
-                        echo "<b>📌 2nd Semester Required Units:</b><br>";
-                        foreach ($sem2_units_from_dept as $unit) {
-                            echo "  • {$unit['unit_code']} - {$unit['unit_name']}<br>";
-                        }
-                    }
+                    echo "<br>";
                 }
+                
+                if (!empty($sem2_units)) {
+                    echo "<b>📌 2nd Semester Required Units:</b><br>";
+                    foreach ($sem2_units as $unit) {
+                        echo "  • <b>{$unit['unit_code']}</b> - {$unit['unit_name']}<br>";
+                    }
+                    echo "<br>";
+                }
+                
+                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
+                echo "💡 <i>These are the units you need to complete for your {$target_year} in the {$student_department} department.</i><br>";
+            } else {
+                echo "<b>📖 {$target_year} Curriculum - {$student_department} Department</b><br><br>";
+                echo "⚠️ No units found for {$target_year} in the {$student_department} department.<br><br>";
+                echo "💡 <i>Please contact the academic office for assistance.</i>";
             }
         } else {
-            echo "Hmm, I couldn't find any units for {$target_year}. 🤔";
+            // If no department (guest), show all units from timetable
+            $stmt = $conn->prepare("SELECT unit_code, course_title, semester, day_of_week, time_from, time_to, venue 
+                                    FROM timetable 
+                                    WHERE year_level = ? 
+                                    ORDER BY semester, day_of_week, time_from");
+            $stmt->bind_param("s", $target_year);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($result->num_rows > 0) {
+                echo "<b>📖 {$target_year} Curriculum:</b><br><br>";
+                $units_by_semester = [];
+                while ($row = $result->fetch_assoc()) {
+                    $semester = ($row['semester'] == 1) ? '1st Semester' : '2nd Semester';
+                    if (!isset($units_by_semester[$semester])) { $units_by_semester[$semester] = []; }
+                    $units_by_semester[$semester][] = $row['unit_code'] . " - " . $row['course_title'];
+                }
+                foreach ($units_by_semester as $semester => $units) {
+                    echo "<b>📌 {$semester}:</b><br>";
+                    foreach ($units as $unit) { echo "  • {$unit}<br>"; }
+                    echo "<br>";
+                }
+                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
+                echo "💡 <i>Log in to see units specific to your department!</i><br>";
+            } else {
+                echo "Hmm, I couldn't find any units for {$target_year}. 🤔";
+            }
         }
         break;
     
     /* ===============================
-        UNIT DETAILS (FIXED - Now works properly!)
+        UNIT DETAILS
     ============================== */
     case 'unit_details':
         $unit_code = $GLOBALS['target_unit'] ?? '';
         
         if (empty($unit_code)) {
-            // Try to extract from input
             if (preg_match('/([A-Z]{3,4}[0-9]{4})/i', $user_input, $matches)) {
                 $unit_code = strtoupper($matches[1]);
             } else {
@@ -1232,7 +1252,6 @@ switch ($intent) {
             }
         }
         
-        // Get unit details from academic_workload
         $unit_query = "SELECT * FROM academic_workload WHERE unit_code = ?";
         $unit_stmt = $conn->prepare($unit_query);
         $unit_stmt->bind_param("s", $unit_code);
@@ -1250,7 +1269,6 @@ switch ($intent) {
             echo "🕒 <b>Offering Time:</b> {$unit['offering_time']}<br>";
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br><br>";
             
-            // Get timetable info (day, time, venue, lecturer)
             $current_semester_num = getCurrentSemester();
             $current_year = date('Y');
             $timetable_query = "SELECT day_of_week, time_from, time_to, venue, lecturer 
@@ -1276,7 +1294,6 @@ switch ($intent) {
                 echo "<b>📅 Class Schedule:</b> Not yet scheduled<br><br>";
             }
             
-            // Check if student is registered for this unit
             $student_reg = $_SESSION['reg_number'] ?? null;
             if ($student_reg) {
                 $check_reg_query = "SELECT status FROM registered_courses WHERE student_reg_no = ? AND unit_code = ?";
@@ -1290,7 +1307,6 @@ switch ($intent) {
                     $status_icon = ($reg_status['status'] == 'Confirmed') ? '✅' : '⏳';
                     echo "<b>📌 Your Registration Status:</b> {$status_icon} {$reg_status['status']}<br><br>";
                 } else {
-                    // Check if this unit is required for the student
                     $student_year = getStudentYearLevel($conn, $student_reg);
                     $student_department = getStudentDepartment();
                     $current_semester_num = getCurrentSemester();
@@ -1314,7 +1330,6 @@ switch ($intent) {
         } else {
             echo "❌ I couldn't find unit '{$unit_code}' in our system.<br><br>";
             
-            // Try fuzzy search to suggest similar units
             $fuzzy_matches = fuzzySearchUnits($unit_code, $conn, 3);
             if (!empty($fuzzy_matches)) {
                 echo "<b>💡 Did you mean one of these?</b><br><br>";
@@ -1331,13 +1346,12 @@ switch ($intent) {
         break;
     
     /* ===============================
-        SEARCH UNIT (MODIFIED to avoid conflict)
+        SEARCH UNIT
     ============================== */
     case 'search_unit':
         preg_match('/[A-Z]{3,4}[0-9]{4}/i', $user_input, $matches);
         $search_term = isset($matches[0]) ? $matches[0] : $user_input;
         
-        // First try exact match
         $search_pattern = "%$search_term%";
         $stmt = $conn->prepare("SELECT unit_code, unit_name, year_level, semester_level, offering_time 
                                 FROM academic_workload 
@@ -1356,7 +1370,6 @@ switch ($intent) {
             }
             echo "💡 <i>For more details about a specific unit, say 'Tell me about " . $row['unit_code'] . "'</i><br>";
         } else {
-            // Try fuzzy search
             $fuzzy_matches = fuzzySearchUnits($search_term, $conn);
             if (!empty($fuzzy_matches)) {
                 echo "<b>🔍 Did you mean one of these?</b><br><br>";
@@ -1439,7 +1452,7 @@ switch ($intent) {
               ✅ <b>Student Info</b> - View your profile information including department<br>
               ✅ <b>Course Advisor</b> - Get personalized course recommendations<br>
               ✅ <b>Registration Help</b> - Guide you through the registration process<br>
-              ✅ <b>View Units by Year</b> - See all units for any year level<br>
+              ✅ <b>View Units by Year</b> - See all units for any year level (filtered by your department!)<br>
               ✅ <b>Unit Details</b> - Get detailed info about any unit (e.g., 'Tell me about BSN1106')<br>
               ✅ <b>Unit Schedule</b> - Find out when a unit is taught (e.g., 'When is BSN1106?')<br><br>
               🎓 <b>Try asking:</b><br>
@@ -1447,6 +1460,7 @@ switch ($intent) {
               • 'Download my timetable' - Get a link to download your timetable!<br>
               • 'What to register' - See your required units for this semester!<br>
               • 'Registration status' - Check your registration progress!<br>
+              • 'Show me third year units' - See only YOUR department's third year units!<br>
               • 'Tell me about BSN1106' - Get detailed unit information!<br><br>
               What would you like to know?";
         break;

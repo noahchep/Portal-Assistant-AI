@@ -32,6 +32,7 @@ if (isset($_POST['add_student'])) {
     $full_name  = mysqli_real_escape_string($conn, $_POST['full_name']);
     $email      = mysqli_real_escape_string($conn, $_POST['email']);
     $dept       = mysqli_real_escape_string($conn, $_POST['department']);
+    $phone      = mysqli_real_escape_string($conn, $_POST['phone']); // ADDED: Phone number
     
     // 1. Check if Email Already Exists (Prevents Duplicate Entry Fatal Error)
     $email_check_query = "SELECT email FROM users WHERE email = '$email' LIMIT 1";
@@ -104,9 +105,9 @@ if (isset($_POST['add_student'])) {
         $reg_number = "$prefix/$year/$new_sequence";
         $password_hashed = password_hash($reg_number, PASSWORD_DEFAULT);
 
-        // 3. Insert Student into Database
-        $sql = "INSERT INTO users (full_name, reg_number, email, department, role, password) 
-                VALUES ('$full_name', '$reg_number', '$email', '$dept', 'student', '$password_hashed')";
+        // 3. Insert Student into Database (ADDED: phone column)
+        $sql = "INSERT INTO users (full_name, reg_number, email, department, role, password, phone) 
+                VALUES ('$full_name', '$reg_number', '$email', '$dept', 'student', '$password_hashed', '$phone')";
 
         if (mysqli_query($conn, $sql)) {
             
@@ -174,6 +175,13 @@ if (isset($_POST['add_student'])) {
         <div class="form-group">
             <label style="display:block; font-weight:700; margin-bottom:8px; color: #374151;">Email Address</label>
             <input type="email" name="email" required placeholder="student@example.com" style="width:100%; padding:12px; border:1px solid #d1d5db; border-radius:8px; outline: none;">
+        </div>
+
+        <!-- ADDED: Phone Number Field -->
+        <div class="form-group">
+            <label style="display:block; font-weight:700; margin-bottom:8px; color: #374151;">Phone Number</label>
+            <input type="tel" name="phone" placeholder="e.g., 0712345678" style="width:100%; padding:12px; border:1px solid #d1d5db; border-radius:8px; outline: none;">
+            <small style="color: #6b7280; font-size: 0.75rem;">Optional: Student's mobile number</small>
         </div>
 
         <div class="form-group">

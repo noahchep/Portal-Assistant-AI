@@ -35,13 +35,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['signin'])) {
             // Destroy any existing session variables
             $_SESSION = array();
 
-            // ========== COMMON SESSION VARIABLES (Both Student & Admin) ==========
+            // ========== COMMON SESSION VARIABLES (Student, Admin & Lecturer) ==========
             $_SESSION['user_id']       = $row['id'];
             $_SESSION['user_name']     = $row['full_name'];
             $_SESSION['reg_number']    = $row['reg_number'];
             $_SESSION['role']          = $row['role'];
             $_SESSION['email']         = $row['email'];
-            $_SESSION['department']    = $row['department']; // ← ADDED: Store department
+            $_SESSION['department']    = $row['department']; // Store department
             $_SESSION['login_time']    = time();
             $_SESSION['login_ip']      = $_SERVER['REMOTE_ADDR'];
 
@@ -54,6 +54,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['signin'])) {
                 header("Location: Admin/Admin-index.php");
                 exit();
             } 
+            elseif ($row['role'] == 'lecturer') {
+                // Lecturer specific session variables
+                $_SESSION['is_lecturer'] = true;
+                $_SESSION['lecturer_name'] = $row['full_name'];
+                $_SESSION['lecturer_department'] = $row['department'];
+                
+                header("Location: Lecturer/lecturer_dashboard.php");
+                exit();
+            }
             else {
                 // Student specific session variables
                 $_SESSION['is_student'] = true;

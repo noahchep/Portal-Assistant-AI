@@ -142,12 +142,14 @@ switch($student_department) {
 </header>
 
 <nav>
-    <a href="Home.php">Home</a>
-    <a href="personal_information.php">Information Update</a>
-    <a href="#">Fees</a>
-    <a href="#" class="active">Timetables</a>
-    <a href="registration.php">Course Registration</a>
-    <a href="../logout.php">Sign Out</a>
+    <a href="home.php?page=dashboard">Dashboard</a>
+    <a href="home.php?page=materials">📚 Course Materials</a>
+    <a href="home.php?page=assignments">📝 Assignments</a>
+    <a href="home.php?page=my_submissions">📋 My Submissions</a>
+    <a href="personal_information.php">👤 Information Update</a>
+    <a href="teaching_timetable.php" class="active">📅 Timetables</a>
+    <a href="registration.php">📖 Course Registration</a>        
+    <a href="../logout.php">🚪 Sign Out</a>
 </nav>
 
 <div class="container">
