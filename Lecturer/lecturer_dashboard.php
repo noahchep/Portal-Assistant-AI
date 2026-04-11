@@ -135,6 +135,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         mysqli_query($conn, "DELETE FROM assignments WHERE id = $assignment_id");
         echo '<div class="alert-success">✅ Assignment deleted successfully!</div>';
     }
+    
+    // Handle grading submission
+    if (isset($_POST['grade_submission'])) {
+        $submission_id = intval($_POST['submission_id']);
+        $obtained_marks = floatval($_POST['obtained_marks']);
+        $feedback = mysqli_real_escape_string($conn, $_POST['feedback']);
+        
+        $update = "UPDATE assignment_submissions 
+                   SET obtained_marks = $obtained_marks, 
+                       feedback = '$feedback', 
+                       status = 'graded' 
+                   WHERE id = $submission_id";
+        
+        if (mysqli_query($conn, $update)) {
+            echo '<div class="alert-success">✅ Marks awarded successfully!</div>';
+        } else {
+            echo '<div class="alert-error">❌ Error awarding marks: ' . $conn->error . '</div>';
+        }
+    }
 }
 
 // Get statistics
@@ -214,6 +233,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
             --success: #10b981;
             --warning: #f59e0b;
             --danger: #ef4444;
+            --info: #3b82f6;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -249,9 +269,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         .btn-warning { background: var(--warning); color: white; }
         .btn-primary { background: var(--primary); color: white; }
         .btn-danger { background: var(--danger); color: white; }
+        .btn-info { background: var(--info); color: white; }
         .btn-sm { padding: 4px 10px; font-size: 0.75rem; }
 
-        .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; }
+        .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; display: inline-block; }
         .alert-success { background: #d1fae5; color: #065f46; padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #a7f3d0; }
         .alert-error { background: #fee2e2; color: #991b1b; padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #fecaca; }
 
@@ -271,11 +292,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         .youtube-preview iframe { width: 100%; max-width: 300px; height: 170px; border-radius: 8px; }
 
         .no-data { text-align: center; padding: 40px; color: #666; background: #f9fafb; border-radius: 8px; }
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
-        .tab-btn { background: none; border: none; padding: 10px 20px; cursor: pointer; font-weight: 600; color: var(--text-light); }
-        .tab-btn.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
+        .filter-bar { margin-bottom: 20px; padding: 15px; background: #f1f5f9; border-radius: 8px; }
+        .filter-bar select { padding: 8px; margin-left: 10px; border-radius: 6px; border: 1px solid #ccc; }
+        
+        .marks-awarded { font-weight: 700; color: var(--success); }
+        .marks-pending { color: var(--warning); }
     </style>
 </head>
 <body>
@@ -296,6 +317,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         <a href="?section=my_courses" class="<?php echo $section === 'my_courses' ? 'active' : ''; ?>">My Courses</a>
         <a href="?section=materials" class="<?php echo $section === 'materials' ? 'active' : ''; ?>">Course Materials</a>
         <a href="?section=assignments" class="<?php echo $section === 'assignments' ? 'active' : ''; ?>">Assignments</a>
+        <a href="?section=submissions" class="<?php echo $section === 'submissions' ? 'active' : ''; ?>">📋 Submissions</a>
         <a href="?section=students" class="<?php echo $section === 'students' ? 'active' : ''; ?>">My Students</a>
         <a href="?section=timetable" class="<?php echo $section === 'timetable' ? 'active' : ''; ?>">My Timetable</a>
     </div>
@@ -326,6 +348,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
                     <li>✅ Upload learning materials (PDF, PPT, DOC)</li>
                     <li>✅ Share YouTube tutorial links</li>
                     <li>✅ Create and upload assignments</li>
+                    <li>✅ Review and grade student submissions</li>
                     <li>✅ Review student registrations</li>
                 </ul>
             </div>
@@ -366,14 +389,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         <?php break;
 
         case 'materials':
-            // Get assigned units for dropdown
             $units_query = "SELECT DISTINCT t.unit_code, aw.unit_name FROM timetable t 
                            JOIN academic_workload aw ON t.unit_code = aw.unit_code 
                            WHERE t.lecturer = '$lecturer_name'";
             $units_result = mysqli_query($conn, $units_query);
             $selected_unit = $_GET['unit'] ?? '';
             
-            // Get materials for selected unit
             $materials_query = "SELECT * FROM course_materials WHERE uploaded_by = '$lecturer_name'";
             if ($selected_unit) {
                 $materials_query .= " AND unit_code = '$selected_unit'";
@@ -384,10 +405,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
             <div class="section-box">
                 <h2>📄 Course Materials Management</h2>
                 
-                <!-- Unit Filter -->
-                <div style="margin-bottom: 20px;">
-                    <label>Filter by Unit:</label>
-                    <select onchange="location.href='?section=materials&unit='+this.value" style="padding: 8px; margin-left: 10px;">
+                <div class="filter-bar">
+                    <label><strong>Filter by Unit:</strong></label>
+                    <select onchange="location.href='?section=materials&unit='+this.value">
                         <option value="">All Units</option>
                         <?php while($unit = mysqli_fetch_assoc($units_result)): ?>
                             <option value="<?php echo $unit['unit_code']; ?>" <?php echo ($selected_unit == $unit['unit_code']) ? 'selected' : ''; ?>>
@@ -397,13 +417,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
                     </select>
                 </div>
                 
-                <!-- Upload Buttons -->
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
                     <button onclick="openModal('pdfModal')" class="btn btn-primary">📄 Upload PDF/Document</button>
                     <button onclick="openModal('youtubeModal')" class="btn btn-primary">▶️ Add YouTube Tutorial</button>
                 </div>
                 
-                <!-- Materials List -->
                 <h3>Uploaded Materials</h3>
                 <?php if (mysqli_num_rows($materials_result) == 0): ?>
                     <div class="no-data">No materials uploaded yet.</div>
@@ -450,9 +468,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
             <div class="section-box">
                 <h2>📝 Assignments Management</h2>
                 
-                <div style="margin-bottom: 20px;">
-                    <label>Filter by Unit:</label>
-                    <select onchange="location.href='?section=assignments&unit='+this.value" style="padding: 8px; margin-left: 10px;">
+                <div class="filter-bar">
+                    <label><strong>Filter by Unit:</strong></label>
+                    <select onchange="location.href='?section=assignments&unit='+this.value">
                         <option value="">All Units</option>
                         <?php while($unit = mysqli_fetch_assoc($units_result)): ?>
                             <option value="<?php echo $unit['unit_code']; ?>" <?php echo ($selected_unit == $unit['unit_code']) ? 'selected' : ''; ?>>
@@ -486,7 +504,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
                                         <input type="hidden" name="assignment_id" value="<?php echo $assignment['id']; ?>">
                                         <button type="submit" name="delete_assignment" class="btn btn-danger btn-sm" onclick="return confirm('Delete this assignment?')">🗑️ Delete</button>
                                     </form>
-                                </td>
+                                 </nbsp;
                             </tr>
                             <?php endwhile; ?>
                         </tbody>
@@ -494,6 +512,110 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
                 <?php endif; ?>
             </div>
         <?php break;
+
+   case 'submissions':
+    // Get units assigned to this lecturer
+    $units_query = "SELECT DISTINCT t.unit_code, aw.unit_name 
+                   FROM timetable t 
+                   JOIN academic_workload aw ON t.unit_code = aw.unit_code 
+                   WHERE t.lecturer = '$lecturer_name'";
+    $units_result = mysqli_query($conn, $units_query);
+    $selected_unit = $_GET['unit'] ?? '';
+    
+    // FIXED: Added a.unit_code to the SELECT
+    $submissions_query = "SELECT s.*, a.title as assignment_title, a.total_marks, a.unit_code as assignment_unit_code, u.full_name, u.reg_number, u.email 
+                         FROM assignment_submissions s 
+                         JOIN assignments a ON s.assignment_id = a.id 
+                         JOIN users u ON s.student_reg = u.reg_number 
+                         WHERE a.created_by = '$lecturer_name'";
+    
+    if ($selected_unit) {
+        $submissions_query .= " AND a.unit_code = '$selected_unit'";
+    }
+    
+    $submissions_query .= " ORDER BY s.submitted_at DESC";
+    $submissions_result = mysqli_query($conn, $submissions_query);
+    ?>
+    <div class="section-box">
+        <h2>📋 Student Submissions</h2>
+        
+        <div class="filter-bar">
+            <label><strong>Filter by Unit:</strong></label>
+            <select onchange="location.href='?section=submissions&unit='+this.value">
+                <option value="">All Units</option>
+                <?php 
+                mysqli_data_seek($units_result, 0);
+                while($unit = mysqli_fetch_assoc($units_result)): ?>
+                    <option value="<?php echo $unit['unit_code']; ?>" <?php echo ($selected_unit == $unit['unit_code']) ? 'selected' : ''; ?>>
+                        <?php echo $unit['unit_code'] . ' - ' . $unit['unit_name']; ?>
+                    </option>
+                <?php endwhile; ?>
+            </select>
+        </div>
+        
+        <?php if (mysqli_num_rows($submissions_result) == 0): ?>
+            <div class="no-data">
+                <p>📭 No student submissions yet.</p>
+                <p>Once students submit assignments, they will appear here.</p>
+            </div>
+        <?php else: ?>
+            <div style="overflow-x: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Student Name</th>
+                            <th>Reg Number</th>
+                            <th>Assignment</th>
+                            <th>Unit</th>
+                            <th>Submitted On</th>
+                            <th>Marks</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php while($sub = mysqli_fetch_assoc($submissions_result)): ?>
+                            <tr>
+                                <td><strong><?php echo htmlspecialchars($sub['full_name']); ?></strong><br>
+                                    <small><?php echo $sub['email']; ?></small>
+                                 </div>
+                                <td><?php echo $sub['reg_number']; ?></div>
+                                <td><?php echo htmlspecialchars($sub['assignment_title']); ?></div>
+                                <td><?php echo $sub['assignment_unit_code']; ?></div> <!-- FIXED: Using assignment_unit_code -->
+                                <td><?php echo date('d M Y H:i', strtotime($sub['submitted_at'])); ?></div>
+                                <td>
+                                    <?php if($sub['obtained_marks'] !== null): ?>
+                                        <span class="marks-awarded"><?php echo $sub['obtained_marks']; ?> / <?php echo $sub['total_marks']; ?></span>
+                                    <?php else: ?>
+                                        <span class="marks-pending">Not graded</span>
+                                    <?php endif; ?>
+                                 </div>
+                                <td>
+                                    <?php if($sub['status'] == 'graded'): ?>
+                                        <span class="status-badge" style="background: #d1fae5; color: #065f46;">✅ Graded</span>
+                                    <?php else: ?>
+                                        <span class="status-badge" style="background: #fed7aa; color: #92400e;">⏳ Pending</span>
+                                    <?php endif; ?>
+                                 </div>
+                                <td>
+                                    <button onclick="openGradeModal(<?php echo $sub['id']; ?>, '<?php echo addslashes($sub['full_name']); ?>', '<?php echo addslashes($sub['assignment_title']); ?>', <?php echo $sub['total_marks']; ?>, <?php echo $sub['obtained_marks'] ?? 'null'; ?>, '<?php echo addslashes($sub['feedback'] ?? ''); ?>')" class="btn btn-primary btn-sm">
+                                        <?php echo ($sub['obtained_marks'] !== null) ? '✏️ Edit Marks' : '🎯 Award Marks'; ?>
+                                    </button>
+                                    <?php if($sub['file_path']): ?>
+                                        <a href="../uploads/submissions/<?php echo $sub['file_path']; ?>" target="_blank" class="btn btn-info btn-sm">📄 View File</a>
+                                    <?php endif; ?>
+                                    <?php if($sub['submission_text'] && !empty(trim($sub['submission_text']))): ?>
+                                        <button onclick="viewTextSubmission('<?php echo addslashes($sub['submission_text']); ?>')" class="btn btn-info btn-sm">📝 View Answer</button>
+                                    <?php endif; ?>
+                                 </div>
+                            </tr>
+                        <?php endwhile; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
+    </div>
+<?php break;
 
         case 'students':
             $students_query = "SELECT id, full_name, reg_number, email, phone, created_at FROM users WHERE role='student' AND department='$lecturer_dept' ORDER BY full_name";
@@ -666,6 +788,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
     </div>
 </div>
 
+<!-- Grade Modal -->
+<div id="gradeModal" class="modal">
+    <div class="modal-content" style="max-width: 500px;">
+        <h3>🎯 Award Marks</h3>
+        <form method="POST" action="">
+            <input type="hidden" name="submission_id" id="grade_submission_id">
+            <input type="hidden" name="grade_submission" value="1">
+            
+            <div class="form-group">
+                <label>Student Name</label>
+                <input type="text" id="grade_student_name" readonly style="background: #f3f4f6;">
+            </div>
+            
+            <div class="form-group">
+                <label>Assignment</label>
+                <input type="text" id="grade_assignment_title" readonly style="background: #f3f4f6;">
+            </div>
+            
+            <div class="form-group">
+                <label>Total Marks</label>
+                <input type="text" id="grade_total_marks" readonly style="background: #f3f4f6;">
+            </div>
+            
+            <div class="form-group">
+                <label>Obtained Marks *</label>
+                <input type="number" name="obtained_marks" id="grade_obtained_marks" required min="0" step="0.5" style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px;">
+            </div>
+            
+            <div class="form-group">
+                <label>Feedback (Optional)</label>
+                <textarea name="feedback" id="grade_feedback" rows="4" style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px;" placeholder="Provide feedback to the student..."></textarea>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button type="submit" class="btn btn-success">Save Marks</button>
+                <button type="button" onclick="closeGradeModal()" class="btn btn-danger">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Text Submission Modal -->
+<div id="textSubmissionModal" class="modal">
+    <div class="modal-content" style="max-width: 700px;">
+        <h3>📝 Student's Answer</h3>
+        <div id="text_submission_content" style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 15px 0; max-height: 400px; overflow-y: auto; white-space: pre-wrap; font-family: inherit;"></div>
+        <div style="display: flex; justify-content: flex-end;">
+            <button type="button" onclick="closeTextSubmissionModal()" class="btn btn-danger">Close</button>
+        </div>
+    </div>
+</div>
+
 <!-- Password Change Modal -->
 <div id="passwordModal" class="modal">
     <div class="modal-content">
@@ -683,12 +857,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
 </div>
 
 <script>
-function openModal(modalId) { document.getElementById(modalId).style.display = 'flex'; }
-function closeModal(modalId) { document.getElementById(modalId).style.display = 'none'; }
-function openPasswordModal() { document.getElementById('passwordModal').style.display = 'flex'; }
-function closePasswordModal() { document.getElementById('passwordModal').style.display = 'none'; }
+function openModal(modalId) { 
+    document.getElementById(modalId).style.display = 'flex'; 
+}
+function closeModal(modalId) { 
+    document.getElementById(modalId).style.display = 'none'; 
+}
+function openPasswordModal() { 
+    document.getElementById('passwordModal').style.display = 'flex'; 
+}
+function closePasswordModal() { 
+    document.getElementById('passwordModal').style.display = 'none'; 
+}
+
+function openGradeModal(id, studentName, assignmentTitle, totalMarks, obtainedMarks, feedback) {
+    document.getElementById('grade_submission_id').value = id;
+    document.getElementById('grade_student_name').value = studentName;
+    document.getElementById('grade_assignment_title').value = assignmentTitle;
+    document.getElementById('grade_total_marks').value = totalMarks;
+    document.getElementById('grade_obtained_marks').value = obtainedMarks !== null ? obtainedMarks : '';
+    document.getElementById('grade_feedback').value = feedback !== 'null' ? feedback : '';
+    document.getElementById('gradeModal').style.display = 'flex';
+}
+
+function closeGradeModal() {
+    document.getElementById('gradeModal').style.display = 'none';
+}
+
+function viewTextSubmission(text) {
+    document.getElementById('text_submission_content').innerHTML = text.replace(/\n/g, '<br>');
+    document.getElementById('textSubmissionModal').style.display = 'flex';
+}
+
+function closeTextSubmissionModal() {
+    document.getElementById('textSubmissionModal').style.display = 'none';
+}
+
 window.onclick = function(event) {
-    const modals = ['pdfModal', 'youtubeModal', 'assignmentModal', 'passwordModal'];
+    const modals = ['pdfModal', 'youtubeModal', 'assignmentModal', 'passwordModal', 'gradeModal', 'textSubmissionModal'];
     modals.forEach(id => {
         const modal = document.getElementById(id);
         if (event.target == modal) modal.style.display = 'none';
@@ -696,4 +902,4 @@ window.onclick = function(event) {
 }
 </script>
 </body>
-</html>
+</html>s

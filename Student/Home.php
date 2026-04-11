@@ -73,7 +73,7 @@ $is_default_password = password_verify($student['reg_number'], $student['passwor
 $name_parts = explode(" ", $student['full_name']);
 $fname = $name_parts[0] ?? 'Student';
 
-// Handle assignment submission
+// Handle assignment submission - FIXED FILE UPLOAD SECTION
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['submit_assignment'])) {
         $assignment_id = intval($_POST['assignment_id']);
@@ -82,14 +82,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Handle file upload
         $file_path = null;
         if (isset($_FILES['submission_file']) && $_FILES['submission_file']['error'] == 0) {
+            // Create directory if it doesn't exist
             $target_dir = "../uploads/submissions/";
             if (!file_exists($target_dir)) {
                 mkdir($target_dir, 0777, true);
             }
-            $file_name = time() . '_' . $student_reg . '_' . basename($_FILES['submission_file']['name']);
+            
+            // Sanitize filename - remove slashes from registration number
+            $safe_reg = str_replace('/', '_', $student_reg);
+            // Get file extension
+            $file_ext = pathinfo($_FILES['submission_file']['name'], PATHINFO_EXTENSION);
+            // Create safe filename
+            $file_name = time() . '_' . $safe_reg . '_' . $assignment_id . '.' . $file_ext;
             $target_file = $target_dir . $file_name;
+            
             if (move_uploaded_file($_FILES['submission_file']['tmp_name'], $target_file)) {
                 $file_path = $file_name;
+            } else {
+                echo '<div class="alert-error">❌ Error uploading file.</div>';
             }
         }
         
@@ -164,7 +174,7 @@ $units_list = !empty($student_units) ? "'" . implode("','", $student_units) . "'
         
         .card { background: var(--white); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
         .card-header { background: var(--primary); color: white; padding: 15px 20px; font-weight: 700; }
-        .card-body { padding: 20px; max-height: 400px; overflow-y: auto; }
+        .card-body { padding: 20px; max-height: 500px; overflow-y: auto; }
         
         .material-item, .assignment-item { border-bottom: 1px solid var(--border); padding: 15px 0; }
         .material-item:last-child, .assignment-item:last-child { border-bottom: none; }
@@ -196,8 +206,20 @@ $units_list = !empty($student_units) ? "'" . implode("','", $student_units) . "'
         .data-table th, .data-table td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
         .data-table th { background: var(--bg); font-weight: 700; }
 
+        .results-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 25px; padding: 15px; background: #f1f5f9; border-radius: 12px; }
+        .result-stat { text-align: center; }
+        .result-stat .label { font-size: 0.75rem; color: #64748b; }
+        .result-stat .value { font-size: 1.5rem; font-weight: 700; color: #4f46e5; }
+        .grade-A { color: #10b981; }
+        .grade-B { color: #10b981; }
+        .grade-C { color: #f59e0b; }
+        .grade-D { color: #f59e0b; }
+        .grade-F { color: #ef4444; }
+
         footer { text-align: center; padding: 40px; color: var(--text-light); font-size: 0.85rem; }
         #chat-trigger { position: fixed; bottom: 30px; right: 30px; background: var(--primary); color: white; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 10px 25px rgba(79, 70, 229, 0.4); z-index: 100; font-size: 1.5rem; }
+        
+        .no-data { text-align: center; padding: 40px; color: #666; background: #f9fafb; border-radius: 8px; }
     </style>
 </head>
 <body>
@@ -217,6 +239,7 @@ $units_list = !empty($student_units) ? "'" . implode("','", $student_units) . "'
     <a href="home.php?page=materials" class="<?php echo $page === 'materials' ? 'active' : ''; ?>">📚 Course Materials</a>
     <a href="home.php?page=assignments" class="<?php echo $page === 'assignments' ? 'active' : ''; ?>">📝 Assignments</a>
     <a href="home.php?page=my_submissions" class="<?php echo $page === 'my_submissions' ? 'active' : ''; ?>">📋 My Submissions</a>
+    <a href="home.php?page=my_results" class="<?php echo $page === 'my_results' ? 'active' : ''; ?>">📊 My Results</a>
     <a href="personal_information.php">👤 Information Update</a>
     <a href="teaching_timetable.php">📅 Timetables</a>
     <a href="registration.php">📖 Course Registration</a>        
@@ -420,6 +443,146 @@ $units_list = !empty($student_units) ? "'" . implode("','", $student_units) . "'
             </div>
         <?php break;
 
+        case 'my_results':
+            // Get all graded submissions with marks
+            $results_query = "SELECT s.*, a.title as assignment_title, a.unit_code, a.total_marks, a.due_date,
+                             CASE 
+                                 WHEN a.due_date < CURDATE() AND s.status != 'graded' THEN 'Missed Deadline'
+                                 ELSE s.status
+                             END as submission_status
+                             FROM assignment_submissions s 
+                             JOIN assignments a ON s.assignment_id = a.id 
+                             WHERE s.student_reg = '$student_reg' 
+                             ORDER BY s.submitted_at DESC";
+            $results_result = mysqli_query($conn, $results_query);
+            
+            // Calculate total marks and average
+            $total_obtained = 0;
+            $total_possible = 0;
+            $graded_count = 0;
+            $pending_count = 0;
+            
+            $all_results = [];
+            while($row = mysqli_fetch_assoc($results_result)) {
+                $all_results[] = $row;
+                if($row['obtained_marks'] !== null && $row['status'] == 'graded') {
+                    $total_obtained += $row['obtained_marks'];
+                    $total_possible += $row['total_marks'];
+                    $graded_count++;
+                } else {
+                    $pending_count++;
+                }
+            }
+            
+            $average = ($total_possible > 0) ? ($total_obtained / $total_possible) * 100 : 0;
+            $grade_color = $average >= 70 ? '#10b981' : ($average >= 50 ? '#f59e0b' : '#ef4444');
+            ?>
+            <div class="card">
+                <div class="card-header">📊 My Academic Results</div>
+                <div class="card-body">
+                    <!-- Summary Stats -->
+                    <div class="results-summary">
+                        <div class="result-stat">
+                            <div class="label">Total Graded</div>
+                            <div class="value"><?php echo $graded_count; ?></div>
+                        </div>
+                        <div class="result-stat">
+                            <div class="label">Pending Review</div>
+                            <div class="value" style="color: #f59e0b;"><?php echo $pending_count; ?></div>
+                        </div>
+                        <div class="result-stat">
+                            <div class="label">Average Score</div>
+                            <div class="value" style="color: <?php echo $grade_color; ?>;"><?php echo round($average, 1); ?>%</div>
+                        </div>
+                        <div class="result-stat">
+                            <div class="label">Total Marks</div>
+                            <div class="value"><?php echo $total_obtained; ?> / <?php echo $total_possible; ?></div>
+                        </div>
+                    </div>
+                    
+                    <?php if (count($all_results) == 0): ?>
+                        <div class="no-data">
+                            <p>📭 No results available yet.</p>
+                            <p>Once your assignments are graded, they will appear here.</p>
+                        </div>
+                    <?php else: ?>
+                        <div style="overflow-x: auto;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Assignment</th>
+                                        <th>Unit</th>
+                                        <th>Submitted On</th>
+                                        <th>Due Date</th>
+                                        <th>Marks</th>
+                                        <th>Percentage</th>
+                                        <th>Status</th>
+                                        <th>Feedback</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach($all_results as $result): 
+                                        $percentage = ($result['obtained_marks'] !== null && $result['total_marks'] > 0) ? ($result['obtained_marks'] / $result['total_marks']) * 100 : 0;
+                                        $grade_color_row = $percentage >= 70 ? '#10b981' : ($percentage >= 50 ? '#f59e0b' : '#ef4444');
+                                        $letter_grade = $percentage >= 70 ? 'A' : ($percentage >= 60 ? 'B' : ($percentage >= 50 ? 'C' : ($percentage >= 40 ? 'D' : 'F')));
+                                    ?>
+                                        <tr>
+                                            <td><strong><?php echo htmlspecialchars($result['assignment_title']); ?></strong></td>
+                                            <td><?php echo $result['unit_code']; ?></td>
+                                            <td><?php echo date('d M Y', strtotime($result['submitted_at'])); ?></td>
+                                            <td><?php echo date('d M Y', strtotime($result['due_date'])); ?></td>
+                                            <td>
+                                                <?php if($result['obtained_marks'] !== null): ?>
+                                                    <strong style="color: <?php echo $grade_color_row; ?>;"><?php echo $result['obtained_marks']; ?> / <?php echo $result['total_marks']; ?></strong>
+                                                <?php else: ?>
+                                                    <span style="color: #f59e0b;">Not graded</span>
+                                                <?php endif; ?>
+                                             </div>
+                                            <td>
+                                                <?php if($result['obtained_marks'] !== null): ?>
+                                                    <span style="color: <?php echo $grade_color_row; ?>; font-weight: 700;"><?php echo round($percentage, 1); ?>%</span>
+                                                    <span style="font-size: 0.7rem;"> (<?php echo $letter_grade; ?>)</span>
+                                                <?php else: ?>
+                                                    <span style="color: #94a3b8;">--</span>
+                                                <?php endif; ?>
+                                             </div>
+                                            <td>
+                                                <?php if($result['status'] == 'graded'): ?>
+                                                    <span class="submission-status status-submitted">✅ Graded</span>
+                                                <?php elseif($result['submission_status'] == 'Missed Deadline'): ?>
+                                                    <span class="submission-status status-pending">⏰ Missed Deadline</span>
+                                                <?php else: ?>
+                                                    <span class="submission-status status-pending">⏳ Pending</span>
+                                                <?php endif; ?>
+                                             </div>
+                                            <td>
+                                                <?php if($result['feedback'] && !empty(trim($result['feedback']))): ?>
+                                                    <button onclick="viewFeedback('<?php echo addslashes($result['feedback']); ?>')" class="btn btn-primary btn-sm">📋 View Feedback</button>
+                                                <?php else: ?>
+                                                    <span style="color: #94a3b8;">No feedback</span>
+                                                <?php endif; ?>
+                                             </div>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+            
+            <!-- Feedback Modal -->
+            <div id="feedbackModal" class="modal">
+                <div class="modal-content" style="max-width: 500px;">
+                    <h3>📋 Lecturer Feedback</h3>
+                    <div id="feedback_content" style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 15px 0; max-height: 300px; overflow-y: auto; white-space: pre-wrap; font-family: inherit;"></div>
+                    <div style="display: flex; justify-content: flex-end;">
+                        <button type="button" onclick="closeFeedbackModal()" class="btn btn-danger">Close</button>
+                    </div>
+                </div>
+            </div>
+        <?php break;
+
         default:
             // Default to dashboard
             header("Location: home.php?page=dashboard");
@@ -459,7 +622,7 @@ $units_list = !empty($student_units) ? "'" . implode("','", $student_units) . "'
 <div id="chat-trigger" onclick="toggleChat()">💬</div>
 
 <footer>
-    &copy; 2026 Mount Kenya University | Portal Assistant AI
+    &copy; 2026 Portal Assistant AI
 </footer>
 
 <script>
@@ -475,16 +638,28 @@ function closeAssignmentModal() {
     document.getElementById('assignmentModal').style.display = 'none';
 }
 
+function viewFeedback(feedback) {
+    document.getElementById('feedback_content').innerHTML = feedback.replace(/\n/g, '<br>');
+    document.getElementById('feedbackModal').style.display = 'flex';
+}
+
+function closeFeedbackModal() {
+    document.getElementById('feedbackModal').style.display = 'none';
+}
+
 function toggleChat() {
     window.open('chatbot.php', '_blank', 'width=450,height=600,scrollbars=yes');
 }
 
-// Close modal when clicking outside
+// Close modals when clicking outside
 window.onclick = function(event) {
-    const modal = document.getElementById('assignmentModal');
-    if (event.target == modal) {
-        modal.style.display = 'none';
-    }
+    const modals = ['assignmentModal', 'feedbackModal'];
+    modals.forEach(id => {
+        const modal = document.getElementById(id);
+        if (event.target == modal) {
+            modal.style.display = 'none';
+        }
+    });
 }
 </script>
 </body>

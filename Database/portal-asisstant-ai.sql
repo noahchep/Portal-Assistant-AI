@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 09, 2026 at 12:32 PM
+-- Generation Time: Apr 11, 2026 at 10:07 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -1414,7 +1414,63 @@ INSERT INTO `ai_knowledge_base` (`id`, `student_query`, `verified_answer`, `crea
 (22, 'when is the exams begining>', '13th april', '2026-03-18 06:29:10'),
 (23, 'thanks', 'You are welcome', '2026-03-18 06:54:01'),
 (24, 'when is the exams begining', 'hello', '2026-03-24 06:36:46'),
-(25, 'first year', 'yes', '2026-03-25 08:39:48');
+(25, 'first year', 'yes', '2026-03-25 08:39:48'),
+(26, 'hi', 'hi too', '2026-04-11 03:57:25');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `assignments`
+--
+
+CREATE TABLE `assignments` (
+  `id` int(11) NOT NULL,
+  `unit_code` varchar(20) NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `description` text NOT NULL,
+  `file_path` varchar(500) NOT NULL,
+  `due_date` date NOT NULL,
+  `total_marks` int(11) NOT NULL,
+  `created_by` varchar(100) NOT NULL,
+  `created_at` datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `assignments`
+--
+
+INSERT INTO `assignments` (`id`, `unit_code`, `title`, `description`, `file_path`, `due_date`, `total_marks`, `created_by`, `created_at`) VALUES
+(1, 'BIT3206', 'week 3 assigment', 'do proper research', '1775885083_BIT 4107 Mobile Application Development CAT.docx', '2026-04-18', 30, 'Arfican', '2026-04-11 08:24:43'),
+(2, 'BBM2103', 'assignment', 'do  research', '1775890468_BIT 4107 Mobile Application Development CAT (2).docx', '2026-04-18', 30, 'Arfican', '2026-04-11 09:54:28'),
+(3, 'BBM2103', 'Week 3 task', 'Do more research and no copy pasting', '1775892970_BIT 4107 Mobile Application Development CAT.docx', '2026-04-18', 30, 'Arfican', '2026-04-11 10:36:10');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `assignment_submissions`
+--
+
+CREATE TABLE `assignment_submissions` (
+  `id` int(11) NOT NULL,
+  `assignment_id` int(11) NOT NULL,
+  `unit_code` varchar(20) DEFAULT NULL,
+  `student_reg` varchar(50) NOT NULL,
+  `submission_text` longtext DEFAULT NULL,
+  `file_path` varchar(500) DEFAULT NULL,
+  `submitted_at` datetime NOT NULL,
+  `obtained_marks` int(11) DEFAULT NULL,
+  `feedback` text DEFAULT NULL,
+  `status` enum('submitted','graded','late') DEFAULT 'submitted'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `assignment_submissions`
+--
+
+INSERT INTO `assignment_submissions` (`id`, `assignment_id`, `unit_code`, `student_reg`, `submission_text`, `file_path`, `submitted_at`, `obtained_marks`, `feedback`, `status`) VALUES
+(1, 2, 'BBM2103', 'BIT/2026/00005', '', NULL, '2026-04-11 09:55:19', NULL, NULL, 'submitted'),
+(2, 2, 'BBM2103', 'BIT/2026/00005', '', NULL, '2026-04-11 10:31:50', NULL, NULL, 'submitted'),
+(3, 3, 'BBM2103', 'BIT/2026/00005', '', '1775893020_BIT_2026_00005_3.docx', '2026-04-11 10:37:00', 20, 'good', 'graded');
 
 -- --------------------------------------------------------
 
@@ -1689,7 +1745,43 @@ INSERT INTO `chat_messages` (`id`, `conversation_id`, `sender_type`, `message`, 
 (257, 'vd996gsujt2v62agu3m1ln9ri6', 'student', 'hello', '2026-04-08 14:50:44', NULL),
 (258, 'vd996gsujt2v62agu3m1ln9ri6', 'bot', 'hello', '2026-04-08 14:50:44', NULL),
 (259, 'dtilehk1h8v67r08ijj1r36mvp', 'student', 'hello', '2026-04-09 06:56:41', NULL),
-(260, 'dtilehk1h8v67r08ijj1r36mvp', 'bot', 'hello', '2026-04-09 06:56:41', NULL);
+(260, 'dtilehk1h8v67r08ijj1r36mvp', 'bot', 'hello', '2026-04-09 06:56:41', NULL),
+(261, 'h7t96fullqskmfm0at826vgjfl', 'student', 'hello', '2026-04-10 15:05:44', NULL),
+(262, 'h7t96fullqskmfm0at826vgjfl', 'bot', 'hello', '2026-04-10 15:05:44', NULL),
+(263, 'h7t96fullqskmfm0at826vgjfl', 'bot', '<b>📚 Definition of \"number\":</b><br><br><b>noun:</b><br>  1. An abstract entity used to describe quantity.<br>     <i>Example: \"Zero, one, −1, 2.5, and pi are all numbers.\"</i><br>  2. A numeral: a symbol for a non-negative integer.<br>     <i>Example: \"The number 8 is usually made with a single stroke.\"</i><br><br><b>verb:</b><br>  1. To label (items) with numbers; to assign numbers to (items).<br>     <i>Example: \"Number the baskets so that we can find them easily.\"</i><br>  2. To total o', '2026-04-10 15:06:20', NULL),
+(264, 'bbcciokbeusn6n28j6ianab2cj', 'student', 'hi', '2026-04-11 03:58:48', NULL),
+(265, 'bbcciokbeusn6n28j6ianab2cj', 'bot', 'hi too', '2026-04-11 03:58:48', NULL),
+(266, '5kdgdbbh968vkhq219e5hj4ouf', 'student', 'hi', '2026-04-11 05:38:51', NULL),
+(267, '5kdgdbbh968vkhq219e5hj4ouf', 'bot', 'hi too', '2026-04-11 05:38:51', NULL),
+(268, 'm40q7hcodvdgmpccjlsfebbjpc', 'student', 'hello', '2026-04-11 08:06:44', NULL),
+(269, 'm40q7hcodvdgmpccjlsfebbjpc', 'bot', 'hello', '2026-04-11 08:06:44', NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `course_materials`
+--
+
+CREATE TABLE `course_materials` (
+  `id` int(11) NOT NULL,
+  `unit_code` varchar(20) NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `description` text DEFAULT NULL,
+  `file_path` varchar(500) DEFAULT NULL,
+  `youtube_url` varchar(500) DEFAULT NULL,
+  `video_id` varchar(100) DEFAULT NULL,
+  `file_type` varchar(50) DEFAULT NULL,
+  `material_type` enum('file','youtube') DEFAULT 'file',
+  `uploaded_by` varchar(100) NOT NULL,
+  `uploaded_at` datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `course_materials`
+--
+
+INSERT INTO `course_materials` (`id`, `unit_code`, `title`, `description`, `file_path`, `youtube_url`, `video_id`, `file_type`, `material_type`, `uploaded_by`, `uploaded_at`) VALUES
+(1, 'BIT3206', 'Notes', 'read ad write short notes', '1775885202_s.pdf', NULL, NULL, 'pdf', 'file', 'Arfican', '2026-04-11 08:26:42');
 
 -- --------------------------------------------------------
 
@@ -1727,7 +1819,8 @@ INSERT INTO `registered_courses` (`id`, `student_reg_no`, `unit_code`, `departme
 (12, 'BEC/2026/00003', 'BMA3102', 'Enterprise Computing', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-04-01 10:09:46'),
 (16, 'BSN/2026/00007', 'BSN1101', 'Nursing', 'Regular', 'Day', 'Jan/Apr', '2026', 'Provisional', '2026-04-09 09:02:12'),
 (17, 'BSN/2026/00007', 'BSN1102', 'Nursing', 'Regular', 'Day', 'Jan/Apr', '2026', 'Provisional', '2026-04-09 09:28:47'),
-(18, 'BSN/2026/00007', 'BSN1106', 'Nursing', 'Regular', 'Day', 'Jan/Apr', '2026', 'Provisional', '2026-04-09 09:32:05');
+(18, 'BSN/2026/00007', 'BSN1106', 'Nursing', 'Regular', 'Day', 'Jan/Apr', '2026', 'Provisional', '2026-04-09 09:32:05'),
+(23, 'BIT/2026/00005', 'BUCU007', 'Information Technology', 'Regular', 'Day', 'Jan/Apr', '2026', 'Provisional', '2026-04-11 06:37:26');
 
 -- --------------------------------------------------------
 
@@ -1788,12 +1881,12 @@ INSERT INTO `timetable` (`id`, `unit_code`, `course_title`, `department`, `time_
 (93, 'BBM1101', 'Introduction to business studies', 'Information Technology', '10:00', '13:00', 'Monday', 'CC1', 'Class I', 'Ms. KHAYALI', NULL, '1', 'First Year', '2026', '2026-03-31 20:08:29'),
 (94, 'BBM1201', 'Principles of Management', 'Information Technology', '13:00', '16:00', 'Monday', 'FLT HALL A', 'Class I', 'Mrs. MWANGI', NULL, '2', 'First Year', '2026', '2026-03-31 20:08:29'),
 (95, 'BBM1202', 'Principles of Marketing', 'Information Technology', '16:00', '22:00', 'Monday', 'BL 5', 'Class I', 'Mrs. MWAKI', NULL, '1', 'Second Year', '2026', '2026-03-31 20:08:29'),
-(96, 'BBM2103', 'Organization Behavior', 'Information Technology', '07:00', '10:00', 'Monday', 'CC5', 'Class I', 'Ms. KHAYALI', NULL, '1', 'Second Year', '2026', '2026-03-31 20:08:29'),
+(96, 'BBM2103', 'Organization Behavior', 'Information Technology', '07:00', '10:00', 'Monday', 'CC5', 'Class I', 'Arfican', NULL, '1', 'Second Year', '2026', '2026-03-31 20:08:29'),
 (97, 'BBM3107', 'Human Resource Management', 'Management', '10:00', '13:00', 'Monday', 'CT 8.3', 'Class I', 'Mrs. MWANGI', NULL, '2', 'Fourth Year', '2026', '2026-03-31 20:08:29'),
 (98, 'BEG2112', 'Digital Electronics and Devices', 'Information Technology', '13:00', '16:00', 'Monday', 'COMP LAB 1', 'Class I', 'Mr. KAMAU', NULL, '1', 'Second Year', '2026', '2026-03-31 20:08:29'),
 (99, 'BIT1101', 'Computer Architecture', 'Information Technology', '16:00', '22:00', 'Monday', 'CTA HALL', 'Class I', 'Mr. NYAGA', NULL, '2', 'First Year', '2026', '2026-03-31 20:08:29'),
 (100, 'BIT1102', 'Introduction to programming and algorithms', 'Information Technology', '07:00', '10:00', 'Monday', 'COMP LAB 2', 'Class I', 'Mr. MURIUKI', NULL, '1', 'First Year', '2026', '2026-03-31 20:08:29'),
-(101, 'BIT1106', 'Intro to Computer Application Packages', 'Information Technology', '10:00', '13:00', 'Monday', 'COMP LAB 3', 'Class I', 'Mr. MURIUKI', NULL, '1', 'First Year', '2026', '2026-03-31 20:08:29'),
+(101, 'BIT1106', 'Intro to Computer Application Packages', 'Information Technology', '10:00', '13:00', 'Monday', 'COMP LAB 3', 'Class I', 'Arfican', NULL, '1', 'First Year', '2026', '2026-03-31 20:08:29'),
 (102, 'BIT1201', 'Database systems', 'Information Technology', '07:00', '10:00', 'Tuesday', 'CC2', 'Class I', 'Mr. OWINO', NULL, '2', 'First Year', '2026', '2026-03-31 20:08:29'),
 (103, 'BIT2102', 'Fundamentals of Internet', 'Information Technology', '10:00', '13:00', 'Tuesday', 'CC8', 'Class I', 'Mr. MAGATI', NULL, '2', 'First Year', '2026', '2026-03-31 20:08:29'),
 (104, 'BIT2205', 'Object oriented programming II', 'Information Technology', '13:00', '16:00', 'Tuesday', 'COMP LAB 4', 'Class I', 'Mr. MURIUKI', NULL, '1', 'Second Year', '2026', '2026-03-31 20:08:29'),
@@ -1803,7 +1896,7 @@ INSERT INTO `timetable` (`id`, `unit_code`, `course_title`, `department`, `time_
 (108, 'BIT3201', 'Object Oriented Analysis and Design', 'Information Technology', '13:00', '16:00', 'Tuesday', 'CTA 7', 'Class I', 'Mr. MAGATI', NULL, '1', 'Third Year', '2026', '2026-03-31 20:08:29'),
 (109, 'BIT3204', 'Network Management', 'Information Technology', '16:00', '22:00', 'Tuesday', 'CC4', 'Class I', 'Ms. KIARIE', NULL, '1', 'Third Year', '2026', '2026-03-31 20:08:29'),
 (110, 'BIT3205', 'Business systems simulation and modeling', 'Information Technology', '07:00', '10:00', 'Tuesday', 'CC6', 'Class I', 'Mr. MASITA', NULL, '1', 'Third Year', '2026', '2026-03-31 20:08:29'),
-(111, 'BIT3206', 'ICT project management', 'Information Technology', '10:00', '13:00', 'Tuesday', 'FLT HALL B', 'Class I', 'Ms. KIARIE', NULL, '1', 'Third Year', '2026', '2026-03-31 20:08:29'),
+(111, 'BIT3206', 'ICT project management', 'Information Technology', '10:00', '13:00', 'Tuesday', 'FLT HALL B', 'Class I', 'Arfican', NULL, '1', 'Third Year', '2026', '2026-03-31 20:08:29'),
 (112, 'BIT3208', 'Advanced Web Design, Dev and Mgmt', 'Information Technology', '07:00', '10:00', 'Wednesday', 'COMP LAB 1', 'Class I', 'Mrs. NYANSIABOKA', NULL, '1', 'Third Year', '2026', '2026-03-31 20:08:29'),
 (113, 'BIT4101', 'Business Data Mining and Warehousing', 'Information Technology', '10:00', '13:00', 'Wednesday', 'CC1', 'Class I', 'Mrs. MWINJI', NULL, '2', 'Third Year', '2026', '2026-03-31 20:08:29'),
 (114, 'BIT4102', 'Computer Graphics', 'Information Technology', '13:00', '16:00', 'Wednesday', 'COMP LAB 2', 'Class I', 'Mr. OWINO', NULL, '2', 'Third Year', '2026', '2026-03-31 20:08:29'),
@@ -2013,8 +2106,10 @@ CREATE TABLE `users` (
   `reg_number` varchar(50) NOT NULL,
   `email` varchar(100) NOT NULL,
   `password` varchar(255) NOT NULL,
-  `role` enum('student','admin') DEFAULT 'student',
+  `password_changed` tinyint(1) NOT NULL DEFAULT 0,
+  `role` enum('student','admin','lecturer') NOT NULL DEFAULT 'student',
   `department` varchar(100) NOT NULL,
+  `phone` varchar(20) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `survey_done` tinyint(1) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -2023,11 +2118,13 @@ CREATE TABLE `users` (
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `full_name`, `reg_number`, `email`, `password`, `role`, `department`, `created_at`, `survey_done`) VALUES
-(1, 'System Admin', 'ADMIN/001', 'admin@mku.ac.ke', '$2y$10$P.VKg4sPX1yHxleIOEwf1OKlHbYUWXlERdv.GC4clNTvCJWjwS5uG', 'admin', '', '2026-01-18 19:01:19', 1),
-(33, 'Chepchieng Noah', 'BIT/2026/00005', 'veramichael678@gmail.com', '$2y$10$HDIZVtQDe3GxqEoAoNRiIOiAH95HbECQgCB2JEPBNnnLaKbpCwjgq', 'student', 'Information Technology', '2026-04-01 07:10:08', 1),
-(38, 'Noah chep', 'BBM/2026/00006', 'noahchep1@gmail.com', '$2y$10$9jNl85ibphfYln/ZXSNznOI9XkBbyDVXxwnRO6FeTouhtaPpwzX3e', 'student', 'Management', '2026-04-09 07:23:08', 0),
-(39, 'Novrah', 'BSN/2026/00007', 'novrah4g@gmail.com', '$2y$10$M7DQOFtSArRE0HFeMtCiR.Tywu3efOm1Zg3t3dF8dfPsP53v02a0W', 'student', 'Nursing', '2026-04-09 08:09:49', 0);
+INSERT INTO `users` (`id`, `full_name`, `reg_number`, `email`, `password`, `password_changed`, `role`, `department`, `phone`, `created_at`, `survey_done`) VALUES
+(1, 'System Admin', 'ADMIN/001', 'admin@mku.ac.ke', '$2y$10$P.VKg4sPX1yHxleIOEwf1OKlHbYUWXlERdv.GC4clNTvCJWjwS5uG', 0, 'admin', '', NULL, '2026-01-18 19:01:19', 1),
+(33, 'Chepchieng Noah', 'BIT/2026/00005', 'veramichael678@gmail.com', '$2y$10$HDIZVtQDe3GxqEoAoNRiIOiAH95HbECQgCB2JEPBNnnLaKbpCwjgq', 0, 'student', 'Information Technology', NULL, '2026-04-01 07:10:08', 1),
+(38, 'Noah chep', 'BBM/2026/00006', 'noahchep1@gmail.com', '$2y$10$9jNl85ibphfYln/ZXSNznOI9XkBbyDVXxwnRO6FeTouhtaPpwzX3e', 0, 'student', 'Management', NULL, '2026-04-09 07:23:08', 0),
+(39, 'Novrah', 'BSN/2026/00007', 'novrah4g@gmail.com', '$2y$10$M7DQOFtSArRE0HFeMtCiR.Tywu3efOm1Zg3t3dF8dfPsP53v02a0W', 0, 'student', 'Nursing', NULL, '2026-04-09 08:09:49', 0),
+(40, 'Noah chep', 'lec001', 'lec@gmail.com', '$2y$10$xKpxPLi/8qBwe35.46lGGOFX6RvcUlpcWcVJlxyQaLQYJceBny4Wq', 0, 'lecturer', 'Information Technology', '0759768770', '2026-04-11 04:12:36', 0),
+(42, 'Arfican', 'LEC/2026/00001', 'africanpreetypoet@gmail.com', '$2y$10$.xlxFN3eRq2/gbMuabaFhuhuipG7GoxachgwUGu9Ch5UKVBnM.0dS', 1, 'lecturer', 'Information Technology', '0759768770', '2026-04-11 04:36:12', 0);
 
 -- --------------------------------------------------------
 
@@ -2073,7 +2170,8 @@ INSERT INTO `vocabulary` (`id`, `word`, `part_of_speech`, `definition`, `example
 (20, 'lecture', 'noun', 'An educational talk to an audience, especially to students.', 'The lecture on AI was fascinating.', NULL, 'academic', '2026-03-25 11:56:41'),
 (21, 'faculty', 'noun', '📚 Definition of \"faculty\":noun: 1. The academic staff at schools, colleges, universities or not-for-profit research institutes, as opposed to the students or support staff. 2. A division of a university.', 'She transferred from the Faculty of Science to the Faculty of Medicine.', '', 'general', '2026-03-25 11:59:04'),
 (22, 'systems', 'noun', '📚 Definition of \"systems\":noun: 1. A collection of organized things; a whole composed of relationships among its members. 2. A method or way of organizing or planning.', 'There are eight planets in the solar system.', 'arrangement, complex, composition, organization, set up', 'general', '2026-04-01 10:58:34'),
-(23, 'school', 'noun', '📚 Definition of \"school\":noun: 1. (collective) A group of fish or a group of marine mammals such as porpoises, dolphins, or whales. 2. A multitude.verb: 1. (of fish) To form into, or travel in a school.', 'The divers encountered a huge school of mackerel.', 'shoal', 'general', '2026-04-01 10:59:17');
+(23, 'school', 'noun', '📚 Definition of \"school\":noun: 1. (collective) A group of fish or a group of marine mammals such as porpoises, dolphins, or whales. 2. A multitude.verb: 1. (of fish) To form into, or travel in a school.', 'The divers encountered a huge school of mackerel.', 'shoal', 'general', '2026-04-01 10:59:17'),
+(24, 'number', 'noun', '📚 Definition of \"number\":noun: 1. An abstract entity used to describe quantity. 2. A numeral: a symbol for a non-negative integer. verb: 1. To label (items) with numbers; to assign numbers to (items). 2. To total or count; to amount to.', 'Zero, one, −1, 2.5, and pi are all numbers.', 'numeral, rime, scalar', 'general', '2026-04-10 15:06:20');
 
 -- --------------------------------------------------------
 
@@ -2121,9 +2219,27 @@ ALTER TABLE `ai_knowledge_base`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexes for table `assignments`
+--
+ALTER TABLE `assignments`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `assignment_submissions`
+--
+ALTER TABLE `assignment_submissions`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Indexes for table `chat_messages`
 --
 ALTER TABLE `chat_messages`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `course_materials`
+--
+ALTER TABLE `course_materials`
   ADD PRIMARY KEY (`id`);
 
 --
@@ -2180,7 +2296,7 @@ ALTER TABLE `vocabulary_requests`
 -- AUTO_INCREMENT for table `academic_workload`
 --
 ALTER TABLE `academic_workload`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2215;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2160;
 
 --
 -- AUTO_INCREMENT for table `admin_referrals`
@@ -2192,19 +2308,37 @@ ALTER TABLE `admin_referrals`
 -- AUTO_INCREMENT for table `ai_knowledge_base`
 --
 ALTER TABLE `ai_knowledge_base`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
+
+--
+-- AUTO_INCREMENT for table `assignments`
+--
+ALTER TABLE `assignments`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT for table `assignment_submissions`
+--
+ALTER TABLE `assignment_submissions`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `chat_messages`
 --
 ALTER TABLE `chat_messages`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=261;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=270;
+
+--
+-- AUTO_INCREMENT for table `course_materials`
+--
+ALTER TABLE `course_materials`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `registered_courses`
 --
 ALTER TABLE `registered_courses`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
 
 --
 -- AUTO_INCREMENT for table `survey_responses`
@@ -2222,13 +2356,13 @@ ALTER TABLE `timetable`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=40;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=43;
 
 --
 -- AUTO_INCREMENT for table `vocabulary`
 --
 ALTER TABLE `vocabulary`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
 
 --
 -- AUTO_INCREMENT for table `vocabulary_requests`
