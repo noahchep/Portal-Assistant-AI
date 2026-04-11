@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 11, 2026 at 10:07 AM
+-- Generation Time: Apr 11, 2026 at 04:20 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -1431,6 +1431,7 @@ CREATE TABLE `assignments` (
   `file_path` varchar(500) NOT NULL,
   `due_date` date NOT NULL,
   `total_marks` int(11) NOT NULL,
+  `assessment_type` enum('CAT','Assignment','Exam') NOT NULL DEFAULT 'Assignment',
   `created_by` varchar(100) NOT NULL,
   `created_at` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -1439,10 +1440,9 @@ CREATE TABLE `assignments` (
 -- Dumping data for table `assignments`
 --
 
-INSERT INTO `assignments` (`id`, `unit_code`, `title`, `description`, `file_path`, `due_date`, `total_marks`, `created_by`, `created_at`) VALUES
-(1, 'BIT3206', 'week 3 assigment', 'do proper research', '1775885083_BIT 4107 Mobile Application Development CAT.docx', '2026-04-18', 30, 'Arfican', '2026-04-11 08:24:43'),
-(2, 'BBM2103', 'assignment', 'do  research', '1775890468_BIT 4107 Mobile Application Development CAT (2).docx', '2026-04-18', 30, 'Arfican', '2026-04-11 09:54:28'),
-(3, 'BBM2103', 'Week 3 task', 'Do more research and no copy pasting', '1775892970_BIT 4107 Mobile Application Development CAT.docx', '2026-04-18', 30, 'Arfican', '2026-04-11 10:36:10');
+INSERT INTO `assignments` (`id`, `unit_code`, `title`, `description`, `file_path`, `due_date`, `total_marks`, `assessment_type`, `created_by`, `created_at`) VALUES
+(5, 'BBM2103', 'Continuous Assessment Test', 'This is you cat 1', '1775897150_1775896823_BIT_2026_00005_4.docx', '2026-04-18', 20, 'CAT', 'Arfican', '2026-04-11 11:45:50'),
+(6, 'BBM2103', 'This is your assignment it covers for topic 7', 'Do Proper Research', '1775897210_1775890468_BIT 4107 Mobile Application Development CAT (2).docx', '2026-04-25', 10, 'Assignment', 'Arfican', '2026-04-11 11:46:50');
 
 -- --------------------------------------------------------
 
@@ -1459,6 +1459,7 @@ CREATE TABLE `assignment_submissions` (
   `file_path` varchar(500) DEFAULT NULL,
   `submitted_at` datetime NOT NULL,
   `obtained_marks` int(11) DEFAULT NULL,
+  `total_marks` int(11) DEFAULT NULL,
   `feedback` text DEFAULT NULL,
   `status` enum('submitted','graded','late') DEFAULT 'submitted'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -1467,10 +1468,9 @@ CREATE TABLE `assignment_submissions` (
 -- Dumping data for table `assignment_submissions`
 --
 
-INSERT INTO `assignment_submissions` (`id`, `assignment_id`, `unit_code`, `student_reg`, `submission_text`, `file_path`, `submitted_at`, `obtained_marks`, `feedback`, `status`) VALUES
-(1, 2, 'BBM2103', 'BIT/2026/00005', '', NULL, '2026-04-11 09:55:19', NULL, NULL, 'submitted'),
-(2, 2, 'BBM2103', 'BIT/2026/00005', '', NULL, '2026-04-11 10:31:50', NULL, NULL, 'submitted'),
-(3, 3, 'BBM2103', 'BIT/2026/00005', '', '1775893020_BIT_2026_00005_3.docx', '2026-04-11 10:37:00', 20, 'good', 'graded');
+INSERT INTO `assignment_submissions` (`id`, `assignment_id`, `unit_code`, `student_reg`, `submission_text`, `file_path`, `submitted_at`, `obtained_marks`, `total_marks`, `feedback`, `status`) VALUES
+(7, 0, 'BBM2103', 'BIT/2026/00005', '[Manual Entry: Results - BBM2103]', NULL, '2026-04-11 12:50:34', 50, 70, 'Good', 'graded'),
+(8, 5, NULL, 'BIT/2026/00005', '', '1775916955_BIT_2026_00005_5.docx', '2026-04-11 17:15:55', 15, NULL, '', 'graded');
 
 -- --------------------------------------------------------
 
@@ -1754,7 +1754,13 @@ INSERT INTO `chat_messages` (`id`, `conversation_id`, `sender_type`, `message`, 
 (266, '5kdgdbbh968vkhq219e5hj4ouf', 'student', 'hi', '2026-04-11 05:38:51', NULL),
 (267, '5kdgdbbh968vkhq219e5hj4ouf', 'bot', 'hi too', '2026-04-11 05:38:51', NULL),
 (268, 'm40q7hcodvdgmpccjlsfebbjpc', 'student', 'hello', '2026-04-11 08:06:44', NULL),
-(269, 'm40q7hcodvdgmpccjlsfebbjpc', 'bot', 'hello', '2026-04-11 08:06:44', NULL);
+(269, 'm40q7hcodvdgmpccjlsfebbjpc', 'bot', 'hello', '2026-04-11 08:06:44', NULL),
+(270, 'm40q7hcodvdgmpccjlsfebbjpc', 'student', 'hi', '2026-04-11 08:16:53', NULL),
+(271, 'm40q7hcodvdgmpccjlsfebbjpc', 'bot', 'hi too', '2026-04-11 08:16:54', NULL),
+(272, 'm40q7hcodvdgmpccjlsfebbjpc', 'student', 'hi', '2026-04-11 08:19:05', NULL),
+(273, 'm40q7hcodvdgmpccjlsfebbjpc', 'bot', 'hi too', '2026-04-11 08:19:05', NULL),
+(274, 'pudfhgt73d573a8ot7id3mg4mu', 'student', 'hi', '2026-04-11 14:18:02', NULL),
+(275, 'pudfhgt73d573a8ot7id3mg4mu', 'bot', 'hi too', '2026-04-11 14:18:02', NULL);
 
 -- --------------------------------------------------------
 
@@ -1781,7 +1787,8 @@ CREATE TABLE `course_materials` (
 --
 
 INSERT INTO `course_materials` (`id`, `unit_code`, `title`, `description`, `file_path`, `youtube_url`, `video_id`, `file_type`, `material_type`, `uploaded_by`, `uploaded_at`) VALUES
-(1, 'BIT3206', 'Notes', 'read ad write short notes', '1775885202_s.pdf', NULL, NULL, 'pdf', 'file', 'Arfican', '2026-04-11 08:26:42');
+(1, 'BIT3206', 'Notes', 'read ad write short notes', '1775885202_s.pdf', NULL, NULL, 'pdf', 'file', 'Arfican', '2026-04-11 08:26:42'),
+(2, 'BBM2103', ' nmbm', ' nm ', '1775916886_1775897256_BIT_2026_00005_5.docx', NULL, NULL, 'docx', 'file', 'Arfican', '2026-04-11 17:14:46');
 
 -- --------------------------------------------------------
 
@@ -2123,8 +2130,8 @@ INSERT INTO `users` (`id`, `full_name`, `reg_number`, `email`, `password`, `pass
 (33, 'Chepchieng Noah', 'BIT/2026/00005', 'veramichael678@gmail.com', '$2y$10$HDIZVtQDe3GxqEoAoNRiIOiAH95HbECQgCB2JEPBNnnLaKbpCwjgq', 0, 'student', 'Information Technology', NULL, '2026-04-01 07:10:08', 1),
 (38, 'Noah chep', 'BBM/2026/00006', 'noahchep1@gmail.com', '$2y$10$9jNl85ibphfYln/ZXSNznOI9XkBbyDVXxwnRO6FeTouhtaPpwzX3e', 0, 'student', 'Management', NULL, '2026-04-09 07:23:08', 0),
 (39, 'Novrah', 'BSN/2026/00007', 'novrah4g@gmail.com', '$2y$10$M7DQOFtSArRE0HFeMtCiR.Tywu3efOm1Zg3t3dF8dfPsP53v02a0W', 0, 'student', 'Nursing', NULL, '2026-04-09 08:09:49', 0),
-(40, 'Noah chep', 'lec001', 'lec@gmail.com', '$2y$10$xKpxPLi/8qBwe35.46lGGOFX6RvcUlpcWcVJlxyQaLQYJceBny4Wq', 0, 'lecturer', 'Information Technology', '0759768770', '2026-04-11 04:12:36', 0),
-(42, 'Arfican', 'LEC/2026/00001', 'africanpreetypoet@gmail.com', '$2y$10$.xlxFN3eRq2/gbMuabaFhuhuipG7GoxachgwUGu9Ch5UKVBnM.0dS', 1, 'lecturer', 'Information Technology', '0759768770', '2026-04-11 04:36:12', 0);
+(42, 'Arfican', 'LEC/2026/00001', 'africanpreetypoet@gmail.com', '$2y$10$.xlxFN3eRq2/gbMuabaFhuhuipG7GoxachgwUGu9Ch5UKVBnM.0dS', 1, 'lecturer', 'Information Technology', '0759768770', '2026-04-11 04:36:12', 0),
+(63, 'Dr. John Smith', 'LEC/2026/00002', 'john.smith@mku.ac.ke', '$2y$10$IOK.CB4RBdrTNCOA.LXLC.T39h2oZqqL9JQA2QfzTa.zbeTezqP4K', 0, 'lecturer', 'Information Technology', '0759768770', '2026-04-11 10:14:30', 0);
 
 -- --------------------------------------------------------
 
@@ -2314,25 +2321,25 @@ ALTER TABLE `ai_knowledge_base`
 -- AUTO_INCREMENT for table `assignments`
 --
 ALTER TABLE `assignments`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `assignment_submissions`
 --
 ALTER TABLE `assignment_submissions`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `chat_messages`
 --
 ALTER TABLE `chat_messages`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=270;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=276;
 
 --
 -- AUTO_INCREMENT for table `course_materials`
 --
 ALTER TABLE `course_materials`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `registered_courses`
@@ -2356,7 +2363,7 @@ ALTER TABLE `timetable`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=43;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=64;
 
 --
 -- AUTO_INCREMENT for table `vocabulary`

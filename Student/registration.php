@@ -190,14 +190,6 @@ if (!$confirmed || !$provisional) {
         .bg-success { background: #dcfce7; color: #166534; }
         .bg-warning { background: #fef3c7; color: #92400e; }
 
-        #chat-fab { position: fixed; bottom: 30px; right: 30px; background: var(--primary); color: white; width: 55px; height: 55px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 10px 15px rgba(79, 70, 229, 0.4); z-index: 100; font-size: 1.5rem; }
-        #chat-window { position: fixed; bottom: 100px; right: 30px; width: 350px; height: 500px; background: white; border-radius: 16px; display: none; flex-direction: column; box-shadow: 0 20px 25px rgba(0,0,0,0.1); border: 1px solid var(--border); z-index: 101; overflow: hidden; }
-        #chat-content { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
-        
-        .msg { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 0.85rem; }
-        .msg-bot { align-self: flex-start; background: #f1f5f9; border-left: 3px solid var(--primary); }
-        .msg-user { align-self: flex-end; background: var(--primary); color: white; }
-
         footer { text-align: center; padding: 40px; color: var(--text-light); font-size: 0.85rem; }
     </style>
 </head>
@@ -374,7 +366,7 @@ if (!$confirmed || !$provisional) {
                 </datalist>
                 
                 <div style="overflow-x: auto;">
-                    </table>
+                    <table>
                         <thead>
                             <tr>
                                 <th width="50">#</th>
@@ -425,62 +417,8 @@ if (!$confirmed || !$provisional) {
     </div>
 </div>
 
-<div id="chat-fab" onclick="toggleChat()">💬</div>
-<div id="chat-window">
-    <div style="background: var(--primary); color:white; padding: 15px; font-weight:bold; display: flex; justify-content: space-between; align-items: center;">
-        <span>Portal Assistant</span>
-        <span onclick="toggleChat()" style="cursor:pointer; font-size: 1.2rem;">&times;</span>
-    </div>
-    <div id="chat-content">
-        <div class="msg msg-bot">
-            Hello <?php echo explode(' ', $student_name)[0]; ?>! I'm your AI assistant. How can I help?
-        </div>
-    </div>
-    <div style="padding: 12px; border-top: 1px solid var(--border); display: flex; gap: 8px;">
-        <input type="text" id="chat-input" placeholder="Ask about units..." style="flex:1; border-radius: 20px; padding: 8px 15px; border: 1px solid var(--border);">
-        <button onclick="sendChatMessage()" style="background: var(--primary); color: white; border-radius: 50%; border:none; width: 35px; height:35px;">➤</button>
-    </div>
-</div>
-
-<script>
-    function toggleChat() {
-        const win = document.getElementById('chat-window');
-        win.style.display = (win.style.display === 'flex') ? 'none' : 'flex';
-    }
-
-    async function sendChatMessage() {
-        const input = document.getElementById('chat-input');
-        const box = document.getElementById('chat-content');
-        const msg = input.value.trim();
-        if(!msg) return;
-
-        box.innerHTML += `<div class="msg msg-user">${msg}</div>`;
-        input.value = '';
-        box.scrollTop = box.scrollHeight;
-
-        try {
-            const response = await fetch('chat_process_ml.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'message=' + encodeURIComponent(msg)
-            });
-            const text = await response.text();
-            box.innerHTML += `<div class="msg msg-bot">${text}</div>`;
-            box.scrollTop = box.scrollHeight;
-        } catch (e) {
-            box.innerHTML += `<div class="msg msg-bot" style="color:red">Connection error.</div>`;
-        }
-    }
-    
-    document.getElementById('chat-input').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            sendChatMessage();
-        }
-    });
-</script>
-
 <footer>
-    &copy; 2026 Mount Kenya University | Portal Assistant AI System
+    &copy;  Portal Assistant AI System
 </footer>
 
 </body>

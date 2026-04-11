@@ -207,53 +207,11 @@ $lname = $name_parts[2] ?? '';
     </div>
 </div>
 
-<div id="chat-trigger" onclick="toggleChat()">💬</div>
-<div id="chat-window">
-    <div class="chat-header">
-        <span>Support Assistant</span>
-        <span style="cursor:pointer" onclick="toggleChat()">×</span>
-    </div>
-    <div id="chat-body">
-        <div class="msg bot">Hi Noah! Need help updating your address or contact details?</div>
-    </div>
-    <div style="padding: 15px; border-top: 1px solid var(--border); display: flex; gap: 8px;">
-        <input type="text" id="chat-in" placeholder="Ask a question..." style="flex:1; border: 1px solid #ddd; padding: 8px; border-radius: 20px;">
-        <button onclick="sendMsg()" style="background: var(--primary); border: none; color: white; border-radius: 50%; width: 35px; height: 35px; cursor: pointer;">></button>
-    </div>
-</div>
-
 <footer>
-    &copy; 2026 Mount Kenya University | Portal Assistant AI
+    &copy;  Portal Assistant AI
 </footer>
 
-<script>
-    function toggleChat() {
-        const win = document.getElementById('chat-window');
-        win.style.display = (win.style.display === 'flex') ? 'none' : 'flex';
-    }
 
-    function sendMsg() {
-        const input = document.getElementById('chat-in');
-        const body = document.getElementById('chat-body');
-        if(!input.value.trim()) return;
-
-        const uMsg = document.createElement('div');
-        uMsg.className = 'msg user';
-        uMsg.textContent = input.value;
-        body.appendChild(uMsg);
-
-        const text = input.value.toLowerCase();
-        input.value = '';
-
-        setTimeout(() => {
-            const bMsg = document.createElement('div');
-            bMsg.className = 'msg bot';
-            bMsg.textContent = text.includes('name') ? "Names are locked for security. Please visit the Registrar with your ID for name changes." : "I've noted that! Anything else you need help with?";
-            body.appendChild(bMsg);
-            body.scrollTop = body.scrollHeight;
-        }, 700);
-    }
-</script>
 
 </body>
 </html>

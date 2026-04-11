@@ -212,7 +212,7 @@ switch($student_department) {
 </div>
 
 <footer>
-    &copy; 2026 Mount Kenya University | Portal Assistant AI System
+    &copy;  Portal Assistant AI System
 </footer>
 
 </body>
