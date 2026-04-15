@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 15, 2026 at 10:43 AM
+-- Generation Time: Apr 15, 2026 at 11:36 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -1827,10 +1827,11 @@ INSERT INTO `registered_courses` (`id`, `student_reg_no`, `unit_code`, `departme
 (10, 'BIS/2026/00001', 'BAF1101', 'Information Science', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-04-01 06:43:52'),
 (11, 'BIT/2026/00005', 'BBM2103', 'Information Technology', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-04-01 07:21:10'),
 (12, 'BEC/2026/00003', 'BMA3102', 'Enterprise Computing', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-04-01 10:09:46'),
-(16, 'BSN/2026/00007', 'BSN1101', 'Nursing', 'Regular', 'Day', 'Jan/Apr', '2026', 'Provisional', '2026-04-09 09:02:12'),
-(17, 'BSN/2026/00007', 'BSN1102', 'Nursing', 'Regular', 'Day', 'Jan/Apr', '2026', 'Provisional', '2026-04-09 09:28:47'),
-(18, 'BSN/2026/00007', 'BSN1106', 'Nursing', 'Regular', 'Day', 'Jan/Apr', '2026', 'Provisional', '2026-04-09 09:32:05'),
-(23, 'BIT/2026/00005', 'BUCU007', 'Information Technology', 'Regular', 'Day', 'Jan/Apr', '2026', 'Provisional', '2026-04-11 06:37:26');
+(16, 'BSN/2026/00007', 'BSN1101', 'Nursing', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-04-09 09:02:12'),
+(17, 'BSN/2026/00007', 'BSN1102', 'Nursing', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-04-09 09:28:47'),
+(18, 'BSN/2026/00007', 'BSN1106', 'Nursing', 'Regular', 'Day', 'Jan/Apr', '2026', 'Confirmed', '2026-04-09 09:32:05'),
+(23, 'BIT/2026/00005', 'BUCU007', 'Information Technology', 'Regular', 'Day', 'Jan/Apr', '2026', 'Provisional', '2026-04-11 06:37:26'),
+(24, 'BBM/2026/00006', 'BBM1102', 'Management', 'Regular', 'Day', 'Jan/Apr', '2026', 'Provisional', '2026-04-15 09:33:36');
 
 -- --------------------------------------------------------
 
@@ -1856,7 +1857,9 @@ CREATE TABLE `survey_responses` (
 --
 
 INSERT INTO `survey_responses` (`id`, `user_id`, `challenge_type`, `guidance_need`, `chatbot_help`, `ui_experience`, `academic_value`, `ease_rating`, `student_comments`, `submitted_at`) VALUES
-(11, 33, 'Prerequisite Info', NULL, 'Mostly Accurate', 'User Friendly', 'Significant', 5, 'The system has helped me to register for my 1st semester units', '2026-04-01 07:22:18');
+(11, 33, 'Prerequisite Info', NULL, 'Mostly Accurate', 'User Friendly', 'Significant', 5, 'The system has helped me to register for my 1st semester units', '2026-04-01 07:22:18'),
+(12, 39, 'Unit Selection', NULL, 'Highly Accurate', 'Very Intuitive', 'Significant', 5, 'the system is working perfectly only few improvement needs to be done', '2026-04-15 09:08:04'),
+(13, 38, 'Technical Error', NULL, 'Mostly Accurate', 'User Friendly', 'Moderate', 3, 'good', '2026-04-15 09:34:16');
 
 -- --------------------------------------------------------
 
@@ -1937,12 +1940,12 @@ INSERT INTO `timetable` (`id`, `unit_code`, `course_title`, `department`, `time_
 (139, 'BIT3224', 'Computing Projects Dev Approaches', 'Information Technology', '16:00', '22:00', 'Friday', 'COMP LAB 2', 'Class I', 'Mr. NYAGA', NULL, '2', 'Third Year', '2026', '2026-03-31 20:08:29'),
 (140, 'BUCU010', 'Entrepreneurial Mindset and Finance', 'Information Technology', '07:00', '10:00', 'Friday', 'BL 5', 'Class I', 'Ms. NDEGE', NULL, '1', 'Second Year', '2026', '2026-03-31 20:08:29'),
 (141, 'ABCU001', 'Research Methodology', 'Information Technology', '07:00', '10:00', NULL, 'CT HALL', 'Class 1', '	Mrs. MATHENGE', NULL, '1', 'First Year', '2026', '2026-04-08 15:53:17'),
-(145, 'BSN1101', 'Introduction to Nursing Profession', 'Nursing', '07:00', '10:00', 'Monday', 'NUR HALL 1', 'Class A', 'Prof. Jane Mwangi', NULL, '1', 'First Year', '2026', '2026-04-09 08:55:07'),
-(146, 'BSN1102', 'Human Anatomy and Physiology I', 'Nursing', '10:00', '13:00', 'Monday', 'NUR LAB 1', 'Class A', 'Dr. Peter Kamau', NULL, '1', 'First Year', '2026', '2026-04-09 08:55:07'),
+(145, 'BSN1101', 'Introduction to Nursing Profession', 'Nursing', '07:00', '10:00', 'Monday', 'NUR HALL 1', 'Class A', 'Dr. Michael', NULL, '1', 'First Year', '2026', '2026-04-09 08:55:07'),
+(146, 'BSN1102', 'Human Anatomy and Physiology I', 'Nursing', '10:00', '13:00', 'Monday', 'NUR LAB 1', 'Class A', 'Dr. Michael', NULL, '1', 'First Year', '2026', '2026-04-09 08:55:07'),
 (147, 'BSN1103', 'Fundamentals of Nursing I', 'Nursing', '13:00', '16:00', 'Monday', 'NUR LAB 2', 'Class A', 'Mrs. Sarah Otieno', NULL, '1', 'First Year', '2026', '2026-04-09 08:55:07'),
 (148, 'BSN1104', 'Psychology for Nurses', 'Nursing', '07:00', '10:00', 'Tuesday', 'NUR HALL 2', 'Class A', 'Dr. Ann Wanjiku', NULL, '1', 'First Year', '2026', '2026-04-09 08:55:07'),
 (149, 'BSN1105', 'Sociology for Nurses', 'Nursing', '10:00', '13:00', 'Tuesday', 'NUR HALL 1', 'Class A', 'Prof. John Maina', NULL, '1', 'First Year', '2026', '2026-04-09 08:55:07'),
-(150, 'BSN1106', 'Communication Skills for Nurses', 'Nursing', '13:00', '16:00', 'Tuesday', 'NUR HALL 2', 'Class A', 'Mrs. Lucy Kimani', NULL, '1', 'First Year', '2026', '2026-04-09 08:55:07'),
+(150, 'BSN1106', 'Communication Skills for Nurses', 'Nursing', '13:00', '16:00', 'Tuesday', 'NUR HALL 2', 'Class A', 'Dr. Michael', NULL, '1', 'First Year', '2026', '2026-04-09 08:55:07'),
 (151, 'BSN1107', 'Basic Life Support', 'Nursing', '07:00', '10:00', 'Wednesday', 'NUR LAB 3', 'Class A', 'Mr. James Omondi', NULL, '1', 'First Year', '2026', '2026-04-09 08:55:07'),
 (152, 'BSN1201', 'Human Anatomy and Physiology II', 'Nursing', '10:00', '13:00', 'Wednesday', 'NUR LAB 1', 'Class A', 'Dr. Peter Kamau', NULL, '2', 'First Year', '2026', '2026-04-09 08:55:07'),
 (153, 'BSN1202', 'Fundamentals of Nursing II', 'Nursing', '13:00', '16:00', 'Wednesday', 'NUR LAB 2', 'Class A', 'Mrs. Sarah Otieno', NULL, '2', 'First Year', '2026', '2026-04-09 08:55:07'),
@@ -2048,11 +2051,11 @@ INSERT INTO `timetable` (`id`, `unit_code`, `course_title`, `department`, `time_
 (253, 'BEC4206', 'Economics Internship', 'Economics', '07:00', '10:00', 'Thursday', 'ECON HALL 2', 'Class D', 'Mr. James Omondi', NULL, '2', 'Fourth Year', '2026', '2026-04-09 10:25:50'),
 (254, 'BEC4207', 'Contemporary Issues in Economics', 'Economics', '10:00', '13:00', 'Thursday', 'ECON HALL 1', 'Class D', 'Dr. Samuel Kariuki', NULL, '2', 'Fourth Year', '2026', '2026-04-09 10:25:50'),
 (255, 'BEC4208', 'Seminar in Economics', 'Economics', '13:00', '16:00', 'Thursday', 'ECON LAB 2', 'Class D', 'Prof. Jane Mwangi', NULL, '2', 'Fourth Year', '2026', '2026-04-09 10:25:50'),
-(256, 'BBM1102', 'Principles of Accounting', 'Management', '07:00', '10:00', 'Monday', 'MGMT HALL 1', 'Class A', 'Prof. Jane Mwangi', NULL, '1', 'First Year', '2026', '2026-04-09 10:29:59'),
-(257, 'BBM1103', 'Business Mathematics', 'Management', '10:00', '13:00', 'Monday', 'MGMT LAB 1', 'Class A', 'Mr. Peter Kamau', NULL, '1', 'First Year', '2026', '2026-04-09 10:29:59'),
-(258, 'BBM1104', 'Communication Skills for Business', 'Management', '13:00', '16:00', 'Monday', 'MGMT HALL 2', 'Class A', 'Mrs. Lucy Kimani', NULL, '1', 'First Year', '2026', '2026-04-09 10:29:59'),
-(259, 'BBM1105', 'Introduction to Economics', 'Management', '07:00', '10:00', 'Tuesday', 'MGMT HALL 1', 'Class A', 'Dr. Ann Wanjiku', NULL, '1', 'First Year', '2026', '2026-04-09 10:29:59'),
-(260, 'BBM1106', 'Computer Applications in Business', 'Management', '10:00', '13:00', 'Tuesday', 'COMP LAB 1', 'Class A', 'Mr. James Omondi', NULL, '1', 'First Year', '2026', '2026-04-09 10:29:59'),
+(256, 'BBM1102', 'Principles of Accounting', 'Management', '07:00', '10:00', 'Monday', 'MGMT HALL 1', 'Class A', 'Dr. John Smith', NULL, '1', 'First Year', '2026', '2026-04-09 10:29:59'),
+(257, 'BBM1103', 'Business Mathematics', 'Management', '10:00', '13:00', 'Monday', 'MGMT LAB 1', 'Class A', 'Dr. John Smith', NULL, '1', 'First Year', '2026', '2026-04-09 10:29:59'),
+(258, 'BBM1104', 'Communication Skills for Business', 'Management', '13:00', '16:00', 'Monday', 'MGMT HALL 2', 'Class A', 'Dr. John Smith', NULL, '1', 'First Year', '2026', '2026-04-09 10:29:59'),
+(259, 'BBM1105', 'Introduction to Economics', 'Management', '07:00', '10:00', 'Tuesday', 'MGMT HALL 1', 'Class A', 'Dr. John Smith', NULL, '1', 'First Year', '2026', '2026-04-09 10:29:59'),
+(260, 'BBM1106', 'Computer Applications in Business', 'Management', '10:00', '13:00', 'Tuesday', 'COMP LAB 1', 'Class A', 'Dr. John Smith', NULL, '1', 'First Year', '2026', '2026-04-09 10:29:59'),
 (261, 'BBM1107', 'Business Statistics I', 'Management', '13:00', '16:00', 'Tuesday', 'MGMT LAB 1', 'Class A', 'Dr. Samuel Kariuki', NULL, '1', 'First Year', '2026', '2026-04-09 10:29:59'),
 (262, 'BBM1203', 'Business Finance I', 'Management', '07:00', '10:00', 'Wednesday', 'MGMT HALL 1', 'Class A', 'Dr. Michael Chege', NULL, '2', 'First Year', '2026', '2026-04-09 10:29:59'),
 (263, 'BBM1204', 'Business Statistics II', 'Management', '10:00', '13:00', 'Wednesday', 'MGMT LAB 1', 'Class A', 'Dr. Samuel Kariuki', NULL, '2', 'First Year', '2026', '2026-04-09 10:29:59'),
@@ -2131,10 +2134,11 @@ CREATE TABLE `users` (
 INSERT INTO `users` (`id`, `full_name`, `reg_number`, `email`, `password`, `password_changed`, `role`, `department`, `phone`, `created_at`, `survey_done`) VALUES
 (1, 'System Admin', 'ADMIN/001', 'admin@mku.ac.ke', '$2y$10$P.VKg4sPX1yHxleIOEwf1OKlHbYUWXlERdv.GC4clNTvCJWjwS5uG', 0, 'admin', '', NULL, '2026-01-18 19:01:19', 1),
 (33, 'Chepchieng Noah', 'BIT/2026/00005', 'veramichael678@gmail.com', '$2y$10$HDIZVtQDe3GxqEoAoNRiIOiAH95HbECQgCB2JEPBNnnLaKbpCwjgq', 0, 'student', 'Information Technology', NULL, '2026-04-01 07:10:08', 1),
-(38, 'Noah chep', 'BBM/2026/00006', 'noahchep1@gmail.com', '$2y$10$9jNl85ibphfYln/ZXSNznOI9XkBbyDVXxwnRO6FeTouhtaPpwzX3e', 0, 'student', 'Management', NULL, '2026-04-09 07:23:08', 0),
-(39, 'Novrah', 'BSN/2026/00007', 'novrah4g@gmail.com', '$2y$10$M7DQOFtSArRE0HFeMtCiR.Tywu3efOm1Zg3t3dF8dfPsP53v02a0W', 0, 'student', 'Nursing', NULL, '2026-04-09 08:09:49', 0),
+(38, 'Noah chep', 'BBM/2026/00006', 'noahchep1@gmail.com', '$2y$10$9jNl85ibphfYln/ZXSNznOI9XkBbyDVXxwnRO6FeTouhtaPpwzX3e', 0, 'student', 'Management', NULL, '2026-04-09 07:23:08', 1),
+(39, 'Novrah', 'BSN/2026/00007', 'novrah4g@gmail.com', '$2y$10$M7DQOFtSArRE0HFeMtCiR.Tywu3efOm1Zg3t3dF8dfPsP53v02a0W', 0, 'student', 'Nursing', NULL, '2026-04-09 08:09:49', 1),
 (42, 'Arfican', 'LEC/2026/00001', 'africanpreetypoet@gmail.com', '$2y$10$.xlxFN3eRq2/gbMuabaFhuhuipG7GoxachgwUGu9Ch5UKVBnM.0dS', 1, 'lecturer', 'Information Technology', '0759768770', '2026-04-11 04:36:12', 0),
-(63, 'Dr. John Smith', 'LEC/2026/00002', 'john.smith@mku.ac.ke', '$2y$10$IOK.CB4RBdrTNCOA.LXLC.T39h2oZqqL9JQA2QfzTa.zbeTezqP4K', 0, 'lecturer', 'Information Technology', '0759768770', '2026-04-11 10:14:30', 0);
+(63, 'Dr. John Smith', 'LEC/2026/00002', 'john.smith@mku.ac.ke', '$2y$10$IOK.CB4RBdrTNCOA.LXLC.T39h2oZqqL9JQA2QfzTa.zbeTezqP4K', 0, 'lecturer', 'Management', '0759768770', '2026-04-11 10:14:30', 0),
+(64, 'Dr. Michael', 'LEC/2026/00003', 'dr_michael@gmail.com', '$2y$10$UFipm.AtaBtC8KlB9FYhpu7XtEXezVSM9yZ4PFGiN0U/EC1pdlgTe', 0, 'lecturer', 'Nursing', '+254791730556', '2026-04-15 08:55:05', 0);
 
 -- --------------------------------------------------------
 
@@ -2348,13 +2352,13 @@ ALTER TABLE `course_materials`
 -- AUTO_INCREMENT for table `registered_courses`
 --
 ALTER TABLE `registered_courses`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
 
 --
 -- AUTO_INCREMENT for table `survey_responses`
 --
 ALTER TABLE `survey_responses`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
 
 --
 -- AUTO_INCREMENT for table `timetable`
@@ -2366,7 +2370,7 @@ ALTER TABLE `timetable`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=64;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=65;
 
 --
 -- AUTO_INCREMENT for table `vocabulary`
