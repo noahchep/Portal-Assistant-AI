@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 11, 2026 at 04:20 PM
+-- Generation Time: Apr 15, 2026 at 10:43 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -1470,7 +1470,8 @@ CREATE TABLE `assignment_submissions` (
 
 INSERT INTO `assignment_submissions` (`id`, `assignment_id`, `unit_code`, `student_reg`, `submission_text`, `file_path`, `submitted_at`, `obtained_marks`, `total_marks`, `feedback`, `status`) VALUES
 (7, 0, 'BBM2103', 'BIT/2026/00005', '[Manual Entry: Results - BBM2103]', NULL, '2026-04-11 12:50:34', 50, 70, 'Good', 'graded'),
-(8, 5, NULL, 'BIT/2026/00005', '', '1775916955_BIT_2026_00005_5.docx', '2026-04-11 17:15:55', 15, NULL, '', 'graded');
+(8, 5, NULL, 'BIT/2026/00005', '', '1775916955_BIT_2026_00005_5.docx', '2026-04-11 17:15:55', 15, NULL, '', 'graded'),
+(9, 6, NULL, 'BIT/2026/00005', '', '1776233479_BIT_2026_00005_6.docx', '2026-04-15 09:11:19', 9, NULL, 'well done', 'graded');
 
 -- --------------------------------------------------------
 
@@ -1760,7 +1761,9 @@ INSERT INTO `chat_messages` (`id`, `conversation_id`, `sender_type`, `message`, 
 (272, 'm40q7hcodvdgmpccjlsfebbjpc', 'student', 'hi', '2026-04-11 08:19:05', NULL),
 (273, 'm40q7hcodvdgmpccjlsfebbjpc', 'bot', 'hi too', '2026-04-11 08:19:05', NULL),
 (274, 'pudfhgt73d573a8ot7id3mg4mu', 'student', 'hi', '2026-04-11 14:18:02', NULL),
-(275, 'pudfhgt73d573a8ot7id3mg4mu', 'bot', 'hi too', '2026-04-11 14:18:02', NULL);
+(275, 'pudfhgt73d573a8ot7id3mg4mu', 'bot', 'hi too', '2026-04-11 14:18:02', NULL),
+(276, '6fja002gl5is4ju7ff57rp5efu', 'student', 'hi', '2026-04-15 06:12:40', NULL),
+(277, '6fja002gl5is4ju7ff57rp5efu', 'bot', 'hi too', '2026-04-15 06:12:40', NULL);
 
 -- --------------------------------------------------------
 
@@ -2327,13 +2330,13 @@ ALTER TABLE `assignments`
 -- AUTO_INCREMENT for table `assignment_submissions`
 --
 ALTER TABLE `assignment_submissions`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT for table `chat_messages`
 --
 ALTER TABLE `chat_messages`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=276;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=278;
 
 --
 -- AUTO_INCREMENT for table `course_materials`

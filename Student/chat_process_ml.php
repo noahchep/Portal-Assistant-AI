@@ -100,6 +100,308 @@ function getStudentTimetableByDepartment($conn, $department, $year_level, $semes
     return $timetable;
 }
 
+// Get all lecturers in a specific department
+function getLecturersByDepartment($conn, $department) {
+    $query = "SELECT full_name, reg_number, email, phone, department, role 
+              FROM users 
+              WHERE role = 'lecturer' 
+              AND department = ?
+              ORDER BY full_name";
+    
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("s", $department);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    $lecturers = [];
+    while ($row = $result->fetch_assoc()) {
+        $lecturers[] = $row;
+    }
+    return $lecturers;
+}
+
+/* ============================================================
+    NEW FUNCTIONS FOR LECTURER, ASSIGNMENTS & PROGRESS
+============================================================ */
+
+// Get lecturer details by name
+function getLecturerDetails($conn, $lecturer_name) {
+    $query = "SELECT full_name, reg_number, email, phone, department, role 
+              FROM users 
+              WHERE role = 'lecturer' 
+              AND (full_name LIKE ? OR reg_number LIKE ?)";
+    $search_term = "%$lecturer_name%";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("ss", $search_term, $search_term);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($result->num_rows > 0) {
+        return $result->fetch_assoc();
+    }
+    return null;
+}
+
+// Get units taught by a specific lecturer
+function getUnitsByLecturer($conn, $lecturer_name) {
+    $query = "SELECT DISTINCT unit_code, course_title, year_level, semester, day_of_week, time_from, time_to, venue 
+              FROM timetable 
+              WHERE lecturer LIKE ? 
+              ORDER BY year_level, semester, unit_code";
+    $search_term = "%$lecturer_name%";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("s", $search_term);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    $units = [];
+    while ($row = $result->fetch_assoc()) {
+        $units[] = $row;
+    }
+    return $units;
+}
+
+// Get pending assignments for a student
+function getPendingAssignments($conn, $student_reg) {
+    $registered_query = "SELECT DISTINCT unit_code FROM registered_courses WHERE student_reg_no = ?";
+    $stmt = $conn->prepare($registered_query);
+    $stmt->bind_param("s", $student_reg);
+    $stmt->execute();
+    $registered_result = $stmt->get_result();
+    
+    $registered_units = [];
+    while ($row = $registered_result->fetch_assoc()) {
+        $registered_units[] = $row['unit_code'];
+    }
+    
+    if (empty($registered_units)) {
+        return [];
+    }
+    
+    $placeholders = implode(',', array_fill(0, count($registered_units), '?'));
+    $types = str_repeat('s', count($registered_units));
+    
+    $query = "SELECT a.*, 
+              (SELECT id FROM assignment_submissions 
+               WHERE assignment_id = a.id AND student_reg = ?) as has_submitted,
+              (SELECT obtained_marks FROM assignment_submissions 
+               WHERE assignment_id = a.id AND student_reg = ?) as obtained_marks
+              FROM assignments a 
+              WHERE a.unit_code IN ($placeholders) 
+              AND a.due_date >= CURDATE()
+              ORDER BY a.due_date ASC";
+    
+    $stmt = $conn->prepare($query);
+    $params = array_merge([$student_reg, $student_reg], $registered_units);
+    $stmt->bind_param("ss" . $types, ...$params);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    $assignments = [];
+    while ($row = $result->fetch_assoc()) {
+        if (is_null($row['has_submitted']) || (is_null($row['obtained_marks']) && $row['has_submitted'])) {
+            $assignments[] = $row;
+        }
+    }
+    return $assignments;
+}
+
+// Get assignment deadline for a specific unit
+function getAssignmentDeadline($conn, $unit_code, $student_reg = null) {
+    $query = "SELECT a.*, 
+              (SELECT id FROM assignment_submissions 
+               WHERE assignment_id = a.id AND student_reg = ?) as has_submitted
+              FROM assignments a 
+              WHERE a.unit_code = ? 
+              AND a.due_date >= CURDATE()
+              ORDER BY a.due_date ASC";
+    
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("ss", $student_reg, $unit_code);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    $assignments = [];
+    while ($row = $result->fetch_assoc()) {
+        $assignments[] = $row;
+    }
+    return $assignments;
+}
+
+// Get student's academic progress and performance
+function getStudentAcademicProgress($conn, $student_reg) {
+    $query = "SELECT asub.*, a.unit_code, a.title, a.total_marks, a.assessment_type
+              FROM assignment_submissions asub
+              JOIN assignments a ON asub.assignment_id = a.id
+              WHERE asub.student_reg = ? 
+              AND asub.obtained_marks IS NOT NULL
+              ORDER BY a.unit_code, a.due_date";
+    
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("s", $student_reg);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    $performance = [];
+    $total_obtained = 0;
+    $total_possible = 0;
+    $unit_performance = [];
+    
+    while ($row = $result->fetch_assoc()) {
+        $unit_code = $row['unit_code'];
+        $obtained = floatval($row['obtained_marks']);
+        $total = floatval($row['total_marks']);
+        
+        $total_obtained += $obtained;
+        $total_possible += $total;
+        
+        if (!isset($unit_performance[$unit_code])) {
+            $unit_performance[$unit_code] = [
+                'unit_code' => $unit_code,
+                'total_obtained' => 0,
+                'total_possible' => 0,
+                'assignments' => []
+            ];
+        }
+        
+        $unit_performance[$unit_code]['total_obtained'] += $obtained;
+        $unit_performance[$unit_code]['total_possible'] += $total;
+        $unit_performance[$unit_code]['assignments'][] = [
+            'title' => $row['title'],
+            'type' => $row['assessment_type'],
+            'obtained' => $obtained,
+            'total' => $total,
+            'percentage' => ($total > 0) ? round(($obtained / $total) * 100, 1) : 0
+        ];
+    }
+    
+    $overall_percentage = ($total_possible > 0) ? round(($total_obtained / $total_possible) * 100, 1) : 0;
+    
+    foreach ($unit_performance as &$unit) {
+        $unit['percentage'] = ($unit['total_possible'] > 0) ? 
+            round(($unit['total_obtained'] / $unit['total_possible']) * 100, 1) : 0;
+    }
+    
+    return [
+        'overall_percentage' => $overall_percentage,
+        'total_obtained' => $total_obtained,
+        'total_possible' => $total_possible,
+        'unit_performance' => $unit_performance,
+        'units_count' => count($unit_performance)
+    ];
+}
+
+// Generate academic advice based on performance
+function generateAcademicAdvice($conn, $student_reg, $performance) {
+    $advice = [];
+    
+    $pending = getPendingAssignments($conn, $student_reg);
+    if (!empty($pending)) {
+        $advice[] = "⚠️ <b>Hey! You have " . count($pending) . " pending assignment(s):</b><br>";
+        foreach ($pending as $p) {
+            $days_left = ceil((strtotime($p['due_date']) - time()) / (60 * 60 * 24));
+            $advice[] = "  • <b>{$p['unit_code']}</b> - '{$p['title']}' due in {$days_left} days ({$p['due_date']})";
+        }
+        $advice[] = "<br>💡 <i>Don't wait until the last minute! Start early and stay ahead! 😊</i><br>";
+    }
+    
+    if ($performance['overall_percentage'] >= 80) {
+        $advice[] = "🌟 <b>Wow! You're crushing it!</b> {$performance['overall_percentage']}% is fantastic!<br>";
+        $advice[] = "💡 Keep that momentum going! Maybe help a friend who's struggling? 🤝<br>";
+    } elseif ($performance['overall_percentage'] >= 60) {
+        $advice[] = "📚 <b>Good job!</b> You're at {$performance['overall_percentage']}%. You're on the right track!<br>";
+        $advice[] = "💡 A little more effort and you'll be at the top! Focus on areas below 70%. 💪<br>";
+    } elseif ($performance['overall_percentage'] >= 40) {
+        $advice[] = "📖 <b>You're making progress!</b> {$performance['overall_percentage']}% shows you're trying.<br>";
+        $advice[] = "💡 Consider forming a study group or visiting your lecturers during office hours. You've got this! 🎯<br>";
+    } elseif ($performance['units_count'] > 0) {
+        $advice[] = "⚠️ <b>Hey, don't give up!</b> Your current performance is at {$performance['overall_percentage']}%.<br>";
+        $advice[] = "💡 Talk to your lecturers, join study groups, and create a study schedule. Every expert was once a beginner! 🌱<br>";
+    }
+    
+    $weak_units = [];
+    foreach ($performance['unit_performance'] as $unit) {
+        if ($unit['percentage'] < 50) {
+            $weak_units[] = $unit['unit_code'];
+        }
+    }
+    
+    if (!empty($weak_units)) {
+        $advice[] = "🎯 <b>Units needing some love:</b> " . implode(', ', $weak_units) . "<br>";
+        $advice[] = "💡 Ask your lecturers for extra materials or past papers. Practice makes perfect! 📝<br>";
+    }
+    
+    if (empty($advice)) {
+        $advice[] = "📝 Hey there! I notice you haven't submitted many assignments yet.<br>";
+        $advice[] = "💡 The journey of a thousand miles begins with a single step. Start with one assignment today! 🚀<br>";
+    }
+    
+    return $advice;
+}
+
+// Extract lecturer name from query
+function extractLecturerName($input) {
+    $patterns = [
+        '/who (?:is|are)\s+([a-zA-Z\.\s]+)/i',
+        '/tell me about\s+([a-zA-Z\.\s]+)/i',
+        '/details? of\s+([a-zA-Z\.\s]+)/i',
+        '/lecturer\s+([a-zA-Z\.\s]+)/i',
+        '/units? taught by\s+([a-zA-Z\.\s]+)/i',
+        '/what units? does\s+([a-zA-Z\.\s]+) teach/i',
+        '/what is the email of\s+([a-zA-Z\.\s]+)/i',
+        '/email of\s+([a-zA-Z\.\s]+)/i'
+    ];
+    
+    foreach ($patterns as $pattern) {
+        if (preg_match($pattern, $input, $matches)) {
+            $name = trim($matches[1]);
+            $name = preg_replace('/\s+(teach|in|at|for).*$/i', '', $name);
+            return $name;
+        }
+    }
+    return null;
+}
+
+// Extract unit code from query for deadline check
+function extractUnitCodeForDeadline($input) {
+    if (preg_match('/([A-Z]{3,4}[0-9]{4})/i', $input, $matches)) {
+        return strtoupper($matches[1]);
+    }
+    return null;
+}
+
+// Check if query is about a lecturer (BEFORE vocabulary)
+function isLecturerQuery($input) {
+    $lecturer_patterns = [
+        '/who (?:is|are)/i',
+        '/tell me about/i',
+        '/details? of/i',
+        '/lecturer/i',
+        '/units? taught by/i',
+        '/what units? does/i',
+        '/what is the email of/i',
+        '/email of/i',
+        '/mr\./i',
+        '/mrs\./i',
+        '/ms\./i',
+        '/dr\./i',
+        '/prof\./i',
+        '/list lecturers/i',
+        '/all lecturers/i',
+        '/lecturers in my department/i',
+        '/who teaches in my department/i',
+        '/department lecturers/i',
+        '/show me lecturers/i'
+    ];
+    
+    foreach ($lecturer_patterns as $pattern) {
+        if (preg_match($pattern, $input)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /* ===============================
     2. DICTIONARY / VOCABULARY FUNCTIONS
 ================================ */
@@ -201,6 +503,10 @@ function saveToVocabulary($word, $definition_html, $conn) {
 }
 
 function detectVocabularyIntent($input) {
+    if (isLecturerQuery($input)) {
+        return false;
+    }
+    
     $vocab_keywords = ['meaning', 'define', 'what does', 'what is', 'definition of', 'vocabulary', 'word', 'means'];
     foreach ($vocab_keywords as $keyword) {
         if (strpos($input, $keyword) !== false) { return true; }
@@ -288,10 +594,9 @@ function fuzzySearchUnits($search_term, $conn, $limit = 5) {
 }
 
 /* ============================================================
-    4. UNIT FILTERING & REGISTRATION FUNCTIONS (DEPARTMENT BASED)
+    4. UNIT FILTERING & REGISTRATION FUNCTIONS
 ============================================================ */
 
-// Get student's current year level based on registered courses
 function getStudentYearLevel($conn, $student_reg) {
     $query = "SELECT DISTINCT t.year_level 
               FROM registered_courses rc 
@@ -310,18 +615,15 @@ function getStudentYearLevel($conn, $student_reg) {
     return getStudentYearLevelFromReg($student_reg);
 }
 
-// Get current semester based on month
 function getCurrentSemester() {
     $current_month = date('n');
     return ($current_month >= 1 && $current_month <= 6) ? 1 : 2;
 }
 
-// Get semester name
 function getSemesterName($semester_num) {
     return ($semester_num == 1) ? '1st Semester' : '2nd Semester';
 }
 
-// Get the timetable directly from database using year_level and semester
 function getStudentTimetable($conn, $year_level, $semester_num) {
     $query = "SELECT unit_code, course_title, day_of_week, time_from, time_to, venue, lecturer 
               FROM timetable 
@@ -339,7 +641,6 @@ function getStudentTimetable($conn, $year_level, $semester_num) {
     return $timetable;
 }
 
-// Get unit titles for given unit codes
 function getUnitTitles($conn, $unit_codes) {
     if (empty($unit_codes)) return [];
     
@@ -358,7 +659,6 @@ function getUnitTitles($conn, $unit_codes) {
     return $titles;
 }
 
-// Check what units the student has already registered - DEPARTMENT BASED
 function getStudentRegisteredUnits($conn, $student_reg, $year_level, $semester_num) {
     $student_department = getStudentDepartment();
     
@@ -368,7 +668,6 @@ function getStudentRegisteredUnits($conn, $student_reg, $year_level, $semester_n
     
     $semester_name = ($semester_num == 1) ? '1st Semester' : '2nd Semester';
     
-    // Get required units from academic_workload based on department
     $required_query = "SELECT unit_code, unit_name FROM academic_workload 
                        WHERE department = ? AND year_level = ? AND semester_level = ?";
     $stmt = $conn->prepare($required_query);
@@ -405,7 +704,6 @@ function getStudentRegisteredUnits($conn, $student_reg, $year_level, $semester_n
     
     $not_registered = array_diff($required_units, $registered);
     
-    // Build arrays with names
     $required_with_names = [];
     $registered_with_names = [];
     $not_registered_with_names = [];
@@ -446,7 +744,6 @@ function getStudentRegisteredUnits($conn, $student_reg, $year_level, $semester_n
     ];
 }
 
-// Format timetable for display
 function displayTimetable($timetable, $year_level, $semester_name, $student_reg) {
     if (empty($timetable)) {
         return "<b>⚠️ No timetable found for {$year_level}, {$semester_name}</b><br><br>
@@ -469,7 +766,6 @@ function displayTimetable($timetable, $year_level, $semester_name, $student_reg)
     $output .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
     $output .= "✅ <i>These are the required units for this semester.</i><br><br>";
     
-    // Generate download link
     $download_token = base64_encode($student_reg . '_' . time());
     $download_url = "download_timetable.php?token=" . urlencode($download_token) . "&student=" . urlencode($student_reg);
     
@@ -482,7 +778,7 @@ function displayTimetable($timetable, $year_level, $semester_name, $student_reg)
 }
 
 /* ===============================
-    5. FUZZY INTENT DETECTION (FIXED - Added better year detection)
+    5. FUZZY INTENT DETECTION
 ================================ */
 function fuzzyDetectIntent($input) {
     $intent_patterns = [
@@ -503,7 +799,14 @@ function fuzzyDetectIntent($input) {
         'course_advice' => ['what courses should i take', 'which units should i register', 'advice on courses', 'recommend units', 'suggest courses', 'what to register', 'help me choose units'],
         'unit_registration_count' => ['how many students', 'how many registered', 'enrollment count', 'class size', 'student count', 'enrollment numbers'],
         'what_to_register' => ['what to register', 'which units should i take', 'units to register', 'required units', 'what units do i need', 'units i should take', 'my required units', 'what am i supposed to register', 'what units should i register'],
-        'registration_status' => ['registration status', 'my registration status', 'have i registered', 'check my registration', 'registered units', 'what have i registered for', 'am i fully registered', 'missing units']
+        'registration_status' => ['registration status', 'my registration status', 'have i registered', 'check my registration', 'registered units', 'what have i registered for', 'am i fully registered', 'missing units'],
+        'list_lecturers' => ['list lecturers', 'all lecturers', 'lecturers in my department', 'who teaches in my department', 'department lecturers', 'list all lecturers', 'show me lecturers', 'lecturers list'],
+        'lecturer_info' => ['who is', 'tell me about lecturer', 'lecturer details', 'about dr', 'about mr', 'about mrs', 'about ms', 'who teaches', 'lecturer information', 'what is the email of', 'email of'],
+        'lecturer_units' => ['units taught by', 'what units does', 'courses taught by', 'classes taught by', 'which units does', 'what does', 'teach'],
+        'pending_assignments' => ['pending assignment', 'upcoming assignment', 'assignments due', 'pending cat', 'assignments not submitted', 'do i have any assignment', 'any pending', 'homework pending'],
+        'assignment_deadline' => ['deadline for', 'when is assignment due', 'submission date', 'due date', 'assignment deadline', 'cat deadline', 'submit by'],
+        'academic_progress' => ['my performance', 'academic progress', 'how am i doing', 'my grades', 'my marks', 'progress report', 'academic standing', 'how is my performance', 'my results'],
+        'academic_advice' => ['give me advice', 'study advice', 'how to improve', 'academic advice', 'tips to improve', 'what should i do', 'advice for', 'help me improve']
     ];
     
     $input_lower = strtolower(trim($input));
@@ -572,7 +875,150 @@ if ($kb_result->num_rows > 0) {
 }
 
 /* ===============================
-    7. PRIORITY 2: VOCABULARY CHECK
+    7. PRIORITY 2: LECTURER QUERIES (BEFORE VOCABULARY)
+================================ */
+// Check for LIST LECTURERS IN DEPARTMENT
+if (preg_match('/(list lecturers|all lecturers|lecturers in my department|who teaches in my department|department lecturers|show me lecturers)/i', $user_input)) {
+    $student_reg = $_SESSION['reg_number'] ?? null;
+    $student_department = getStudentDepartment();
+    
+    if (!$student_reg) {
+        echo "🔐 Hey there! 👋 I'd love to show you the lecturers in your department, but you need to log in first.<br><br>";
+        echo "💡 <i>Once you're logged in, I'll be able to tell you exactly who teaches in your department!</i>";
+        exit;
+    }
+    
+    if (!$student_department) {
+        echo "⚠️ Oops! I can't seem to find your department information. Please contact the administrator to update your profile.<br><br>";
+        echo "💡 <i>Your department needs to be set in your profile for me to show you the right lecturers.</i>";
+        exit;
+    }
+    
+    $lecturers = getLecturersByDepartment($conn, $student_department);
+    
+    if (!empty($lecturers)) {
+        echo "<b>👨‍🏫 Meet Your Amazing Lecturers in the {$student_department} Department</b><br><br>";
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br><br>";
+        
+        $counter = 1;
+        foreach ($lecturers as $lecturer) {
+            echo "<b>{$counter}. {$lecturer['full_name']}</b><br>";
+            echo "   📧 <b>Email:</b> {$lecturer['email']}<br>";
+            if (!empty($lecturer['phone'])) {
+                echo "   📞 <b>Phone:</b> {$lecturer['phone']}<br>";
+            }
+            echo "   🆔 <b>Staff ID:</b> {$lecturer['reg_number']}<br>";
+            
+            $units = getUnitsByLecturer($conn, $lecturer['full_name']);
+            if (!empty($units)) {
+                echo "   📚 <b>Teaches:</b> ";
+                $unit_list = [];
+                foreach ($units as $unit) {
+                    $unit_list[] = $unit['unit_code'];
+                }
+                echo implode(", ", array_slice($unit_list, 0, 5));
+                if (count($unit_list) > 5) {
+                    echo " + " . (count($unit_list) - 5) . " more";
+                }
+                echo "<br>";
+            }
+            echo "<br>";
+            $counter++;
+        }
+        
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
+        echo "📌 <b>Total Faculty Members:</b> " . count($lecturers) . "<br><br>";
+        echo "💡 <i>Want to know more about a specific lecturer? Try saying 'What units does [lecturer name] teach?'</i><br>";
+        echo "💡 <i>Or ask 'Who is [lecturer name]?' to get their full contact details!</i>";
+        
+        $stmt_bot = $conn->prepare("INSERT INTO chat_messages (conversation_id, sender_type, message) VALUES (?, 'bot', ?)");
+        $stmt_bot->bind_param("ss", $sess_id, "List of department lecturers");
+        $stmt_bot->execute();
+        exit;
+    } else {
+        echo "📭 Hmm, I couldn't find any lecturers in the {$student_department} department.<br><br>";
+        echo "💡 <i>This might be because no lecturers have been assigned yet. Please contact the academic office for assistance.</i>";
+        exit;
+    }
+}
+
+// Check for individual lecturer query
+$lecturer_name = extractLecturerName($user_input);
+$is_lecturer_query = isLecturerQuery($user_input);
+
+if ($is_lecturer_query && $lecturer_name) {
+    $lecturer = getLecturerDetails($conn, $lecturer_name);
+    
+    if ($lecturer) {
+        echo "<b>👨‍🏫 Lecturer Details: {$lecturer['full_name']}</b><br><br>";
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
+        echo "📧 <b>Email:</b> {$lecturer['email']}<br>";
+        if (!empty($lecturer['phone'])) {
+            echo "📞 <b>Phone:</b> {$lecturer['phone']}<br>";
+        }
+        echo "🏛️ <b>Department:</b> {$lecturer['department']}<br>";
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br><br>";
+        
+        $units = getUnitsByLecturer($conn, $lecturer['full_name']);
+        
+        if (!empty($units)) {
+            echo "<b>📚 Units Taught by {$lecturer['full_name']}:</b><br><br>";
+            $current_year = '';
+            foreach ($units as $unit) {
+                if ($unit['year_level'] != $current_year) {
+                    $current_year = $unit['year_level'];
+                    echo "<b>🎓 {$current_year}:</b><br>";
+                }
+                echo "  • <b>{$unit['unit_code']}</b> - {$unit['course_title']}<br>";
+                echo "    📅 {$unit['semester']} Semester, {$unit['day_of_week']} {$unit['time_from']}-{$unit['time_to']}<br>";
+            }
+            echo "<br>💡 <i>Say 'Show my timetable' to see when you have these classes!</i>";
+        }
+        
+        $stmt_bot = $conn->prepare("INSERT INTO chat_messages (conversation_id, sender_type, message) VALUES (?, 'bot', ?)");
+        $response_summary = "Lecturer details for " . $lecturer['full_name'];
+        $stmt_bot->bind_param("ss", $sess_id, $response_summary);
+        $stmt_bot->execute();
+        exit;
+    }
+}
+
+// Also check for lecturer units query
+if (preg_match('/(units? taught by|courses? taught by|what units? does|what does)\s+([a-zA-Z\.\s]+)/i', $user_input, $matches)) {
+    $lecturer_name = trim($matches[2]);
+    $lecturer = getLecturerDetails($conn, $lecturer_name);
+    
+    if ($lecturer) {
+        $units = getUnitsByLecturer($conn, $lecturer['full_name']);
+        
+        if (!empty($units)) {
+            echo "<b>📚 Units Taught by {$lecturer['full_name']}</b><br><br>";
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
+            
+            $current_year = '';
+            foreach ($units as $unit) {
+                if ($unit['year_level'] != $current_year) {
+                    $current_year = $unit['year_level'];
+                    echo "<br><b>🎓 {$current_year}:</b><br>";
+                }
+                echo "  • <b>{$unit['unit_code']}</b> - {$unit['course_title']}<br>";
+                echo "    📅 {$unit['semester']} Semester, {$unit['day_of_week']} {$unit['time_from']}-{$unit['time_to']}, {$unit['venue']}<br>";
+            }
+            echo "<br>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
+            echo "💡 <i>Want to know more about any of these units? Say 'Tell me about [unit_code]'</i>";
+        } else {
+            echo "📭 {$lecturer['full_name']} is not currently teaching any active units at the moment.";
+        }
+        
+        $stmt_bot = $conn->prepare("INSERT INTO chat_messages (conversation_id, sender_type, message) VALUES (?, 'bot', ?)");
+        $stmt_bot->bind_param("ss", $sess_id, "Lecturer units response");
+        $stmt_bot->execute();
+        exit;
+    }
+}
+
+/* ===============================
+    8. PRIORITY 3: VOCABULARY CHECK
 ================================ */
 $vocabulary_check = detectVocabularyIntent($user_input);
 
@@ -583,10 +1029,10 @@ if ($vocabulary_check) {
     if ($definition) {
         echo $definition;
         $followups = [
-            "📖 Want me to explain another word?",
+            "📖 Want me to explain another word? I love expanding vocabulary!",
             "💡 Would you like to see how to use this word in a sentence?",
-            "🎓 Need help with any other academic vocabulary?",
-            "📚 I can help you build your vocabulary! Ask me about any word."
+            "🎓 Need help with any other academic vocabulary? I'm here for you!",
+            "📚 I can help you build your vocabulary! Just ask me about any word."
         ];
         echo "<br><br><i>" . getRandomResponse($followups) . "</i>";
         
@@ -596,9 +1042,9 @@ if ($vocabulary_check) {
         $stmt_bot->execute();
         exit;
     } else {
-        echo "🤔 I'm still learning the word '{$word_to_define}'!<br><br>";
-        echo "💡 <i>Tip: Try asking about academic terms like 'algorithm', 'database', 'semester', or 'curriculum'!</i><br><br>";
-        echo "📝 I've noted this word and will add it to my vocabulary soon!";
+        echo "🤔 Hmm, I'm still learning the word '{$word_to_define}'! My vocabulary is growing every day.<br><br>";
+        echo "💡 <i>Tip: Try asking about academic terms like 'algorithm', 'database', 'semester', or 'curriculum' — those are my specialties!</i><br><br>";
+        echo "📝 I've noted this word and will add it to my vocabulary soon! Thanks for helping me learn. 🙏";
         
         $requested_by = $_SESSION['user_name'] ?? 'Guest';
         $stmt = $conn->prepare("INSERT INTO vocabulary_requests (word, requested_by) VALUES (?, ?)");
@@ -609,7 +1055,7 @@ if ($vocabulary_check) {
 }
 
 /* ===============================
-    8. SOCIAL INTENT DETECTION
+    9. SOCIAL INTENT DETECTION
 ================================ */
 function detectSocialIntent($input) {
     $gratitude = ['thank', 'thanks', 'thnx', 'thank you', 'appreciate', 'grateful', 'thx'];
@@ -640,7 +1086,7 @@ function detectSocialIntent($input) {
 }
 
 /* ===============================
-    9. ACADEMIC INTENT DETECTION (UPDATED - FIXED YEAR DETECTION)
+    10. ACADEMIC INTENT DETECTION
 ================================ */
 function detectIntent($input) {
     $fuzzy_intent = fuzzyDetectIntent($input);
@@ -660,6 +1106,13 @@ function detectIntent($input) {
             case 'course_advice': return ['intent' => 'course_advice'];
             case 'what_to_register': return ['intent' => 'what_to_register'];
             case 'registration_status': return ['intent' => 'registration_status'];
+            case 'list_lecturers': return ['intent' => 'list_lecturers'];
+            case 'pending_assignments': return ['intent' => 'pending_assignments'];
+            case 'assignment_deadline':
+                $unit_code = extractUnitCodeForDeadline($input);
+                return ['intent' => 'assignment_deadline', 'unit_code' => $unit_code];
+            case 'academic_progress': return ['intent' => 'academic_progress'];
+            case 'academic_advice': return ['intent' => 'academic_advice'];
             case 'unit_registration_count':
                 if (preg_match('/([A-Z]{3,4}[0-9]{4})/i', $input, $matches)) {
                     return ['intent' => 'unit_registration_count', 'unit_code' => strtoupper($matches[1])];
@@ -671,7 +1124,6 @@ function detectIntent($input) {
                 }
                 return ['intent' => 'unit_day'];
             case 'view_all':
-                // FIXED: Better year detection with multiple patterns
                 $year_patterns = [
                     'first' => 'First Year', '1st' => 'First Year', 'freshman' => 'First Year', 'year 1' => 'First Year',
                     'second' => 'Second Year', '2nd' => 'Second Year', 'sophomore' => 'Second Year', 'year 2' => 'Second Year',
@@ -687,8 +1139,31 @@ function detectIntent($input) {
         }
     }
     
-    // CHECK FOR UNIT DETAILS FIRST (BEFORE search_unit)
-    // Pattern: "tell me about", "details about", "info about", "what is", "describe"
+    $pending_keywords = ['pending assignment', 'upcoming assignment', 'assignments due', 'pending cat', 'do i have any assignment', 'any pending'];
+    foreach ($pending_keywords as $keyword) {
+        if (strpos($input, $keyword) !== false || fuzzyMatch($input, $keyword, 70)) {
+            return ['intent' => 'pending_assignments'];
+        }
+    }
+    
+    if ((strpos($input, 'deadline') !== false || strpos($input, 'due') !== false) && preg_match('/([A-Z]{3,4}[0-9]{4})/i', $input, $matches)) {
+        return ['intent' => 'assignment_deadline', 'unit_code' => strtoupper($matches[1])];
+    }
+    
+    $progress_keywords = ['my performance', 'academic progress', 'how am i doing', 'my grades', 'my marks', 'progress report', 'academic standing'];
+    foreach ($progress_keywords as $keyword) {
+        if (strpos($input, $keyword) !== false || fuzzyMatch($input, $keyword, 70)) {
+            return ['intent' => 'academic_progress'];
+        }
+    }
+    
+    $advice_keywords = ['give me advice', 'study advice', 'how to improve', 'academic advice', 'tips to improve', 'what should i do'];
+    foreach ($advice_keywords as $keyword) {
+        if (strpos($input, $keyword) !== false || fuzzyMatch($input, $keyword, 70)) {
+            return ['intent' => 'academic_advice'];
+        }
+    }
+    
     if (preg_match('/(tell me about|details about|info about|what is|describe|more about)/i', $input) && preg_match('/[A-Z]{3,4}[0-9]{4}/i', $input, $matches)) {
         return ['intent' => 'unit_details', 'unit_code' => strtoupper($matches[0])];
     }
@@ -735,7 +1210,6 @@ function detectIntent($input) {
         }
     }
     
-    // FIXED: Enhanced year detection patterns
     $year_patterns = [
         '/first\s*year|1st\s*year|year\s*1|freshman|^first$|^1st$/' => 'First Year',
         '/second\s*year|2nd\s*year|year\s*2|sophomore|^second$|^2nd$/' => 'Second Year',
@@ -784,7 +1258,7 @@ if ($social_intent) {
 }
 
 /* ===============================
-    10. HELPER FUNCTIONS
+    11. HELPER FUNCTIONS
 ================================ */
 function formatResponse($data, $title) {
     if (empty($data)) { return "No information found for your query."; }
@@ -797,19 +1271,30 @@ function getRandomResponse($responses) {
     return $responses[array_rand($responses)];
 }
 
+function getCreativeUnknownResponse() {
+    $unknown_responses = [
+        "🤔 Hmm, that's an interesting question! I'm not very knowledgeable about that specific topic. You might want to reach out to your Head of Department or Academic Advisor for more accurate information. They'd be happy to help! 📚",
+        "😅 Oops! I haven't learned about that yet. My expertise is mainly around courses, timetables, assignments, and lecturers. For your question, I'd recommend contacting the HOD or checking the academic office. 🙏",
+        "💭 I wish I knew the answer to that! Unfortunately, that's outside my current knowledge base. The best person to ask would be your HOD or course coordinator. They're the real experts! 🎓",
+        "🧠 I'm still learning new things every day, but this one stumps me! For the most accurate answer, please consult your Head of Department or academic advisor. They'll sort you out! ✨",
+        "🌟 Great question! But I'm afraid it's beyond what I can help with right now. Your HOD or faculty office would be better equipped to answer this. Keep asking great questions though! 💪"
+    ];
+    return $unknown_responses[array_rand($unknown_responses)];
+}
+
 /* ===============================
-    11. SOCIAL RESPONSES
+    12. SOCIAL RESPONSES
 ================================ */
 $social_responses = [
-    'gratitude' => ["You're very welcome! 😊 Happy to help!", "My pleasure! Is there anything else you'd like to know?", "Anytime! That's what I'm here for. 👍"],
-    'apology' => ["No worries at all! How can I help you?", "It's all good! What would you like to know?", "No need to apologize! I'm here to help."],
-    'how_are_you' => ["I'm doing great, thank you for asking! 😊 Ready to help you with your academic questions!", "I'm functioning perfectly! 😄 What can I do for you today?", "All systems operational and happy to chat! How about you?"],
-    'compliment' => ["Aww, thank you! 😊 You're pretty awesome yourself!", "You just made my circuits happy! 🥰 How can I help you?", "Thanks! I try my best to be helpful."],
-    'farewell' => ["Goodbye! 👋 Feel free to come back if you have more questions!", "Take care! Wishing you success in your studies! 🎓", "See you later! Have a great day! 😊"]
+    'gratitude' => ["You're very welcome! 😊 Happy to help!", "My pleasure! Is there anything else you'd like to know?", "Anytime! That's what I'm here for. 👍", "Glad I could help! 😊 Feel free to ask me anything else!"],
+    'apology' => ["No worries at all! How can I help you?", "It's all good! What would you like to know?", "No need to apologize! I'm here to help.", "Don't sweat it! What can I do for you? 🤝"],
+    'how_are_you' => ["I'm doing great, thank you for asking! 😊 Ready to help you with your academic questions!", "I'm functioning perfectly! 😄 What can I do for you today?", "All systems operational and happy to chat! How about you?", "Living the digital dream! ☁️ How can I assist you today?"],
+    'compliment' => ["Aww, thank you! 😊 You're pretty awesome yourself!", "You just made my circuits happy! 🥰 How can I help you?", "Thanks! I try my best to be helpful.", "You're too kind! 🙈 What can I do for you today?"],
+    'farewell' => ["Goodbye! 👋 Feel free to come back if you have more questions!", "Take care! Wishing you success in your studies! 🎓", "See you later! Have a great day! 😊", "Bye for now! Remember, I'm always here when you need me! 🌟"]
 ];
 
 /* ===============================
-    12. MAIN ACTION LOGIC
+    13. MAIN ACTION LOGIC
 ================================ */
 switch ($intent) {
     case 'greet':
@@ -817,7 +1302,8 @@ switch ($intent) {
         $greetings = [
             "Hey there! 👋 I'm your academic assistant. What can I help you with today?",
             "Hello! 😊 Ready to help you with your courses, timetable, or exams!",
-            "Hi! Great to see you! What would you like to know about your academic journey?"
+            "Hi! Great to see you! What would you like to know about your academic journey?",
+            "Hey! 👋 Ask me about your timetable, assignments, lecturers, or academic progress!"
         ];
         if ($student_name) { echo "Hey $student_name! " . getRandomResponse($greetings); }
         else { echo getRandomResponse($greetings); }
@@ -828,6 +1314,266 @@ switch ($intent) {
     case 'how_are_you': echo getRandomResponse($social_responses['how_are_you']); break;
     case 'compliment': echo getRandomResponse($social_responses['compliment']); break;
     case 'farewell': echo getRandomResponse($social_responses['farewell']); break;
+    
+    /* ===============================
+        LIST LECTURERS IN DEPARTMENT
+    ============================== */
+    case 'list_lecturers':
+        $student_reg = $_SESSION['reg_number'] ?? null;
+        $student_department = getStudentDepartment();
+        
+        if (!$student_reg) {
+            echo "🔐 Hey there! 👋 I'd love to show you the lecturers in your department, but you need to log in first.<br><br>";
+            echo "💡 <i>Once you're logged in, I'll be able to tell you exactly who teaches in your department!</i>";
+            break;
+        }
+        
+        if (!$student_department) {
+            echo "⚠️ Oops! I can't seem to find your department information. Please contact the administrator to update your profile.<br><br>";
+            echo "💡 <i>Your department needs to be set in your profile for me to show you the right lecturers.</i>";
+            break;
+        }
+        
+        $lecturers = getLecturersByDepartment($conn, $student_department);
+        
+        if (!empty($lecturers)) {
+            echo "<b>👨‍🏫 Meet Your Amazing Lecturers in the {$student_department} Department</b><br><br>";
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br><br>";
+            
+            $counter = 1;
+            foreach ($lecturers as $lecturer) {
+                echo "<b>{$counter}. {$lecturer['full_name']}</b><br>";
+                echo "   📧 <b>Email:</b> {$lecturer['email']}<br>";
+                if (!empty($lecturer['phone'])) {
+                    echo "   📞 <b>Phone:</b> {$lecturer['phone']}<br>";
+                }
+                echo "   🆔 <b>Staff ID:</b> {$lecturer['reg_number']}<br>";
+                
+                $units = getUnitsByLecturer($conn, $lecturer['full_name']);
+                if (!empty($units)) {
+                    echo "   📚 <b>Teaches:</b> ";
+                    $unit_list = [];
+                    foreach ($units as $unit) {
+                        $unit_list[] = $unit['unit_code'];
+                    }
+                    echo implode(", ", array_slice($unit_list, 0, 5));
+                    if (count($unit_list) > 5) {
+                        echo " + " . (count($unit_list) - 5) . " more";
+                    }
+                    echo "<br>";
+                }
+                echo "<br>";
+                $counter++;
+            }
+            
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
+            echo "📌 <b>Total Faculty Members:</b> " . count($lecturers) . "<br><br>";
+            echo "💡 <i>Want to know more about a specific lecturer? Try saying 'What units does [lecturer name] teach?'</i><br>";
+            echo "💡 <i>Or ask 'Who is [lecturer name]?' to get their full contact details!</i>";
+        } else {
+            echo "📭 Hmm, I couldn't find any lecturers in the {$student_department} department.<br><br>";
+            echo "💡 <i>This might be because no lecturers have been assigned yet. Please contact the academic office for assistance.</i>";
+        }
+        break;
+    
+    /* ===============================
+        PENDING ASSIGNMENTS
+    ============================== */
+    case 'pending_assignments':
+        $student_reg = $_SESSION['reg_number'] ?? null;
+        
+        if (!$student_reg) {
+            echo "🔐 Hey! 👋 I need you to log in first so I can check your pending assignments.<br><br>";
+            echo "💡 <i>Once you're logged in, I'll show you all your upcoming deadlines!</i>";
+            break;
+        }
+        
+        $pending = getPendingAssignments($conn, $student_reg);
+        
+        if (!empty($pending)) {
+            echo "<b>📋 Your Pending Assignments & CATs</b><br><br>";
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
+            
+            $today = date('Y-m-d');
+            foreach ($pending as $assignment) {
+                $days_left = ceil((strtotime($assignment['due_date']) - strtotime($today)) / (60 * 60 * 24));
+                $type_icon = ($assignment['assessment_type'] == 'CAT') ? '📝' : (($assignment['assessment_type'] == 'Assignment') ? '📄' : '📖');
+                $urgency = ($days_left <= 3) ? '🔴 URGENT - Submit ASAP!' : (($days_left <= 7) ? '🟡 Coming soon' : '🟢 You have time');
+                
+                echo "<b>{$type_icon} {$assignment['assessment_type']}: {$assignment['title']}</b><br>";
+                echo "   📚 <b>Unit:</b> {$assignment['unit_code']}<br>";
+                echo "   📅 <b>Due Date:</b> " . date('F j, Y', strtotime($assignment['due_date'])) . "<br>";
+                echo "   ⏰ <b>Days Left:</b> {$days_left} days — {$urgency}<br>";
+                echo "   📊 <b>Total Marks:</b> {$assignment['total_marks']}<br>";
+                if (!empty($assignment['description'])) {
+                    $desc_short = (strlen($assignment['description']) > 100) ? substr($assignment['description'], 0, 100) . '...' : $assignment['description'];
+                    echo "   📝 <b>Description:</b> {$desc_short}<br>";
+                }
+                echo "<br>";
+            }
+            
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
+            echo "💡 <i>Don't procrastinate! Start early and you'll thank yourself later. 😊</i><br>";
+            echo "💡 <i>Say 'My academic progress' to see how you're doing on completed assignments!</i>";
+        } else {
+            echo "🎉 <b>Great news!</b> You have no pending assignments or CATs!<br><br>";
+            echo "✅ All caught up! Time to review your notes or help a friend.<br>";
+            echo "💡 <i>Use this free time to prepare for upcoming exams or get ahead on readings! 📖</i>";
+        }
+        break;
+    
+    /* ===============================
+        ASSIGNMENT DEADLINE
+    ============================== */
+    case 'assignment_deadline':
+        $unit_code = $GLOBALS['target_unit'] ?? '';
+        $student_reg = $_SESSION['reg_number'] ?? null;
+        
+        if (empty($unit_code)) {
+            echo "❓ Hmm, which unit's deadline are you curious about? Try saying 'When is BBM2103 assignment due?'";
+            break;
+        }
+        
+        if (!$student_reg) {
+            echo "🔐 Please log in first so I can check deadlines for your registered units.<br><br>";
+            echo "💡 <i>Once logged in, I'll show you exactly when your assignments are due!</i>";
+            break;
+        }
+        
+        $assignments = getAssignmentDeadline($conn, $unit_code, $student_reg);
+        
+        if (!empty($assignments)) {
+            echo "<b>📅 Assignment Deadlines for {$unit_code}</b><br><br>";
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
+            
+            $today = date('Y-m-d');
+            foreach ($assignments as $assignment) {
+                $days_left = ceil((strtotime($assignment['due_date']) - strtotime($today)) / (60 * 60 * 24));
+                $type_icon = ($assignment['assessment_type'] == 'CAT') ? '📝' : (($assignment['assessment_type'] == 'Assignment') ? '📄' : '📖');
+                $urgency_msg = ($days_left <= 3) ? "⏰ Hurry! This is due very soon!" : (($days_left <= 7) ? "📅 You've got about a week." : "✅ Plenty of time, but don't wait too long!");
+                
+                echo "<b>{$type_icon} {$assignment['assessment_type']}: {$assignment['title']}</b><br>";
+                echo "   📅 <b>Due Date:</b> " . date('F j, Y', strtotime($assignment['due_date'])) . "<br>";
+                echo "   ⏰ <b>Days Remaining:</b> {$days_left} days — {$urgency_msg}<br>";
+                echo "   📊 <b>Total Marks:</b> {$assignment['total_marks']}<br>";
+                if (!empty($assignment['description'])) {
+                    echo "   📝 <b>Description:</b> {$assignment['description']}<br>";
+                }
+                echo "<br>";
+            }
+            
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
+            echo "💡 <i>Submit before the deadline to avoid penalties! You've got this! 💪</i>";
+        } else {
+            $unit_check = $conn->prepare("SELECT unit_name FROM academic_workload WHERE unit_code = ?");
+            $unit_check->bind_param("s", $unit_code);
+            $unit_check->execute();
+            $unit_result = $unit_check->get_result();
+            
+            if ($unit_result->num_rows > 0) {
+                echo "📭 No pending assignments found for {$unit_code}. Either you've submitted everything, or no assignments have been posted yet.<br><br>";
+                echo "💡 <i>Say 'Pending assignments' to see all your upcoming work across all units!</i>";
+            } else {
+                echo "❌ Hmm, I couldn't find a unit with code '{$unit_code}' in our system.<br><br>";
+                echo "💡 <i>Double-check the unit code and try again. Example: 'When is BBM2103 CAT due?'</i>";
+            }
+        }
+        break;
+    
+    /* ===============================
+        ACADEMIC PROGRESS
+    ============================== */
+    case 'academic_progress':
+        $student_reg = $_SESSION['reg_number'] ?? null;
+        
+        if (!$student_reg) {
+            echo "🔐 Hey! 👋 Log in first so I can check your academic progress and show you how you're doing.<br><br>";
+            echo "💡 <i>Once logged in, I'll give you a full performance report!</i>";
+            break;
+        }
+        
+        $progress = getStudentAcademicProgress($conn, $student_reg);
+        
+        if ($progress['units_count'] > 0) {
+            echo "<b>📊 Your Academic Progress Report</b><br><br>";
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
+            echo "<b>Overall Performance:</b><br>";
+            echo "   📈 <b>Total Score:</b> {$progress['total_obtained']} / {$progress['total_possible']} marks<br>";
+            echo "   🎯 <b>Overall Percentage:</b> <b>" . $progress['overall_percentage'] . "%</b><br>";
+            
+            if ($progress['overall_percentage'] >= 80) {
+                echo "   🏆 <b>Grade: A (Excellent!)</b> — Keep shining! 🌟<br>";
+            } elseif ($progress['overall_percentage'] >= 70) {
+                echo "   🌟 <b>Grade: B (Very Good!)</b> — You're doing great!<br>";
+            } elseif ($progress['overall_percentage'] >= 60) {
+                echo "   📘 <b>Grade: C (Good)</b> — Solid work, keep pushing!<br>";
+            } elseif ($progress['overall_percentage'] >= 50) {
+                echo "   📙 <b>Grade: D (Satisfactory)</b> — You're passing, but there's room to grow.<br>";
+            } else {
+                echo "   ⚠️ <b>Grade: E (Needs Improvement)</b> — Don't worry, you can turn this around! 💪<br>";
+            }
+            
+            echo "<br>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
+            echo "<b>📚 Unit-by-Unit Breakdown:</b><br><br>";
+            
+            foreach ($progress['unit_performance'] as $unit_code => $data) {
+                $percentage = $data['percentage'];
+                if ($percentage >= 80) {
+                    $emoji = "🏆";
+                } elseif ($percentage >= 70) {
+                    $emoji = "✅";
+                } elseif ($percentage >= 60) {
+                    $emoji = "📘";
+                } elseif ($percentage >= 50) {
+                    $emoji = "⚠️";
+                } else {
+                    $emoji = "❌";
+                }
+                
+                echo "<b>{$emoji} {$unit_code}:</b> {$data['total_obtained']}/{$data['total_possible']} marks ({$percentage}%)<br>";
+                
+                foreach ($data['assignments'] as $assign) {
+                    $assign_emoji = ($assign['percentage'] >= 70) ? "✅" : (($assign['percentage'] >= 50) ? "📝" : "⚠️");
+                    echo "   {$assign_emoji} {$assign['type']}: {$assign['obtained']}/{$assign['total']} ({$assign['percentage']}%)<br>";
+                }
+                echo "<br>";
+            }
+            
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
+            echo "💡 <i>Say 'Give me academic advice' for personalized study recommendations tailored just for you!</i>";
+            
+        } else {
+            echo "📭 I don't see any graded assignments yet. Once you submit work and your lecturers grade it, your progress will appear here.<br><br>";
+            echo "💡 <i>Say 'Pending assignments' to see what you need to submit first!</i>";
+        }
+        break;
+    
+    /* ===============================
+        ACADEMIC ADVICE
+    ============================== */
+    case 'academic_advice':
+        $student_reg = $_SESSION['reg_number'] ?? null;
+        
+        if (!$student_reg) {
+            echo "🔐 I'd love to give you personalized advice, but I need you to log in first so I can see your performance!<br><br>";
+            echo "💡 <i>Once logged in, I'll analyze your grades and give you study tips!</i>";
+            break;
+        }
+        
+        $progress = getStudentAcademicProgress($conn, $student_reg);
+        $advice = generateAcademicAdvice($conn, $student_reg, $progress);
+        
+        echo "<b>🎓 Personalized Academic Advice — Just for You!</b><br><br>";
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
+        
+        foreach ($advice as $line) {
+            echo $line;
+        }
+        
+        echo "<br>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━<br>";
+        echo "💡 <i>Remember: Every expert was once a beginner. Keep going, and you'll get there! 🌱</i><br>";
+        echo "💡 <i>Say 'My academic progress' to see your detailed performance report!</i>";
+        break;
     
     /* ===============================
         WHAT TO REGISTER
@@ -1157,7 +1903,7 @@ switch ($intent) {
         break;
     
     /* ===============================
-        VIEW ALL UNITS (FIXED - Now filters by department!)
+        VIEW ALL UNITS
     ============================== */
     case 'view_all':
         $target_year = $GLOBALS['target_year'] ?? null;
@@ -1174,9 +1920,7 @@ switch ($intent) {
             break;
         }
         
-        // FIXED: Now filter by department if student is logged in
         if ($student_department) {
-            // Show only department-specific units for that year
             $sem1_units = getUnitsByStudentDepartment($conn, $student_department, $target_year, 1);
             $sem2_units = getUnitsByStudentDepartment($conn, $student_department, $target_year, 2);
             
@@ -1207,7 +1951,6 @@ switch ($intent) {
                 echo "💡 <i>Please contact the academic office for assistance.</i>";
             }
         } else {
-            // If no department (guest), show all units from timetable
             $stmt = $conn->prepare("SELECT unit_code, course_title, semester, day_of_week, time_from, time_to, venue 
                                     FROM timetable 
                                     WHERE year_level = ? 
@@ -1432,14 +2175,7 @@ switch ($intent) {
     case 'unit_registration_count':
     case 'course_advice':
     case 'exam_info':
-        echo "I'm here to help with your academic journey! 😊<br><br>
-              Try these commands instead:<br>
-              • <b>'Show my timetable'</b> - See your class schedule<br>
-              • <b>'Download my timetable'</b> - Get a downloadable link<br>
-              • <b>'What to register'</b> - See your required units<br>
-              • <b>'Registration status'</b> - Check your progress<br>
-              • <b>'Tell me about BSN1106'</b> - Get unit details<br><br>
-              What would you like to do?";
+        echo getCreativeUnknownResponse();
         break;
     
     case 'ai_check':
@@ -1455,14 +2191,23 @@ switch ($intent) {
               ✅ <b>View Units by Year</b> - See all units for any year level (filtered by your department!)<br>
               ✅ <b>Unit Details</b> - Get detailed info about any unit (e.g., 'Tell me about BSN1106')<br>
               ✅ <b>Unit Schedule</b> - Find out when a unit is taught (e.g., 'When is BSN1106?')<br><br>
+              🆕 <b>NEW FEATURES:</b><br>
+              ✅ <b>List Department Lecturers</b> - See all lecturers in your department (e.g., 'List lecturers in my department')<br>
+              ✅ <b>Lecturer Information</b> - Get details about any lecturer (e.g., 'Who is Dr. Peter Kamau?')<br>
+              ✅ <b>Lecturer Units</b> - See which units a lecturer teaches (e.g., 'What units does Arfican teach?')<br>
+              ✅ <b>Pending Assignments</b> - Check all upcoming assignments and deadlines<br>
+              ✅ <b>Assignment Deadlines</b> - Get specific deadline for a unit<br>
+              ✅ <b>Academic Progress</b> - View your performance and grades<br>
+              ✅ <b>Academic Advice</b> - Get personalized study recommendations<br><br>
               🎓 <b>Try asking:</b><br>
+              • 'List lecturers in my department' - See everyone teaching in your department!<br>
               • 'Show my timetable' - See your complete class schedule!<br>
-              • 'Download my timetable' - Get a link to download your timetable!<br>
               • 'What to register' - See your required units for this semester!<br>
-              • 'Registration status' - Check your registration progress!<br>
-              • 'Show me third year units' - See only YOUR department's third year units!<br>
-              • 'Tell me about BSN1106' - Get detailed unit information!<br><br>
-              What would you like to know?";
+              • 'Who is Dr. Peter Kamau?' - Get lecturer contact details!<br>
+              • 'Do I have any pending assignments?' - Check upcoming deadlines!<br>
+              • 'My academic progress' - View your performance across all units!<br>
+              • 'Give me academic advice' - Get personalized study tips!<br><br>
+              What would you like to know today? 😊";
         break;
     
     case 'fallback':
@@ -1471,12 +2216,7 @@ switch ($intent) {
         $stmt_msg->bind_param("ss", $sess_id, $user_input);
         $stmt_msg->execute();
         
-        $friendly_fallbacks = [
-            "Hmm, I'm not quite sure about that yet. 🤔 Try asking 'Show my timetable' to see your class schedule, or 'Tell me about BSN1106' for unit details!",
-            "That's a good question! Try saying 'Show my timetable', 'What to register', or 'Tell me about BSN1106'! 😊",
-            "I can help with your class schedule and unit information! Try 'Show my timetable' or 'Tell me about BSN1106'! 💪"
-        ];
-        $bot_msg = getRandomResponse($friendly_fallbacks);
+        $bot_msg = getCreativeUnknownResponse();
         echo $bot_msg;
         
         $stmt_bot = $conn->prepare("INSERT INTO chat_messages (conversation_id, sender_type, message) VALUES (?, 'bot', ?)");
