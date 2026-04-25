@@ -1,5 +1,12 @@
 <?php
+// Set timezone to Kenya time
+date_default_timezone_set('Africa/Nairobi');
+
 session_start();
+
+// ========== PHPMailer USE STATEMENTS MUST BE AT THE TOP ==========
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
 
 // 1. Database connection
 $host = "localhost";
@@ -29,49 +36,117 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['signin'])) {
         $row = mysqli_fetch_assoc($result);
 
         if (password_verify($password, $row['password'])) {
-            // Clear any old session data first
-            session_regenerate_id(true);
             
-            // Destroy any existing session variables
-            $_SESSION = array();
-
-            // ========== COMMON SESSION VARIABLES (Student, Admin & Lecturer) ==========
-            $_SESSION['user_id']       = $row['id'];
-            $_SESSION['user_name']     = $row['full_name'];
-            $_SESSION['reg_number']    = $row['reg_number'];
-            $_SESSION['role']          = $row['role'];
-            $_SESSION['email']         = $row['email'];
-            $_SESSION['department']    = $row['department']; // Store department
-            $_SESSION['login_time']    = time();
-            $_SESSION['login_ip']      = $_SERVER['REMOTE_ADDR'];
-
-            // ========== REDIRECT BASED ON ROLE ==========
-            if ($row['role'] == 'admin') {
-                // Admin specific session variables
-                $_SESSION['is_admin'] = true;
-                $_SESSION['admin_name'] = $row['full_name'];
-                
-                header("Location: Admin/Admin-index.php");
-                exit();
-            } 
-            elseif ($row['role'] == 'lecturer') {
-                // Lecturer specific session variables
-                $_SESSION['is_lecturer'] = true;
-                $_SESSION['lecturer_name'] = $row['full_name'];
-                $_SESSION['lecturer_department'] = $row['department'];
-                
-                header("Location: Lecturer/lecturer_dashboard.php");
-                exit();
+            // Check if 2FA should be applied (Admin or Lecturer only)
+            $requires_2fa = false;
+            if (($row['role'] == 'admin' || $row['role'] == 'lecturer') && isset($row['two_factor_enabled']) && $row['two_factor_enabled'] == 1) {
+                $requires_2fa = true;
             }
-            else {
-                // Student specific session variables
-                $_SESSION['is_student'] = true;
-                $_SESSION['student_name'] = $row['full_name'];
-                $_SESSION['student_department'] = $row['department']; // Explicit student department
-                $_SESSION['student_year'] = determineStudentYear($conn, $row['reg_number']); // Optional: determine year
+            
+            if ($requires_2fa) {
+                // Generate 6-digit verification code
+                $verification_code = sprintf("%06d", mt_rand(1, 999999));
+                $expires = date('Y-m-d H:i:s', strtotime('+30 minutes'));
                 
-                header("Location: Student/home.php");
-                exit();
+                // Save code to database
+                $update_sql = "UPDATE users SET two_factor_code = ?, two_factor_expires = ? WHERE id = ?";
+                $update_stmt = mysqli_prepare($conn, $update_sql);
+                mysqli_stmt_bind_param($update_stmt, "ssi", $verification_code, $expires, $row['id']);
+                mysqli_stmt_execute($update_stmt);
+                
+                // ========== Send email using PHPMailer ==========
+                require_once 'Admin/phpmailer/src/Exception.php';
+                require_once 'Admin/phpmailer/src/PHPMailer.php';
+                require_once 'Admin/phpmailer/src/SMTP.php';
+                
+                $mail = new PHPMailer(true);
+                $email_sent = false;
+                
+                try {
+                    $mail->isSMTP();
+                    $mail->Host       = 'smtp.gmail.com'; 
+                    $mail->SMTPAuth   = true;
+                    $mail->Username   = 'noahchepkonga1@gmail.com';
+                    $mail->Password   = 'zltl hrka tjnr ezxl';
+                    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+                    $mail->Port       = 587;
+                    
+                    $mail->setFrom('no-reply@portal-assistant.ac.ke', 'Portal Assistant AI');
+                    $mail->addAddress($row['email'], $row['full_name']);
+                    
+                    $mail->isHTML(true);
+                    $mail->Subject = 'Your 2FA Verification Code - Portal Assistant AI';
+                    $mail->Body    = "
+                    <div style='font-family: Arial, sans-serif; border: 1px solid #e5e7eb; padding: 25px; border-radius: 10px;'>
+                        <div style='text-align: center; margin-bottom: 20px;'>
+                            <img src='https://via.placeholder.com/80?text=AI' alt='Logo' style='width: 80px; height: 80px; border-radius: 50%;'>
+                        </div>
+                        <h2 style='color: #2563eb;'>Two-Factor Authentication</h2>
+                        <p>Hello <strong>{$row['full_name']}</strong>,</p>
+                        <p>You have requested to log in to <strong>Portal Assistant AI</strong>. Please use the verification code below:</p>
+                        <div style='background: #f0f4f8; padding: 20px; text-align: center; border-radius: 8px; margin: 25px 0;'>
+                            <h1 style='color: #003366; font-size: 42px; letter-spacing: 8px; margin: 0; font-family: monospace;'>{$verification_code}</h1>
+                        </div>
+                        <p>This code will expire in <strong>30 minutes</strong>.</p>
+                        <p style='color: #dc2626; font-size: 0.85rem;'>If you did not attempt to log in, please ignore this email.</p>
+                        <hr style='border: 0; border-top: 1px solid #eee; margin: 20px 0;'>
+                        <p style='font-size: 0.75rem; color: #6b7280; text-align: center;'>Portal Assistant AI - Secure Login System</p>
+                    </div>";
+                    
+                    $mail->send();
+                    $email_sent = true;
+                } catch (Exception $e) {
+                    error_log("2FA Email failed: " . $mail->ErrorInfo);
+                    $error = "Unable to send verification code. Please try again.";
+                }
+                
+                if ($email_sent) {
+                    $_SESSION['2fa_pending'] = true;
+                    $_SESSION['2fa_user_id'] = $row['id'];
+                    $_SESSION['2fa_user_name'] = $row['full_name'];
+                    $_SESSION['2fa_role'] = $row['role'];
+                    $_SESSION['2fa_email'] = $row['email'];
+                    $_SESSION['2fa_department'] = $row['department'];
+                    $_SESSION['2fa_reg_number'] = $row['reg_number'];
+                    
+                    header("Location: verify_2fa.php");
+                    exit();
+                }
+                
+            } else {
+                session_regenerate_id(true);
+                $_SESSION = array();
+
+                $_SESSION['user_id']       = $row['id'];
+                $_SESSION['user_name']     = $row['full_name'];
+                $_SESSION['reg_number']    = $row['reg_number'];
+                $_SESSION['role']          = $row['role'];
+                $_SESSION['email']         = $row['email'];
+                $_SESSION['department']    = $row['department'];
+                $_SESSION['login_time']    = time();
+                $_SESSION['login_ip']      = $_SERVER['REMOTE_ADDR'];
+
+                if ($row['role'] == 'admin') {
+                    $_SESSION['is_admin'] = true;
+                    $_SESSION['admin_name'] = $row['full_name'];
+                    header("Location: Admin/Admin-index.php");
+                    exit();
+                } 
+                elseif ($row['role'] == 'lecturer') {
+                    $_SESSION['is_lecturer'] = true;
+                    $_SESSION['lecturer_name'] = $row['full_name'];
+                    $_SESSION['lecturer_department'] = $row['department'];
+                    header("Location: Lecturer/lecturer_dashboard.php");
+                    exit();
+                }
+                else {
+                    $_SESSION['is_student'] = true;
+                    $_SESSION['student_name'] = $row['full_name'];
+                    $_SESSION['student_department'] = $row['department'];
+                    $_SESSION['student_year'] = determineStudentYear($conn, $row['reg_number']);
+                    header("Location: Student/home.php");
+                    exit();
+                }
             }
         } else {
             $error = "Invalid Registration Number or Password!";
@@ -81,9 +156,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['signin'])) {
     }
 }
 
-// Optional function to determine student's current year based on registration date
 function determineStudentYear($conn, $reg_number) {
-    // Get admission year from registration number (e.g., BIT/2024/43255)
     if (preg_match('/\/(\d{4})\//', $reg_number, $matches)) {
         $admission_year = intval($matches[1]);
         $current_year = date('Y');
@@ -94,7 +167,7 @@ function determineStudentYear($conn, $reg_number) {
         if ($year_diff == 2) return 'Third Year';
         if ($year_diff >= 3) return 'Fourth Year';
     }
-    return 'First Year'; // Default
+    return 'First Year';
 }
 ?>
 <!DOCTYPE html>
@@ -102,7 +175,11 @@ function determineStudentYear($conn, $reg_number) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MKU Portal Assistant | Login</title>
+    <title>Portal Assistant AI | Login</title>
+    
+    <link rel="icon" type="image/jpeg" href="Images/logo.jpg">
+    <link rel="shortcut icon" href="Images/logo.jpg">
+    
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
         body {
@@ -148,6 +225,7 @@ function determineStudentYear($conn, $reg_number) {
             margin-bottom: 20px;
             padding: 5px;
             background: white;
+            object-fit: cover;
         }
 
         .login-left h2 { margin: 10px 0; font-size: 24px; }
@@ -196,6 +274,30 @@ function determineStudentYear($conn, $reg_number) {
 
         .form-control:focus { border-color: #0056b3; }
 
+        .password-wrapper {
+            position: relative;
+        }
+        
+        .password-wrapper input {
+            width: 100%;
+            padding-right: 40px;
+        }
+        
+        .toggle-password {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            font-size: 16px;
+            color: #666;
+            user-select: none;
+        }
+        
+        .toggle-password:hover {
+            color: #003366;
+        }
+
         .btn-login {
             width: 100%;
             padding: 12px;
@@ -219,14 +321,32 @@ function determineStudentYear($conn, $reg_number) {
 
         .forgot-link a { color: #dc3545; text-decoration: none; font-weight: bold; }
 
+        .forgot-link a:hover { text-decoration: underline; }
+
+        .twofa-info {
+            margin-top: 15px;
+            padding: 8px;
+            background: #e8f0fe;
+            border-radius: 5px;
+            font-size: 10px;
+            text-align: center;
+            color: #003366;
+        }
+        .twofa-info a {
+            color: #003366;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
         marquee {
             margin-top: 30px;
-            background: #f0f4f8;
-            padding: 8px;
-            border-radius: 5px;
+            background: linear-gradient(135deg, #e8f0fe, #f0f4f8);
+            padding: 10px 8px;
+            border-radius: 8px;
             color: #003366;
-            font-size: 11px;
+            font-size: 12px;
             border: 1px solid #d0dae5;
+            font-weight: 500;
         }
 
         .error-msg {
@@ -241,18 +361,31 @@ function determineStudentYear($conn, $reg_number) {
             border: 1px solid #fabeb6;
         }
         
-        /* Admin indicator (optional) */
-        .demo-credentials {
-            margin-top: 20px;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            font-size: 11px;
+        footer {
             text-align: center;
-            border: 1px dashed #ccc;
+            margin-top: 25px;
+            padding-top: 15px;
+            font-size: 10px;
+            color: #888;
+            border-top: 1px solid #eee;
         }
-        .demo-credentials strong {
-            color: #003366;
+        
+        @media (max-width: 768px) {
+            .login-container {
+                width: 95%;
+                flex-direction: column;
+                margin: 20px;
+            }
+            .login-left {
+                padding: 30px;
+            }
+            .login-right {
+                padding: 30px;
+            }
+            .logo-circle {
+                width: 80px;
+                height: 80px;
+            }
         }
     </style>
 </head>
@@ -260,7 +393,7 @@ function determineStudentYear($conn, $reg_number) {
 
 <div class="login-container">
     <div class="login-left">
-        <img src="../Images/logo.jpg" class="logo-circle" alt="MKU Logo">
+        <img src="Images/logo.jpg" class="logo-circle" alt="MKU Logo">
         <h2>Portal Assistant AI</h2>
         <p>Infinite support for infinite possibilities.</p>
         <div style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 20px;">
@@ -282,22 +415,64 @@ function determineStudentYear($conn, $reg_number) {
 
             <div class="form-group">
                 <label class="control-label">Password</label>
-                <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+                <div class="password-wrapper">
+                    <input type="password" name="password" id="password" class="form-control" placeholder="••••••••" required>
+                    <span class="toggle-password" onclick="togglePassword()">👁️</span>
+                </div>
             </div>
 
             <input type="submit" name="signin" class="btn-login" value="SIGN IN">
             
             <div class="forgot-link">
-                <a href="#">Forgot Password?</a>
+                <a href="forgot_password.php">Forgot Password?</a>
             </div>
 
-            <marquee behavior="scroll" direction="left">
-                🔔 <strong>Notice:</strong> Unit registration for Jan/Apr 2026 semester is now open. Portal Assistant AI is available to guide you.
+            <div class="twofa-info">
+                🔐 <strong>Secure Login:</strong> Two-Factor Authentication (2FA) is enabled for Admin and Lecturer accounts for added security. 
+                <a href="#">Learn more</a>
+            </div>
+
+            <marquee behavior="scroll" direction="left" scrollamount="3" onmouseover="this.stop()" onmouseout="this.start()">
+                🎓 <strong>Welcome to Portal Assistant AI!</strong> — Your intelligent academic companion for success! | 
+                📚 Access courses, submit assignments, and track your progress | 
+                🤖 AI-powered support available 24/7 | 
+                ✅ New semester registration is now open! | 
+                🔐 Admins & Lecturers: 2FA is enabled for your account security!
             </marquee>
         </form>
         
+        <footer>
+            &copy; 2026 Portal Assistant AI. All rights reserved.
+        </footer>
     </div>
 </div>
+
+<script>
+function togglePassword() {
+    var passwordField = document.getElementById("password");
+    var toggleIcon = document.querySelector(".toggle-password");
+    
+    if (passwordField.type === "password") {
+        passwordField.type = "text";
+        toggleIcon.textContent = "🙈";
+    } else {
+        passwordField.type = "password";
+        toggleIcon.textContent = "👁️";
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var inputs = document.querySelectorAll('input');
+    inputs.forEach(function(input) {
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.querySelector('input[name="signin"]').click();
+            }
+        });
+    });
+});
+</script>
 
 </body>
 </html>

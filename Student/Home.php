@@ -109,18 +109,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Get current page
 $page = $_GET['page'] ?? 'dashboard';
 
-// Get sort parameters
+// Get filter and sort parameters
 $materials_sort = $_GET['materials_sort'] ?? 'date_desc';
+$materials_unit_filter = $_GET['materials_unit'] ?? '';
+$materials_type_filter = $_GET['materials_type'] ?? '';
+
 $assignments_sort = $_GET['assignments_sort'] ?? 'due_asc';
+$assignments_unit_filter = $_GET['assignments_unit'] ?? '';
+$assignments_status_filter = $_GET['assignments_status'] ?? '';
+
 $submissions_sort = $_GET['submissions_sort'] ?? 'date_desc';
+$submissions_unit_filter = $_GET['submissions_unit'] ?? '';
+$submissions_status_filter = $_GET['submissions_status'] ?? '';
+
 $results_sort = $_GET['results_sort'] ?? 'unit_asc';
 
 // Get student's enrolled units (from registered_courses)
 $student_units_query = "SELECT DISTINCT unit_code FROM registered_courses WHERE student_reg_no = '$student_reg' AND status = 'Confirmed'";
 $student_units_result = mysqli_query($conn, $student_units_query);
 $student_units = [];
+$unit_options = [];
 while($unit = mysqli_fetch_assoc($student_units_result)) {
     $student_units[] = $unit['unit_code'];
+    // Get unit name for display
+    $unit_name_query = mysqli_query($conn, "SELECT unit_name FROM academic_workload WHERE unit_code = '{$unit['unit_code']}'");
+    $unit_name = mysqli_fetch_assoc($unit_name_query);
+    $unit_options[$unit['unit_code']] = $unit_name['unit_name'] ?? $unit['unit_code'];
 }
 
 $units_list = !empty($student_units) ? "'" . implode("','", $student_units) . "'" : "''";
@@ -132,6 +146,8 @@ $units_list = !empty($student_units) ? "'" . implode("','", $student_units) . "'
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Dashboard | Portal Assistant AI</title>
+    <link rel="icon" type="image/jpeg" href="../Images/logo.jpg">
+    <link rel="shortcut icon" href="../Images/logo.jpg">
     <style>
         :root {
             --primary: #4f46e5;
@@ -185,6 +201,7 @@ $units_list = !empty($student_units) ? "'" . implode("','", $student_units) . "'
         .btn-success { background: var(--success); color: white; }
         .btn-danger { background: var(--danger); color: white; }
         .btn-sm { padding: 4px 10px; font-size: 0.75rem; }
+        .btn-clear { background: #64748b; color: white; }
 
         .alert-success { background: #d1fae5; color: #065f46; padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #a7f3d0; }
         .alert-error { background: #fee2e2; color: #991b1b; padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #fecaca; }
@@ -200,6 +217,13 @@ $units_list = !empty($student_units) ? "'" . implode("','", $student_units) . "'
         .status-submitted { background: #d1fae5; color: #065f46; }
         .status-pending { background: #fed7aa; color: #92400e; }
         .status-graded { background: #e0e7ff; color: #3730a3; }
+        .status-late { background: #fee2e2; color: #991b1b; }
+
+        .filter-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 15px; flex-wrap: wrap; padding: 15px; background: #f1f5f9; border-radius: 8px; }
+        .filter-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .filter-group label { font-size: 0.75rem; font-weight: 600; color: var(--text-light); }
+        .filter-group select, .filter-group input { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.8rem; background: white; cursor: pointer; }
+        .filter-group .clear-btn { background: #64748b; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 0.75rem; }
 
         .data-table { width: 100%; border-collapse: collapse; }
         .data-table th, .data-table td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
@@ -221,11 +245,6 @@ $units_list = !empty($student_units) ? "'" . implode("','", $student_units) . "'
         footer { text-align: center; padding: 40px; color: var(--text-light); font-size: 0.85rem; }
         
         .no-data { text-align: center; padding: 40px; color: #666; background: #f9fafb; border-radius: 8px; }
-        
-        /* Sorting Styles */
-        .sort-bar { display: flex; justify-content: flex-end; margin-bottom: 15px; align-items: center; gap: 10px; flex-wrap: wrap; }
-        .sort-bar label { font-size: 0.75rem; font-weight: 600; color: var(--text-light); }
-        .sort-bar select { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.8rem; background: white; cursor: pointer; }
         
         /* Chatbot Styles */
         #chat-fab { position: fixed; bottom: 30px; right: 30px; background: var(--primary); color: white; width: 55px; height: 55px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 10px 15px rgba(79, 70, 229, 0.4); z-index: 100; font-size: 1.5rem; border: none; }
@@ -331,7 +350,17 @@ $units_list = !empty($student_units) ? "'" . implode("','", $student_units) . "'
         <?php break;
 
         case 'materials':
-            // Apply sorting for materials
+            // Build WHERE clause with filters
+            $where_conditions = ["unit_code IN ($units_list)"];
+            if (!empty($materials_unit_filter)) {
+                $where_conditions[] = "unit_code = '$materials_unit_filter'";
+            }
+            if (!empty($materials_type_filter)) {
+                $where_conditions[] = "material_type = '$materials_type_filter'";
+            }
+            $where_clause = implode(" AND ", $where_conditions);
+            
+            // Apply sorting
             $order_by = "";
             switch($materials_sort) {
                 case 'date_asc': $order_by = "uploaded_at ASC"; break;
@@ -341,7 +370,7 @@ $units_list = !empty($student_units) ? "'" . implode("','", $student_units) . "'
                 default: $order_by = "uploaded_at DESC";
             }
             
-            $materials_query = "SELECT * FROM course_materials WHERE unit_code IN ($units_list) ORDER BY $order_by";
+            $materials_query = "SELECT * FROM course_materials WHERE $where_clause ORDER BY $order_by";
             $materials_result = mysqli_query($conn, $materials_query);
             ?>
             <div class="card">
@@ -350,24 +379,62 @@ $units_list = !empty($student_units) ? "'" . implode("','", $student_units) . "'
                     <?php if (empty($student_units)): ?>
                         <p>You are not registered for any units yet. Please complete <a href="registration.php">course registration</a> first.</p>
                     <?php else: ?>
-                        <div class="sort-bar">
-                            <label>🔽 Sort by:</label>
-                            <select onchange="location.href='home.php?page=materials&materials_sort='+this.value">
-                                <option value="date_desc" <?php echo $materials_sort == 'date_desc' ? 'selected' : ''; ?>>Newest First</option>
-                                <option value="date_asc" <?php echo $materials_sort == 'date_asc' ? 'selected' : ''; ?>>Oldest First</option>
-                                <option value="title_asc" <?php echo $materials_sort == 'title_asc' ? 'selected' : ''; ?>>Title (A-Z)</option>
-                                <option value="title_desc" <?php echo $materials_sort == 'title_desc' ? 'selected' : ''; ?>>Title (Z-A)</option>
-                                <option value="unit_asc" <?php echo $materials_sort == 'unit_asc' ? 'selected' : ''; ?>>Unit Code (A-Z)</option>
-                            </select>
+                        <!-- Enhanced Filter Bar -->
+                        <div class="filter-bar">
+                            <div class="filter-group">
+                                <label>📂 Filter by Unit:</label>
+                                <select onchange="location.href='home.php?page=materials&materials_sort=<?php echo $materials_sort; ?>&materials_unit='+this.value+'&materials_type=<?php echo $materials_type_filter; ?>'">
+                                    <option value="">All Units</option>
+                                    <?php foreach($unit_options as $code => $name): ?>
+                                        <option value="<?php echo $code; ?>" <?php echo $materials_unit_filter == $code ? 'selected' : ''; ?>>
+                                            <?php echo $code . ' - ' . htmlspecialchars($name); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            
+                            <div class="filter-group">
+                                <label>📄 Filter by Type:</label>
+                                <select onchange="location.href='home.php?page=materials&materials_sort=<?php echo $materials_sort; ?>&materials_unit=<?php echo $materials_unit_filter; ?>&materials_type='+this.value">
+                                    <option value="">All Types</option>
+                                    <option value="youtube" <?php echo $materials_type_filter == 'youtube' ? 'selected' : ''; ?>>▶️ YouTube Videos</option>
+                                    <option value="pdf" <?php echo $materials_type_filter == 'pdf' ? 'selected' : ''; ?>>📄 PDF Documents</option>
+                                    <option value="doc" <?php echo $materials_type_filter == 'doc' ? 'selected' : ''; ?>>📝 Word Documents</option>
+                                </select>
+                            </div>
+                            
+                            <div class="filter-group">
+                                <label>🔽 Sort by:</label>
+                                <select onchange="location.href='home.php?page=materials&materials_sort='+this.value+'&materials_unit=<?php echo $materials_unit_filter; ?>&materials_type=<?php echo $materials_type_filter; ?>'">
+                                    <option value="date_desc" <?php echo $materials_sort == 'date_desc' ? 'selected' : ''; ?>>Newest First</option>
+                                    <option value="date_asc" <?php echo $materials_sort == 'date_asc' ? 'selected' : ''; ?>>Oldest First</option>
+                                    <option value="title_asc" <?php echo $materials_sort == 'title_asc' ? 'selected' : ''; ?>>Title (A-Z)</option>
+                                    <option value="title_desc" <?php echo $materials_sort == 'title_desc' ? 'selected' : ''; ?>>Title (Z-A)</option>
+                                    <option value="unit_asc" <?php echo $materials_sort == 'unit_asc' ? 'selected' : ''; ?>>Unit Code (A-Z)</option>
+                                </select>
+                            </div>
+                            
+                            <?php if(!empty($materials_unit_filter) || !empty($materials_type_filter)): ?>
+                                <div class="filter-group">
+                                    <a href="home.php?page=materials" class="clear-btn">🗑️ Clear Filters</a>
+                                </div>
+                            <?php endif; ?>
                         </div>
                         
                         <?php if (mysqli_num_rows($materials_result) == 0): ?>
-                            <p>No course materials available yet.</p>
+                            <div class="no-data">
+                                <p>📭 No course materials found with the selected filters.</p>
+                                <p>Try adjusting your filters or view all materials.</p>
+                            </div>
                         <?php else: ?>
                             <?php while($material = mysqli_fetch_assoc($materials_result)): ?>
                                 <div class="material-item">
                                     <div class="material-title"><?php echo htmlspecialchars($material['title']); ?></div>
-                                    <div class="material-meta">Unit: <?php echo $material['unit_code']; ?> | Uploaded: <?php echo date('d M Y', strtotime($material['uploaded_at'])); ?></div>
+                                    <div class="material-meta">
+                                        Unit: <?php echo $material['unit_code']; ?> | 
+                                        Type: <?php echo strtoupper($material['material_type'] ?? 'FILE'); ?> | 
+                                        Uploaded: <?php echo date('d M Y', strtotime($material['uploaded_at'])); ?>
+                                    </div>
                                     <div><?php echo nl2br(htmlspecialchars($material['description'])); ?></div>
                                     <?php if ($material['material_type'] == 'youtube'): ?>
                                         <div style="margin-top: 10px;">
@@ -386,10 +453,28 @@ $units_list = !empty($student_units) ? "'" . implode("','", $student_units) . "'
         <?php break;
 
         case 'assignments':
-            // Apply sorting for assignments
+            // Build WHERE clause with filters
+            $where_conditions = ["a.unit_code IN ($units_list)"];
+            if (!empty($assignments_unit_filter)) {
+                $where_conditions[] = "a.unit_code = '$assignments_unit_filter'";
+            }
+            
+            // Apply status filter
+            if ($assignments_status_filter == 'pending') {
+                $where_conditions[] = "NOT EXISTS (SELECT 1 FROM assignment_submissions s WHERE s.assignment_id = a.id AND s.student_reg = '$student_reg')";
+                $where_conditions[] = "a.due_date >= CURDATE()";
+            } elseif ($assignments_status_filter == 'submitted') {
+                $where_conditions[] = "EXISTS (SELECT 1 FROM assignment_submissions s WHERE s.assignment_id = a.id AND s.student_reg = '$student_reg')";
+            } elseif ($assignments_status_filter == 'late') {
+                $where_conditions[] = "NOT EXISTS (SELECT 1 FROM assignment_submissions s WHERE s.assignment_id = a.id AND s.student_reg = '$student_reg')";
+                $where_conditions[] = "a.due_date < CURDATE()";
+            }
+            
+            $where_clause = implode(" AND ", $where_conditions);
+            
+            // Apply sorting
             $order_by = "";
             switch($assignments_sort) {
-                case 'due_asc': $order_by = "due_date ASC"; break;
                 case 'due_desc': $order_by = "due_date DESC"; break;
                 case 'title_asc': $order_by = "title ASC"; break;
                 case 'title_desc': $order_by = "title DESC"; break;
@@ -401,7 +486,7 @@ $units_list = !empty($student_units) ? "'" . implode("','", $student_units) . "'
             
             $assignments_query = "SELECT a.*, (SELECT COUNT(*) FROM assignment_submissions s WHERE s.assignment_id = a.id AND s.student_reg = '$student_reg') as submitted 
                                  FROM assignments a 
-                                 WHERE a.unit_code IN ($units_list) 
+                                 WHERE $where_clause 
                                  ORDER BY $order_by";
             $assignments_result = mysqli_query($conn, $assignments_query);
             ?>
@@ -411,21 +496,55 @@ $units_list = !empty($student_units) ? "'" . implode("','", $student_units) . "'
                     <?php if (empty($student_units)): ?>
                         <p>You are not registered for any units yet. Please complete <a href="registration.php">course registration</a> first.</p>
                     <?php else: ?>
-                        <div class="sort-bar">
-                            <label>🔽 Sort by:</label>
-                            <select onchange="location.href='home.php?page=assignments&assignments_sort='+this.value">
-                                <option value="due_asc" <?php echo $assignments_sort == 'due_asc' ? 'selected' : ''; ?>>Due Date (Earliest First)</option>
-                                <option value="due_desc" <?php echo $assignments_sort == 'due_desc' ? 'selected' : ''; ?>>Due Date (Latest First)</option>
-                                <option value="title_asc" <?php echo $assignments_sort == 'title_asc' ? 'selected' : ''; ?>>Title (A-Z)</option>
-                                <option value="title_desc" <?php echo $assignments_sort == 'title_desc' ? 'selected' : ''; ?>>Title (Z-A)</option>
-                                <option value="unit_asc" <?php echo $assignments_sort == 'unit_asc' ? 'selected' : ''; ?>>Unit Code (A-Z)</option>
-                                <option value="marks_asc" <?php echo $assignments_sort == 'marks_asc' ? 'selected' : ''; ?>>Marks (Low to High)</option>
-                                <option value="marks_desc" <?php echo $assignments_sort == 'marks_desc' ? 'selected' : ''; ?>>Marks (High to Low)</option>
-                            </select>
+                        <!-- Enhanced Filter Bar -->
+                        <div class="filter-bar">
+                            <div class="filter-group">
+                                <label>📂 Filter by Unit:</label>
+                                <select onchange="location.href='home.php?page=assignments&assignments_sort=<?php echo $assignments_sort; ?>&assignments_unit='+this.value+'&assignments_status=<?php echo $assignments_status_filter; ?>'">
+                                    <option value="">All Units</option>
+                                    <?php foreach($unit_options as $code => $name): ?>
+                                        <option value="<?php echo $code; ?>" <?php echo $assignments_unit_filter == $code ? 'selected' : ''; ?>>
+                                            <?php echo $code . ' - ' . htmlspecialchars($name); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            
+                            <div class="filter-group">
+                                <label>📋 Filter by Status:</label>
+                                <select onchange="location.href='home.php?page=assignments&assignments_sort=<?php echo $assignments_sort; ?>&assignments_unit=<?php echo $assignments_unit_filter; ?>&assignments_status='+this.value">
+                                    <option value="">All Assignments</option>
+                                    <option value="pending" <?php echo $assignments_status_filter == 'pending' ? 'selected' : ''; ?>>⏳ Pending (Not Submitted)</option>
+                                    <option value="submitted" <?php echo $assignments_status_filter == 'submitted' ? 'selected' : ''; ?>>✅ Already Submitted</option>
+                                    <option value="late" <?php echo $assignments_status_filter == 'late' ? 'selected' : ''; ?>>⚠️ Late (Past Due Date)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="filter-group">
+                                <label>🔽 Sort by:</label>
+                                <select onchange="location.href='home.php?page=assignments&assignments_sort='+this.value+'&assignments_unit=<?php echo $assignments_unit_filter; ?>&assignments_status=<?php echo $assignments_status_filter; ?>'">
+                                    <option value="due_asc" <?php echo $assignments_sort == 'due_asc' ? 'selected' : ''; ?>>Due Date (Earliest First)</option>
+                                    <option value="due_desc" <?php echo $assignments_sort == 'due_desc' ? 'selected' : ''; ?>>Due Date (Latest First)</option>
+                                    <option value="title_asc" <?php echo $assignments_sort == 'title_asc' ? 'selected' : ''; ?>>Title (A-Z)</option>
+                                    <option value="title_desc" <?php echo $assignments_sort == 'title_desc' ? 'selected' : ''; ?>>Title (Z-A)</option>
+                                    <option value="unit_asc" <?php echo $assignments_sort == 'unit_asc' ? 'selected' : ''; ?>>Unit Code (A-Z)</option>
+                                    <option value="marks_asc" <?php echo $assignments_sort == 'marks_asc' ? 'selected' : ''; ?>>Marks (Low to High)</option>
+                                    <option value="marks_desc" <?php echo $assignments_sort == 'marks_desc' ? 'selected' : ''; ?>>Marks (High to Low)</option>
+                                </select>
+                            </div>
+                            
+                            <?php if(!empty($assignments_unit_filter) || !empty($assignments_status_filter)): ?>
+                                <div class="filter-group">
+                                    <a href="home.php?page=assignments" class="clear-btn">🗑️ Clear Filters</a>
+                                </div>
+                            <?php endif; ?>
                         </div>
                         
                         <?php if (mysqli_num_rows($assignments_result) == 0): ?>
-                            <p>No assignments posted yet.</p>
+                            <div class="no-data">
+                                <p>📭 No assignments found with the selected filters.</p>
+                                <p>Try adjusting your filters or check back later.</p>
+                            </div>
                         <?php else: ?>
                             <?php while($assignment = mysqli_fetch_assoc($assignments_result)): ?>
                                 <div class="assignment-item">
@@ -437,7 +556,7 @@ $units_list = !empty($student_units) ? "'" . implode("','", $student_units) . "'
                                         <?php if($assignment['submitted'] > 0): ?>
                                             <span class="submission-status status-submitted">✅ Submitted</span>
                                         <?php elseif(strtotime($assignment['due_date']) < time()): ?>
-                                            <span class="submission-status status-pending">⏰ Late</span>
+                                            <span class="submission-status status-late">⏰ Late</span>
                                         <?php else: ?>
                                             <span class="submission-status status-pending">⏳ Pending</span>
                                         <?php endif; ?>
@@ -458,7 +577,17 @@ $units_list = !empty($student_units) ? "'" . implode("','", $student_units) . "'
         <?php break;
 
         case 'my_submissions':
-            // Apply sorting for submissions
+            // Build WHERE clause with filters
+            $where_conditions = ["s.student_reg = '$student_reg'"];
+            if (!empty($submissions_unit_filter)) {
+                $where_conditions[] = "a.unit_code = '$submissions_unit_filter'";
+            }
+            if (!empty($submissions_status_filter)) {
+                $where_conditions[] = "s.status = '$submissions_status_filter'";
+            }
+            $where_clause = implode(" AND ", $where_conditions);
+            
+            // Apply sorting
             $order_by = "";
             switch($submissions_sort) {
                 case 'date_asc': $order_by = "s.submitted_at ASC"; break;
@@ -470,243 +599,321 @@ $units_list = !empty($student_units) ? "'" . implode("','", $student_units) . "'
             
             $submissions_query = "SELECT s.*, a.title as assignment_title, a.unit_code, a.total_marks 
                                  FROM assignment_submissions s 
-                                 JOIN assignments a ON s.assignment_id = a.id 
-                                 WHERE s.student_reg = '$student_reg' 
+                                 LEFT JOIN assignments a ON s.assignment_id = a.id 
+                                 WHERE $where_clause 
                                  ORDER BY $order_by";
             $submissions_result = mysqli_query($conn, $submissions_query);
+            
+            // Get submission statistics
+            $stats_query = "SELECT 
+                                COUNT(*) as total_submissions,
+                                SUM(CASE WHEN status = 'graded' THEN 1 ELSE 0 END) as graded_count,
+                                SUM(CASE WHEN status = 'submitted' THEN 1 ELSE 0 END) as pending_count
+                            FROM assignment_submissions s 
+                            WHERE s.student_reg = '$student_reg'";
+            $stats_result = mysqli_query($conn, $stats_query);
+            $stats = mysqli_fetch_assoc($stats_result);
             ?>
             <div class="card">
                 <div class="card-header">📋 My Assignment Submissions</div>
                 <div class="card-body">
-                    <div class="sort-bar">
-                        <label>🔽 Sort by:</label>
-                        <select onchange="location.href='home.php?page=my_submissions&submissions_sort='+this.value">
-                            <option value="date_desc" <?php echo $submissions_sort == 'date_desc' ? 'selected' : ''; ?>>Newest First</option>
-                            <option value="date_asc" <?php echo $submissions_sort == 'date_asc' ? 'selected' : ''; ?>>Oldest First</option>
-                            <option value="marks_desc" <?php echo $submissions_sort == 'marks_desc' ? 'selected' : ''; ?>>Highest Marks First</option>
-                            <option value="marks_asc" <?php echo $submissions_sort == 'marks_asc' ? 'selected' : ''; ?>>Lowest Marks First</option>
-                            <option value="unit_asc" <?php echo $submissions_sort == 'unit_asc' ? 'selected' : ''; ?>>Unit Code (A-Z)</option>
-                        </select>
+                    <!-- Submission Statistics -->
+                    <div style="display: flex; gap: 15px; margin-bottom: 20px; padding: 15px; background: #f1f5f9; border-radius: 8px;">
+                        <div><strong>📊 Total Submissions:</strong> <?php echo $stats['total_submissions']; ?></div>
+                        <div><strong>✅ Graded:</strong> <?php echo $stats['graded_count']; ?></div>
+                        <div><strong>⏳ Pending:</strong> <?php echo $stats['pending_count']; ?></div>
+                    </div>
+                    
+                    <!-- Enhanced Filter Bar -->
+                    <div class="filter-bar">
+                        <div class="filter-group">
+                            <label>📂 Filter by Unit:</label>
+                            <select onchange="location.href='home.php?page=my_submissions&submissions_sort=<?php echo $submissions_sort; ?>&submissions_unit='+this.value+'&submissions_status=<?php echo $submissions_status_filter; ?>'">
+                                <option value="">All Units</option>
+                                <?php foreach($unit_options as $code => $name): ?>
+                                    <option value="<?php echo $code; ?>" <?php echo $submissions_unit_filter == $code ? 'selected' : ''; ?>>
+                                        <?php echo $code . ' - ' . htmlspecialchars($name); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label>📋 Filter by Status:</label>
+                            <select onchange="location.href='home.php?page=my_submissions&submissions_sort=<?php echo $submissions_sort; ?>&submissions_unit=<?php echo $submissions_unit_filter; ?>&submissions_status='+this.value">
+                                <option value="">All Status</option>
+                                <option value="submitted" <?php echo $submissions_status_filter == 'submitted' ? 'selected' : ''; ?>>⏳ Pending Grading</option>
+                                <option value="graded" <?php echo $submissions_status_filter == 'graded' ? 'selected' : ''; ?>>✅ Graded</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label>🔽 Sort by:</label>
+                            <select onchange="location.href='home.php?page=my_submissions&submissions_sort='+this.value+'&submissions_unit=<?php echo $submissions_unit_filter; ?>&submissions_status=<?php echo $submissions_status_filter; ?>'">
+                                <option value="date_desc" <?php echo $submissions_sort == 'date_desc' ? 'selected' : ''; ?>>Newest First</option>
+                                <option value="date_asc" <?php echo $submissions_sort == 'date_asc' ? 'selected' : ''; ?>>Oldest First</option>
+                                <option value="marks_desc" <?php echo $submissions_sort == 'marks_desc' ? 'selected' : ''; ?>>Highest Marks First</option>
+                                <option value="marks_asc" <?php echo $submissions_sort == 'marks_asc' ? 'selected' : ''; ?>>Lowest Marks First</option>
+                                <option value="unit_asc" <?php echo $submissions_sort == 'unit_asc' ? 'selected' : ''; ?>>Unit Code (A-Z)</option>
+                            </select>
+                        </div>
+                        
+                        <?php if(!empty($submissions_unit_filter) || !empty($submissions_status_filter)): ?>
+                            <div class="filter-group">
+                                <a href="home.php?page=my_submissions" class="clear-btn">🗑️ Clear Filters</a>
+                            </div>
+                        <?php endif; ?>
                     </div>
                     
                     <?php if (mysqli_num_rows($submissions_result) == 0): ?>
-                        <p>You haven't submitted any assignments yet.</p>
+                        <div class="no-data">
+                            <p>📭 No submissions found with the selected filters.</p>
+                            <p>You haven't submitted any assignments yet or try adjusting your filters.</p>
+                        </div>
                     <?php else: ?>
-                        <table class="data-table">
-                            <thead><tr><th>Assignment</th><th>Unit</th><th>Submitted On</th><th>Marks</th><th>Status</th><th>Actions</th></tr></thead>
-                            <tbody>
-                                <?php while($sub = mysqli_fetch_assoc($submissions_result)): ?>
+                        <div style="overflow-x: auto;">
+                            <table class="data-table">
+                                <thead>
                                     <tr>
-                                        <td><?php echo htmlspecialchars($sub['assignment_title']); ?></td>
-                                        <td><?php echo $sub['unit_code']; ?></td>
-                                        <td><?php echo date('d M Y H:i', strtotime($sub['submitted_at'])); ?></td>
-                                        <td><?php echo $sub['obtained_marks'] ?? 'Pending'; ?> / <?php echo $sub['total_marks']; ?></td>
-                                        <td><?php echo ($sub['status'] == 'graded') ? '<span class="submission-status status-submitted">✅ Graded</span>' : '<span class="submission-status status-pending">⏳ Pending</span>'; ?></td>
-                                        <td><?php if($sub['file_path']): ?><a href="../uploads/submissions/<?php echo $sub['file_path']; ?>" target="_blank" class="btn btn-primary btn-sm">View</a><?php else: ?><span class="btn-sm">Text Submission</span><?php endif; ?></td>
+                                        <th>Assignment</th>
+                                        <th>Unit</th>
+                                        <th>Submitted On</th>
+                                        <th>Marks</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
                                     </tr>
-                                <?php endwhile; ?>
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    <?php while($sub = mysqli_fetch_assoc($submissions_result)): ?>
+                                        <tr>
+                                            <td><?php echo htmlspecialchars($sub['assignment_title'] ?? 'Manual Entry'); ?></td>
+                                            <td><?php echo $sub['unit_code'] ?? 'N/A'; ?></td>
+                                            <td><?php echo date('d M Y H:i', strtotime($sub['submitted_at'])); ?></td>
+                                            <td>
+                                                <?php if($sub['obtained_marks'] !== null): ?>
+                                                    <strong style="color: #10b981;"><?php echo $sub['obtained_marks']; ?></strong> / <?php echo $sub['total_marks'] ?? 'N/A'; ?>
+                                                <?php else: ?>
+                                                    <span class="marks-pending">Not graded yet</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td><?php echo ($sub['status'] == 'graded') ? '<span class="submission-status status-submitted">✅ Graded</span>' : '<span class="submission-status status-pending">⏳ Pending</span>'; ?></td>
+                                            <td>
+                                                <?php if($sub['file_path']): ?>
+                                                    <a href="../uploads/submissions/<?php echo $sub['file_path']; ?>" target="_blank" class="btn btn-primary btn-sm">📄 View</a>
+                                                <?php endif; ?>
+                                                <?php if($sub['submission_text'] && !empty(trim($sub['submission_text']))): ?>
+                                                    <button onclick="viewTextSubmission('<?php echo addslashes($sub['submission_text']); ?>')" class="btn btn-info btn-sm">📝 View Answer</button>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                    <?php endwhile; ?>
+                                </tbody>
+                            </table>
+                        </div>
                     <?php endif; ?>
                 </div>
             </div>
         <?php break;
-case 'my_results':
-    // Get ALL graded submissions (online + manual)
-    $results_query = "SELECT s.*, a.title as assignment_title, a.unit_code as assignment_unit_code, a.total_marks as assignment_total_marks, a.due_date, a.assessment_type
-                     FROM assignment_submissions s 
-                     LEFT JOIN assignments a ON s.assignment_id = a.id 
-                     WHERE s.student_reg = '$student_reg' 
-                     AND (s.status = 'graded' OR s.assignment_id = 0)
-                     ORDER BY COALESCE(a.unit_code, s.unit_code), s.submitted_at DESC";
-    $results_result = mysqli_query($conn, $results_query);
-    
-    // Organize results by unit
-    $unit_results = [];
-    while($row = mysqli_fetch_assoc($results_result)) {
-        // Get unit code
-        $unit = $row['assignment_unit_code'] ?? $row['unit_code'];
-        if (empty($unit) || $unit == 'Unknown') {
-            // Try to extract from submission text
-            if (preg_match('/\[Manual Entry:.*?- ([A-Z0-9]+)\]/', $row['submission_text'], $matches)) {
-                $unit = $matches[1];
-            } else {
-                continue; // Skip entries without unit code
-            }
-        }
         
-        if (!isset($unit_results[$unit])) {
-            $unit_results[$unit] = [
-                'unit_code' => $unit,
-                'cat_total' => 0,
-                'assignment_total' => 0,
-                'exam_score' => 0,
-                'cat_count' => 0,
-                'assignment_count' => 0
-            ];
-        }
-        
-        // Determine assessment type
-        $assessment_type = $row['assessment_type'] ?? 'Assignment';
-        $obtained = floatval($row['obtained_marks'] ?? 0);
-        
-        // For manual entries, determine type by total_marks
-        if ($row['assignment_id'] == 0) {
-            if ($row['total_marks'] == 20) {
-                $assessment_type = 'CAT';
-            } elseif ($row['total_marks'] == 70) {
-                $assessment_type = 'Exam';
-            } else {
-                $assessment_type = 'Assignment';
-            }
-        }
-        
-        // Add marks (not capped yet - will cap at the end)
-        if ($assessment_type == 'CAT') {
-            $unit_results[$unit]['cat_total'] += $obtained;
-            $unit_results[$unit]['cat_count']++;
-        } elseif ($assessment_type == 'Exam') {
-            $unit_results[$unit]['exam_score'] += $obtained;
-        } else {
-            $unit_results[$unit]['assignment_total'] += $obtained;
-            $unit_results[$unit]['assignment_count']++;
-        }
-    }
-    
-    // Cap totals per unit (CAT max 20, Assignment max 10, Exam max 70)
-    foreach($unit_results as $unit => $data) {
-        $unit_results[$unit]['cat_total'] = min($data['cat_total'], 20);
-        $unit_results[$unit]['assignment_total'] = min($data['assignment_total'], 10);
-        $unit_results[$unit]['exam_score'] = min($data['exam_score'], 70);
-        $unit_results[$unit]['total_score'] = $unit_results[$unit]['cat_total'] + $unit_results[$unit]['assignment_total'] + $unit_results[$unit]['exam_score'];
-    }
-    
-    // Sort unit results
-    $unit_results_array = array_values($unit_results);
-    usort($unit_results_array, function($a, $b) use ($results_sort) {
-        if ($results_sort == 'cat_desc') return $b['cat_total'] <=> $a['cat_total'];
-        if ($results_sort == 'assignment_desc') return $b['assignment_total'] <=> $a['assignment_total'];
-        if ($results_sort == 'total_desc') return $b['total_score'] <=> $a['total_score'];
-        if ($results_sort == 'total_asc') return $a['total_score'] <=> $b['total_score'];
-        return strcmp($a['unit_code'], $b['unit_code']);
-    });
-    
-    // Calculate overall totals (each unit contributes max 20+10+70=100)
-    $total_cats = 0;
-    $total_assignments = 0;
-    $total_exam = 0;
-    $total_overall = 0;
-    
-    foreach($unit_results_array as $unit) {
-        $total_cats += $unit['cat_total'];
-        $total_assignments += $unit['assignment_total'];
-        $total_exam += $unit['exam_score'];
-        $total_overall += $unit['total_score'];
-    }
-    
-    $unit_count = count($unit_results_array);
-    $max_cats = $unit_count * 20;
-    $max_assignments = $unit_count * 10;
-    $max_exam = $unit_count * 70;
-    $max_total = $unit_count * 100;
-    
-    $overall_percentage = ($max_total > 0) ? ($total_overall / $max_total) * 100 : 0;
-    $grade_color = $overall_percentage >= 70 ? '#10b981' : ($overall_percentage >= 50 ? '#f59e0b' : '#ef4444');
-    ?>
-    <div class="card">
-        <div class="card-header">📊 My Academic Results</div>
-        <div class="card-body">
-            <div class="sort-bar">
-                <label>🔽 Sort Units by:</label>
-                <select onchange="location.href='home.php?page=my_results&results_sort='+this.value">
-                    <option value="unit_asc" <?php echo $results_sort == 'unit_asc' ? 'selected' : ''; ?>>Unit Code (A-Z)</option>
-                    <option value="cat_desc" <?php echo $results_sort == 'cat_desc' ? 'selected' : ''; ?>>Highest CATs First</option>
-                    <option value="assignment_desc" <?php echo $results_sort == 'assignment_desc' ? 'selected' : ''; ?>>Highest Assignments First</option>
-                    <option value="total_desc" <?php echo $results_sort == 'total_desc' ? 'selected' : ''; ?>>Highest Total First</option>
-                    <option value="total_asc" <?php echo $results_sort == 'total_asc' ? 'selected' : ''; ?>>Lowest Total First</option>
-                </select>
-            </div>
+        case 'my_results':
+            // Get ALL graded submissions (online + manual)
+            $results_query = "SELECT s.*, a.title as assignment_title, a.unit_code as assignment_unit_code, a.total_marks as assignment_total_marks, a.due_date, a.assessment_type
+                             FROM assignment_submissions s 
+                             LEFT JOIN assignments a ON s.assignment_id = a.id 
+                             WHERE s.student_reg = '$student_reg' 
+                             AND (s.status = 'graded' OR s.assignment_id = 0)
+                             ORDER BY COALESCE(a.unit_code, s.unit_code), s.submitted_at DESC";
+            $results_result = mysqli_query($conn, $results_query);
             
-            <!-- Overall Summary Stats -->
-            <div class="results-summary">
-                <div class="result-stat">
-                    <div class="label">CATs Total</div>
-                    <div class="value"><?php echo $total_cats; ?></div>
-                    <div class="total">out of <?php echo $max_cats; ?></div>
-                </div>
-                <div class="result-stat">
-                    <div class="label">Assignments Total</div>
-                    <div class="value"><?php echo $total_assignments; ?></div>
-                    <div class="total">out of <?php echo $max_assignments; ?></div>
-                </div>
-                <div class="result-stat">
-                    <div class="label">Main Exam</div>
-                    <div class="value"><?php echo $total_exam; ?></div>
-                    <div class="total">out of <?php echo $max_exam; ?></div>
-                </div>
-                <div class="result-stat">
-                    <div class="label">Combined Total</div>
-                    <div class="value" style="color: <?php echo $grade_color; ?>;"><?php echo $total_overall; ?></div>
-                    <div class="total">out of <?php echo $max_total; ?></div>
-                </div>
-                <div class="result-stat">
-                    <div class="label">Overall Percentage</div>
-                    <div class="value" style="color: <?php echo $grade_color; ?>;"><?php echo round($overall_percentage, 1); ?>%</div>
-                    <div class="total"><?php echo $overall_percentage >= 70 ? '🌟 Excellent' : ($overall_percentage >= 50 ? '📘 Good' : '📚 Need Improvement'); ?></div>
+            // Organize results by unit
+            $unit_results = [];
+            while($row = mysqli_fetch_assoc($results_result)) {
+                // Get unit code
+                $unit = $row['assignment_unit_code'] ?? $row['unit_code'];
+                if (empty($unit) || $unit == 'Unknown') {
+                    // Try to extract from submission text
+                    if (preg_match('/\[Manual Entry:.*?- ([A-Z0-9]+)\]/', $row['submission_text'], $matches)) {
+                        $unit = $matches[1];
+                    } else {
+                        continue; // Skip entries without unit code
+                    }
+                }
+                
+                if (!isset($unit_results[$unit])) {
+                    $unit_results[$unit] = [
+                        'unit_code' => $unit,
+                        'cat_total' => 0,
+                        'assignment_total' => 0,
+                        'exam_score' => 0,
+                        'cat_count' => 0,
+                        'assignment_count' => 0
+                    ];
+                }
+                
+                // Determine assessment type
+                $assessment_type = $row['assessment_type'] ?? 'Assignment';
+                $obtained = floatval($row['obtained_marks'] ?? 0);
+                
+                // For manual entries, determine type by total_marks
+                if ($row['assignment_id'] == 0) {
+                    if ($row['total_marks'] == 20) {
+                        $assessment_type = 'CAT';
+                    } elseif ($row['total_marks'] == 70) {
+                        $assessment_type = 'Exam';
+                    } else {
+                        $assessment_type = 'Assignment';
+                    }
+                }
+                
+                // Add marks (not capped yet - will cap at the end)
+                if ($assessment_type == 'CAT') {
+                    $unit_results[$unit]['cat_total'] += $obtained;
+                    $unit_results[$unit]['cat_count']++;
+                } elseif ($assessment_type == 'Exam') {
+                    $unit_results[$unit]['exam_score'] += $obtained;
+                } else {
+                    $unit_results[$unit]['assignment_total'] += $obtained;
+                    $unit_results[$unit]['assignment_count']++;
+                }
+            }
+            
+            // Cap totals per unit (CAT max 20, Assignment max 10, Exam max 70)
+            foreach($unit_results as $unit => $data) {
+                $unit_results[$unit]['cat_total'] = min($data['cat_total'], 20);
+                $unit_results[$unit]['assignment_total'] = min($data['assignment_total'], 10);
+                $unit_results[$unit]['exam_score'] = min($data['exam_score'], 70);
+                $unit_results[$unit]['total_score'] = $unit_results[$unit]['cat_total'] + $unit_results[$unit]['assignment_total'] + $unit_results[$unit]['exam_score'];
+            }
+            
+            // Sort unit results
+            $unit_results_array = array_values($unit_results);
+            usort($unit_results_array, function($a, $b) use ($results_sort) {
+                if ($results_sort == 'cat_desc') return $b['cat_total'] <=> $a['cat_total'];
+                if ($results_sort == 'assignment_desc') return $b['assignment_total'] <=> $a['assignment_total'];
+                if ($results_sort == 'total_desc') return $b['total_score'] <=> $a['total_score'];
+                if ($results_sort == 'total_asc') return $a['total_score'] <=> $b['total_score'];
+                return strcmp($a['unit_code'], $b['unit_code']);
+            });
+            
+            // Calculate overall totals (each unit contributes max 20+10+70=100)
+            $total_cats = 0;
+            $total_assignments = 0;
+            $total_exam = 0;
+            $total_overall = 0;
+            
+            foreach($unit_results_array as $unit) {
+                $total_cats += $unit['cat_total'];
+                $total_assignments += $unit['assignment_total'];
+                $total_exam += $unit['exam_score'];
+                $total_overall += $unit['total_score'];
+            }
+            
+            $unit_count = count($unit_results_array);
+            $max_cats = $unit_count * 20;
+            $max_assignments = $unit_count * 10;
+            $max_exam = $unit_count * 70;
+            $max_total = $unit_count * 100;
+            
+            $overall_percentage = ($max_total > 0) ? ($total_overall / $max_total) * 100 : 0;
+            $grade_color = $overall_percentage >= 70 ? '#10b981' : ($overall_percentage >= 50 ? '#f59e0b' : '#ef4444');
+            ?>
+            <div class="card">
+                <div class="card-header">📊 My Academic Results</div>
+                <div class="card-body">
+                    <div class="filter-bar">
+                        <div class="filter-group">
+                            <label>🔽 Sort Units by:</label>
+                            <select onchange="location.href='home.php?page=my_results&results_sort='+this.value">
+                                <option value="unit_asc" <?php echo $results_sort == 'unit_asc' ? 'selected' : ''; ?>>Unit Code (A-Z)</option>
+                                <option value="cat_desc" <?php echo $results_sort == 'cat_desc' ? 'selected' : ''; ?>>Highest CATs First</option>
+                                <option value="assignment_desc" <?php echo $results_sort == 'assignment_desc' ? 'selected' : ''; ?>>Highest Assignments First</option>
+                                <option value="total_desc" <?php echo $results_sort == 'total_desc' ? 'selected' : ''; ?>>Highest Total First</option>
+                                <option value="total_asc" <?php echo $results_sort == 'total_asc' ? 'selected' : ''; ?>>Lowest Total First</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Overall Summary Stats -->
+                    <div class="results-summary">
+                        <div class="result-stat">
+                            <div class="label">CATs Total</div>
+                            <div class="value"><?php echo $total_cats; ?></div>
+                            <div class="total">out of <?php echo $max_cats; ?></div>
+                        </div>
+                        <div class="result-stat">
+                            <div class="label">Assignments Total</div>
+                            <div class="value"><?php echo $total_assignments; ?></div>
+                            <div class="total">out of <?php echo $max_assignments; ?></div>
+                        </div>
+                        <div class="result-stat">
+                            <div class="label">Main Exam</div>
+                            <div class="value"><?php echo $total_exam; ?></div>
+                            <div class="total">out of <?php echo $max_exam; ?></div>
+                        </div>
+                        <div class="result-stat">
+                            <div class="label">Combined Total</div>
+                            <div class="value" style="color: <?php echo $grade_color; ?>;"><?php echo $total_overall; ?></div>
+                            <div class="total">out of <?php echo $max_total; ?></div>
+                        </div>
+                        <div class="result-stat">
+                            <div class="label">Overall Percentage</div>
+                            <div class="value" style="color: <?php echo $grade_color; ?>;"><?php echo round($overall_percentage, 1); ?>%</div>
+                            <div class="total"><?php echo $overall_percentage >= 70 ? '🌟 Excellent' : ($overall_percentage >= 50 ? '📘 Good' : '📚 Need Improvement'); ?></div>
+                        </div>
+                    </div>
+                    
+                    <?php if (count($unit_results_array) == 0): ?>
+                        <div class="no-data">
+                            <p>📭 No results available yet.</p>
+                            <p>Once your assignments and exams are graded, they will appear here.</p>
+                        </div>
+                    <?php else: ?>
+                        <div style="overflow-x: auto;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Unit Code</th>
+                                        <th>CATs (out of 20)</th>
+                                        <th>Assignments (out of 10)</th>
+                                        <th>Main Exam (out of 70)</th>
+                                        <th>Total (out of 100)</th>
+                                        <th>Grade</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach($unit_results_array as $unit): 
+                                        $total_display = $unit['cat_total'] + $unit['assignment_total'] + $unit['exam_score'];
+                                        $unit_percentage = ($total_display / 100) * 100;
+                                        $unit_grade = $unit_percentage >= 70 ? 'A' : ($unit_percentage >= 60 ? 'B' : ($unit_percentage >= 50 ? 'C' : ($unit_percentage >= 40 ? 'D' : 'F')));
+                                        $unit_grade_color = $unit_percentage >= 70 ? '#10b981' : ($unit_percentage >= 50 ? '#f59e0b' : '#ef4444');
+                                    ?>
+                                        <tr>
+                                            <td><strong><?php echo $unit['unit_code']; ?></strong></td>
+                                            <td>
+                                                <?php echo $unit['cat_total']; ?> / 20
+                                                <?php if($unit['cat_count'] > 0): ?>
+                                                    <br><small style="color:#666;">(<?php echo $unit['cat_count']; ?> CAT(s))</small>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td>
+                                                <?php echo $unit['assignment_total']; ?> / 10
+                                                <?php if($unit['assignment_count'] > 0): ?>
+                                                    <br><small style="color:#666;">(<?php echo $unit['assignment_count']; ?> assignment(s))</small>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td><?php echo $unit['exam_score']; ?> / 70</td>
+                                            <td><strong style="color: <?php echo $unit_grade_color; ?>;"><?php echo $total_display; ?> / 100</strong></td>
+                                            <td><span style="background: <?php echo $unit_grade_color; ?>; color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem;"><?php echo $unit_grade; ?> (<?php echo round($unit_percentage, 1); ?>%)</span></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
-            
-            <?php if (count($unit_results_array) == 0): ?>
-                <div class="no-data">
-                    <p>📭 No results available yet.</p>
-                    <p>Once your assignments and exams are graded, they will appear here.</p>
-                </div>
-            <?php else: ?>
-                <div style="overflow-x: auto;">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Unit Code</th>
-                                <th>CATs (out of 20)</th>
-                                <th>Assignments (out of 10)</th>
-                                <th>Main Exam (out of 70)</th>
-                                <th>Total (out of 100)</th>
-                                <th>Grade</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach($unit_results_array as $unit): 
-                                $total_display = $unit['cat_total'] + $unit['assignment_total'] + $unit['exam_score'];
-                                $unit_percentage = ($total_display / 100) * 100;
-                                $unit_grade = $unit_percentage >= 70 ? 'A' : ($unit_percentage >= 60 ? 'B' : ($unit_percentage >= 50 ? 'C' : ($unit_percentage >= 40 ? 'D' : 'F')));
-                                $unit_grade_color = $unit_percentage >= 70 ? '#10b981' : ($unit_percentage >= 50 ? '#f59e0b' : '#ef4444');
-                            ?>
-                                <tr>
-                                    <td><strong><?php echo $unit['unit_code']; ?></strong></td>
-                                    <td>
-                                        <?php echo $unit['cat_total']; ?> / 20
-                                        <?php if($unit['cat_count'] > 0): ?>
-                                            <br><small style="color:#666;">(<?php echo $unit['cat_count']; ?> CAT(s))</small>
-                                        <?php endif; ?>
-                                     </div>
-                                    <td>
-                                        <?php echo $unit['assignment_total']; ?> / 10
-                                        <?php if($unit['assignment_count'] > 0): ?>
-                                            <br><small style="color:#666;">(<?php echo $unit['assignment_count']; ?> assignment(s))</small>
-                                        <?php endif; ?>
-                                     </div>
-                                    <td><?php echo $unit['exam_score']; ?> / 70</div>
-                                    <td><strong style="color: <?php echo $unit_grade_color; ?>;"><?php echo $total_display; ?> / 100</strong></div>
-                                    <td><span style="background: <?php echo $unit_grade_color; ?>; color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem;"><?php echo $unit_grade; ?> (<?php echo round($unit_percentage, 1); ?>%)</span></div>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            <?php endif; ?>
-        </div>
-    </div>
-<?php break;
+        <?php break;
+        
         default:
             header("Location: home.php?page=dashboard");
             break;
@@ -742,6 +949,17 @@ case 'my_results':
     </div>
 </div>
 
+<!-- Text Submission Modal -->
+<div id="textSubmissionModal" class="modal">
+    <div class="modal-content" style="max-width: 700px;">
+        <h3>📝 Student's Answer</h3>
+        <div id="text_submission_content" style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 15px 0; max-height: 400px; overflow-y: auto; white-space: pre-wrap; font-family: inherit;"></div>
+        <div style="display: flex; justify-content: flex-end;">
+            <button type="button" onclick="closeTextSubmissionModal()" class="btn btn-danger">Close</button>
+        </div>
+    </div>
+</div>
+
 <!-- Chatbot Interface -->
 <div id="chat-fab" onclick="toggleChat()">💬</div>
 <div id="chat-window">
@@ -774,6 +992,15 @@ function openAssignmentModal(assignmentId, assignmentTitle) {
 
 function closeAssignmentModal() {
     document.getElementById('assignmentModal').style.display = 'none';
+}
+
+function viewTextSubmission(text) {
+    document.getElementById('text_submission_content').innerHTML = text.replace(/\n/g, '<br>');
+    document.getElementById('textSubmissionModal').style.display = 'flex';
+}
+
+function closeTextSubmissionModal() {
+    document.getElementById('textSubmissionModal').style.display = 'none';
 }
 
 // Chatbot Functions
@@ -826,6 +1053,10 @@ window.onclick = function(event) {
     const modal = document.getElementById('assignmentModal');
     if (event.target == modal) {
         modal.style.display = 'none';
+    }
+    const textModal = document.getElementById('textSubmissionModal');
+    if (event.target == textModal) {
+        textModal.style.display = 'none';
     }
 }
 </script>

@@ -59,6 +59,8 @@ $notif_count = mysqli_fetch_assoc($notif_q)['count'] ?? 0;
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Portal | Student Support Agent</title>
+   <link rel="icon" type="image/jpeg" href="../Images/logo.jpg">
+<link rel="shortcut icon" href="../Images/logo.jpg">
     <style>
         :root {
             --primary: #4f46e5;
