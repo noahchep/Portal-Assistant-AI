@@ -427,10 +427,7 @@ function determineStudentYear($conn, $reg_number) {
                 <a href="forgot_password.php">Forgot Password?</a>
             </div>
 
-            <div class="twofa-info">
-                🔐 <strong>Secure Login:</strong> Two-Factor Authentication (2FA) is enabled for Admin and Lecturer accounts for added security. 
-                <a href="#">Learn more</a>
-            </div>
+            
 
             <marquee behavior="scroll" direction="left" scrollamount="3" onmouseover="this.stop()" onmouseout="this.start()">
                 🎓 <strong>Welcome to Portal Assistant AI!</strong> — Your intelligent academic companion for success! | 

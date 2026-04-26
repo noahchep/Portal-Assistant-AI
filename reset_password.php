@@ -69,6 +69,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['reset_password']) && $
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reset Password | Portal Assistant AI</title>
+        <link rel="icon" type="image/jpeg" href="Images/logo.jpg">
+    <link rel="shortcut icon" href="Images/logo.jpg">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
         body {
@@ -163,7 +165,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['reset_password']) && $
 <body>
 <div class="reset-container">
     <div style="text-align: center; margin-bottom: 20px;">
-        <img src="../Images/logo.jpg" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover;">
+        <img src="Images/logo.jpg" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover;">
     </div>
     <h2>🔐 Reset Password</h2>
     
