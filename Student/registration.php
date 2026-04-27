@@ -4,7 +4,7 @@ session_start();
 // 1. Check if user_id exists (Are they logged in?)
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'student') {
     if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
-        header("Location: ../admin/admin_dashboard.php?error=access_denied");
+        header("Location: ../Student/Home.php?error=access_denied");
     } else {
         header("Location: ../login.php");
     }
